@@ -121,3 +121,22 @@ def test_balanced_score_combines_recall_and_precision() -> None:
     assert report.metrics["finding_type_recall"] == 1.0
     assert report.metrics["finding_type_precision"] == 0.5
     assert 0.0 < report.metrics["balanced_score"] < 1.0
+
+
+def test_sample_agent_output_scores_1_0() -> None:
+    """Sample agent output for security_lateral_movement should score perfectly."""
+    from pathlib import Path
+
+    gt_path = Path("dist/security_lateral_movement/ground_truth.json")
+    ao_path = Path("examples/evaluation/security_lateral_movement_agent_output.json")
+    assert gt_path.exists(), f"Ground truth not found: {gt_path}"
+    assert ao_path.exists(), f"Sample agent output not found: {ao_path}"
+
+    gt = GroundTruth.model_validate_json(gt_path.read_text(encoding="utf-8"))
+    ao = AgentOutput.model_validate_json(ao_path.read_text(encoding="utf-8"))
+    report = Evaluator(gt, ao).evaluate()
+
+    assert report.metrics["overall_score"] == 1.0
+    assert report.metrics["balanced_score"] == 1.0
+    assert len(report.missed_findings) == 0
+    assert len(report.extra_findings) == 0
