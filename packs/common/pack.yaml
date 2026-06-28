@@ -1,0 +1,4 @@
+id: common
+name: Common Entities
+version: "1.0"
+depends_on: []

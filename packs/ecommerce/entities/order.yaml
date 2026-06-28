@@ -1,0 +1,16 @@
+order:
+  description: A customer order.
+  fields:
+    amount:
+      type: number
+    currency:
+      type: string
+      default: CNY
+    status:
+      type: string
+      enum:
+        - created
+        - paid
+        - refunded
+  refs:
+    customer: customer

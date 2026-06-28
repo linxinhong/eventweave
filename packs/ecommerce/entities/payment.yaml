@@ -1,0 +1,21 @@
+payment:
+  description: A payment attempt.
+  fields:
+    amount:
+      type: number
+    currency:
+      type: string
+      default: CNY
+    method:
+      type: string
+      enum:
+        - alipay
+        - wechat
+        - card
+    status:
+      type: string
+      enum:
+        - success
+        - failed
+  refs:
+    order: order

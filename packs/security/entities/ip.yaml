@@ -1,0 +1,12 @@
+ip:
+  description: An IP address object.
+  fields:
+    address:
+      type: string
+      format: ipv4
+    reputation:
+      type: string
+      enum:
+        - benign
+        - suspicious
+        - malicious

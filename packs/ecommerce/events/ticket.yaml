@@ -1,0 +1,11 @@
+ticket.created:
+  description: A customer service ticket is created.
+  entity_refs:
+    customer: customer
+    order: order
+    ticket: ticket
+  fields:
+    subject:
+      type: string
+    priority:
+      type: string

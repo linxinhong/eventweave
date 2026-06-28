@@ -1,0 +1,24 @@
+rules:
+  - id: login_success_after_failed_attempts
+    type: event_after
+    description: Failed login attempts should precede successful login in attack flow.
+    attributes:
+      event: user.login.success
+      after: user.login.failed
+      scope: flow
+
+  - id: alert_must_reference_existing_host
+    type: required_entity_ref
+    description: Alert must reference an existing host.
+    attributes:
+      event: alert.triggered
+      ref: host
+
+  - id: lateral_connection_must_reference_two_hosts
+    type: required_entity_ref
+    description: Lateral connection must reference source and target hosts.
+    attributes:
+      event: network.lateral_connection
+      refs:
+        - source_host
+        - target_host

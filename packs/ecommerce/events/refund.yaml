@@ -1,0 +1,11 @@
+refund.requested:
+  description: A customer requests a refund.
+  entity_refs:
+    customer: customer
+    order: order
+    refund: refund
+  fields:
+    amount:
+      type: number
+    reason:
+      type: string

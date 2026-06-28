@@ -1,0 +1,17 @@
+user.login.failed:
+  description: A failed login attempt.
+  entity_refs:
+    user: user
+    host: host
+  fields:
+    reason:
+      type: string
+
+user.login.success:
+  description: A successful login.
+  entity_refs:
+    user: user
+    host: host
+  fields:
+    method:
+      type: string

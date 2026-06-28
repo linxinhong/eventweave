@@ -1,0 +1,922 @@
+AGENTS.md
+
+This file provides development guidance for AI coding agents working on EventWeave.
+
+Project
+
+EventWeave / 流织
+
+AI-assisted synthetic event streams from scenarios, rules, and timelines.
+Generate event flows, not just fake rows.
+
+EventWeave is a scenario-driven synthetic event stream framework. It turns scenario definitions, entity relationships, rules, timelines, and semantic context into realistic, reproducible, stream-ready mock event flows.
+
+The project is designed for:
+
+system testing
+
+product demos
+
+event pipeline testing
+
+log platform simulation
+
+AI agent evaluation
+
+security telemetry simulation
+
+e-commerce order flow simulation
+
+SaaS multi-tenant behavior simulation
+
+IoT device telemetry simulation
+
+healthcare operations event simulation
+
+EventWeave should remain general-purpose. Security operations is only one domain pack, not the whole project.
+
+Core Principles
+1. Generate event flows, not fake rows
+
+Do not design EventWeave as a simple Faker wrapper.
+
+Generated data should have:
+
+entities
+
+relationships
+
+state changes
+
+timelines
+
+rules
+
+source identities
+
+time behavior
+
+semantic context
+
+optional ground truth
+
+2. Scenario first
+
+Users should define what happens at the scenario level.
+
+Implementation should prefer:
+
+Scenario -> Entity Graph -> Rules -> Timeline -> Runtime Plan -> Event Stream
+
+over directly generating isolated records.
+
+3. AI-assisted, not AI-dependent
+
+AI can help with:
+
+scenario drafts
+
+semantic text generation
+
+rule suggestions
+
+pack scaffolding
+
+ground truth generation
+
+agent evaluation prompts
+
+AI must not be required for deterministic runtime execution.
+
+The runtime hot path must not call LLMs.
+
+4. Deterministic runtime
+
+Given the same:
+
+scenario
+
+pack versions
+
+seed
+
+runtime configuration
+
+EventWeave should produce the same runtime plan.
+
+Streaming delivery may have controlled jitter, delay, and disorder, but those should also be seed-controlled where possible.
+
+5. Core is domain-agnostic
+
+The core must not hardcode security, e-commerce, healthcare, or IoT concepts.
+
+Domain-specific logic belongs in packs.
+
+Recommended Architecture
+eventweave/
+├── eventweave/
+│   ├── core/
+│   ├── compiler/
+│   ├── ai/
+│   ├── semantic/
+│   ├── exporters/
+│   ├── runtime/
+│   ├── evaluation/
+│   └── cli/
+├── packs/
+│   ├── common/
+│   ├── ecommerce/
+│   ├── security/
+│   ├── saas/
+│   ├── iot/
+│   ├── devops/
+│   └── hospital/
+├── runtime-go/
+├── examples/
+├── docs/
+└── tests/
+Module Responsibilities
+eventweave/core
+
+Domain-agnostic data model and abstractions.
+
+Should contain:
+
+Entity
+
+Relation
+
+Event
+
+Scenario
+
+Timeline
+
+Rule
+
+Source
+
+Sink
+
+RuntimePlan
+
+GroundTruth
+
+Do not add domain-specific entities here, such as Alert, IOC, Order, Patient, or Host.
+
+Those belong in packs.
+
+eventweave/compiler
+
+Converts scenario definitions into runtime plans.
+
+Responsibilities:
+
+load YAML / JSON scenario files
+
+validate schema
+
+build entity graph
+
+apply rules
+
+plan timeline
+
+generate event plan
+
+generate semantic tasks
+
+generate ground truth skeleton
+
+emit runtime plan
+
+Compiler output should be explicit and inspectable.
+
+Recommended output:
+
+dist/<scenario>/
+├── scenario.json
+├── entities.json
+├── relations.json
+├── event_plan.jsonl
+├── sources.json
+├── semantic_tasks.json
+├── runtime_plan.json
+└── ground_truth.json
+eventweave/ai
+
+AI-assisted features.
+
+Responsibilities:
+
+natural language to scenario draft
+
+AI rule critic
+
+AI semantic sidecar
+
+pack draft generator
+
+prompt templates
+
+LLM provider abstraction
+
+Rules:
+
+AI output must be validated before use.
+
+AI output should be cached.
+
+AI features must be optional.
+
+AI should not be required for tests unless explicitly marked as integration tests.
+
+Do not put LLM calls in event runtime hot path.
+
+eventweave/semantic
+
+Semantic asset management.
+
+Responsibilities:
+
+semantic pool
+
+semantic cache
+
+semantic validators
+
+text asset review status
+
+semantic asset injection metadata
+
+Semantic assets may include:
+
+refund reasons
+
+ticket descriptions
+
+alert summaries
+
+device fault descriptions
+
+customer messages
+
+operation notes
+
+agent evaluation questions
+
+eventweave/runtime
+
+Python local runtime.
+
+Responsibilities:
+
+local development runtime
+
+low-QPS event streaming
+
+file/stdout/http sinks
+
+semantic injection
+
+time policy execution
+
+debugging and dry-run
+
+This runtime is for correctness and developer experience, not maximum throughput.
+
+runtime-go
+
+High-performance runtime.
+
+Responsibilities:
+
+high-QPS event delivery
+
+multi-source simulation
+
+rate limiting
+
+burst traffic
+
+jitter
+
+delayed arrival
+
+out-of-order delivery
+
+batch replay
+
+Kafka / HTTP / Syslog sinks
+
+metrics
+
+health check
+
+pause / resume / stop
+
+Do not duplicate compiler logic in Go unless absolutely necessary.
+
+The Go runtime should consume the runtime plan generated by Python.
+
+packs
+
+Domain-specific extensions.
+
+A pack may contain:
+
+pack.yaml
+entities/
+events/
+rules/
+semantic/
+prompts/
+encoders/
+examples/
+tests/
+
+Pack examples:
+
+common
+
+ecommerce
+
+security
+
+saas
+
+iot
+
+devops
+
+hospital
+
+Domain logic belongs in packs, not in core.
+
+eventweave/evaluation
+
+Agent evaluation and quality reports.
+
+Responsibilities:
+
+ground truth schema
+
+expected findings
+
+evaluation metrics
+
+agent output comparison
+
+quality report generation
+
+Example metrics:
+
+key event detection
+
+entity identification
+
+timeline reconstruction
+
+root cause accuracy
+
+false positive rate
+
+false negative rate
+
+explanation quality
+
+Development Workflow
+Before coding
+
+Read this file.
+
+Read docs/design.md.
+
+Check existing module boundaries.
+
+Identify whether the change belongs to:
+
+core
+
+compiler
+
+ai
+
+semantic
+
+runtime
+
+evaluation
+
+pack
+
+docs
+
+Avoid mixing unrelated concerns in one change.
+
+Preferred implementation order
+
+For new features, follow this order:
+
+1. Define data model
+2. Add schema validation
+3. Add compiler support
+4. Add tests
+5. Add example scenario
+6. Add docs
+7. Add runtime support if needed
+8. Add AI support last
+
+Do not start with AI generation before the deterministic data model is clear.
+
+Coding Rules
+General
+
+Prefer simple, explicit code.
+
+Avoid hidden global state.
+
+Keep deterministic behavior seed-controlled.
+
+Do not silently swallow validation errors.
+
+Prefer clear exceptions with actionable messages.
+
+Write code that is easy to test.
+
+Keep domain concepts out of core.
+
+Keep runtime logic out of compiler.
+
+Keep LLM calls out of runtime hot path.
+
+Python
+
+Recommended style:
+
+Python 3.11+
+
+type hints required for public functions
+
+Pydantic for schemas
+
+Typer for CLI
+
+Rich for readable CLI output
+
+orjson for large JSON/JSONL operations where useful
+
+pytest for tests
+
+Do:
+
+def compile_scenario(path: Path, seed: int | None = None) -> RuntimePlan:
+    ...
+
+Avoid:
+
+def compile(path):
+    ...
+
+Public APIs should have clear types.
+
+Go
+
+Go runtime should prioritize:
+
+clarity
+
+predictable concurrency
+
+backpressure handling
+
+graceful shutdown
+
+observability
+
+Use:
+
+context.Context
+
+worker pools where needed
+
+token bucket rate limiting
+
+structured logging
+
+Prometheus metrics where appropriate
+
+Avoid:
+
+unbounded goroutines
+
+unbounded channels
+
+hidden retries without metrics
+
+compiler logic duplication
+
+Scenario DSL Rules
+
+Scenario DSL should remain readable.
+
+Prefer this:
+
+id: ecommerce_refund_flow
+domain: ecommerce
+duration: 30m
+seed: 20260628
+
+entities:
+  customer:
+    count: 100
+
+timeline:
+  - at: "00:00:00"
+    event: order.created
+
+  - after: order.created
+    delay: "1m..5m"
+    event: order.paid
+
+Avoid overly complex DSL features unless they are necessary.
+
+The DSL should be:
+
+human-readable
+
+versionable
+
+diff-friendly
+
+easy for AI to generate
+
+easy for humans to edit
+
+Time Model Rules
+
+Do not randomly mutate timestamps without a time policy.
+
+Use explicit fields:
+
+event_time
+generated_at
+emit_time
+ingest_time
+modified_at
+delay_ms
+clock_skew
+
+Supported behavior:
+
+realtime
+
+delayed arrival
+
+out-of-order arrival
+
+batch replay
+
+state update
+
+scheduled event
+
+burst traffic
+
+background noise
+
+Time behavior should be configured through time_policy.
+
+Rule Engine Rules
+
+Rules should validate:
+
+entity references
+
+required fields
+
+enum values
+
+state transitions
+
+time ordering
+
+domain constraints
+
+semantic asset compatibility
+
+Rules should produce actionable errors.
+
+Good error:
+
+refund.requested cannot occur before order.paid for order_id=order_001.
+
+Bad error:
+
+Invalid event.
+Semantic Sidecar Rules
+
+Semantic generation should follow this flow:
+
+Scenario -> Semantic Task -> LLM -> Validation -> Semantic Pool -> Runtime Injection
+
+Semantic assets must include metadata:
+
+{
+  "id": "sem_001",
+  "domain": "ecommerce",
+  "type": "refund.reason",
+  "text": "...",
+  "valid_for": ["refund.requested", "ticket.created"],
+  "created_by": "llm",
+  "quality_score": 0.92,
+  "review_status": "approved"
+}
+
+Do not inject unvalidated LLM output into event streams.
+
+Testing Requirements
+
+Every non-trivial change should include tests.
+
+Minimum test types:
+
+Unit tests
+
+For:
+
+schema validation
+
+rule validation
+
+entity graph creation
+
+timeline planning
+
+semantic validation
+
+encoders
+
+Scenario tests
+
+For:
+
+example YAML scenarios
+
+compiler output
+
+ground truth generation
+
+pack-specific behavior
+
+Runtime tests
+
+For:
+
+rate policy
+
+time policy
+
+delayed arrival
+
+out-of-order events
+
+source scheduling
+
+sink delivery
+
+Golden tests
+
+Use golden files for stable compiler output where appropriate.
+
+If changing expected output intentionally, update golden files and explain why.
+
+CLI Expectations
+
+The CLI should be predictable and script-friendly.
+
+Expected commands:
+
+eventweave compile examples/ecommerce/refund.yaml -o dist/refund
+
+eventweave semantic generate dist/refund
+
+eventweave run dist/refund --runtime local
+
+eventweave export dist/refund --format jsonl --output ./out
+
+eventweave validate examples/ecommerce/refund.yaml
+
+eventweave inspect dist/refund/runtime_plan.json
+
+High-performance runtime:
+
+eventweave-runtime run dist/refund/runtime_plan.json
+
+eventweave-runtime run dist/security/runtime_plan.json --speed 10x
+
+eventweave-runtime run dist/security/runtime_plan.json --scale 5
+Documentation Requirements
+
+When adding or changing features, update docs when relevant.
+
+Important docs:
+
+docs/design.md
+docs/scenario-dsl.md
+docs/pack-spec.md
+docs/runtime-plan.md
+docs/time-policy.md
+docs/agent-evaluation.md
+README.md
+
+Each public feature should include:
+
+what it does
+
+why it exists
+
+minimal example
+
+CLI example if applicable
+
+limitations
+
+Examples Requirements
+
+Examples are part of the product.
+
+A good example should be:
+
+short
+
+realistic
+
+runnable
+
+documented
+
+deterministic
+
+useful for demos
+
+Recommended example domains:
+
+examples/ecommerce/refund.yaml
+examples/security/lateral_movement.yaml
+examples/saas/api_quota.yaml
+examples/iot/offline_replay.yaml
+examples/hospital/terminal_payment_failure.yaml
+examples/devops/deploy_incident.yaml
+Pack Development Rules
+
+When adding a pack:
+
+Add pack.yaml.
+
+Add entity schemas.
+
+Add event schemas.
+
+Add rules.
+
+Add semantic templates if needed.
+
+Add at least one runnable example.
+
+Add tests.
+
+Add documentation.
+
+Do not add a pack without an example.
+
+Quality Bar
+
+A feature is not complete unless:
+
+it has a clear use case
+
+it fits the architecture
+
+it has tests
+
+it has an example or documentation
+
+it does not break deterministic generation
+
+it does not introduce domain leakage into core
+
+it does not put LLM calls into the runtime hot path
+
+Security Guidelines
+
+Do not include real secrets in examples.
+
+Do not include:
+
+real API keys
+
+real tokens
+
+real passwords
+
+real private IP ownership claims
+
+real personal data
+
+real patient data
+
+real customer data
+
+Example data must be synthetic.
+
+HTTP sinks should eventually support safeguards against SSRF.
+
+File sinks should avoid writing outside the intended output directory.
+
+Commit Guidelines
+
+Prefer small, focused commits.
+
+Commit message style:
+
+feat: add timeline planner
+fix: validate relation references
+docs: add scenario DSL example
+test: add ecommerce refund golden test
+refactor: split semantic validators
+
+Avoid vague commit messages such as:
+
+update
+fix bug
+misc
+wip
+Pull Request Checklist
+
+Before submitting a PR:
+
+The change has a clear purpose.
+
+Core remains domain-agnostic.
+
+Tests were added or updated.
+
+Example scenarios still compile.
+
+Docs were updated if needed.
+
+No real secrets or personal data were added.
+
+LLM calls are not in runtime hot path.
+
+Deterministic behavior is preserved where expected.
+
+Error messages are actionable.
+
+Current Development Priority
+
+Initial development should focus on:
+
+v0.1 Scenario Compiler MVP
+
+Priority order:
+
+Core model
+
+Scenario DSL
+
+Entity graph
+
+Rule engine
+
+Timeline planner
+
+Runtime plan
+
+JSONL exporter
+
+CLI
+
+Example packs
+
+Tests
+
+Documentation
+
+Do not start with a large UI.
+
+Do not start with Go runtime before the runtime plan format is stable.
+
+Do not overbuild the AI layer before deterministic compilation works.
+
+Design Mantra
+Define the scenario.
+Weave the entities.
+Validate the rules.
+Plan the timeline.
+Generate the semantics.
+Stream the events.
+Evaluate the agents.
+
+Generate event flows, not just fake rows.

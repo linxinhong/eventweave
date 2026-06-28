@@ -1,0 +1,9 @@
+product:
+  description: A product for sale.
+  fields:
+    name:
+      type: string
+    price:
+      type: number
+    category:
+      type: string

@@ -1,0 +1,13 @@
+customer:
+  description: An e-commerce customer.
+  fields:
+    name:
+      type: string
+    email:
+      type: string
+      format: email
+    tier:
+      type: string
+      enum:
+        - regular
+        - vip

@@ -1,0 +1,5 @@
+id: ecommerce
+name: E-commerce
+version: "1.0"
+depends_on:
+  - common
