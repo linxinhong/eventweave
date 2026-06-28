@@ -1,6 +1,7 @@
 id: security_lateral_movement
 name: Lateral movement alert scenario
 domain: security
+for_each: user
 duration: 45m
 seed: 20260628
 
@@ -46,55 +47,60 @@ sources:
         address: 127.0.0.1:514
 
 timeline:
-  - at: "00:01:00"
+  - id: failed_login
+    at: "00:01:00"
     event: user.login.failed
     source: edr-001
     entity_refs:
-      user: user
-      host: host
+      user: "$flow"
+      host: "$entity.host"
     attributes:
       reason: Invalid password
 
-  - after: user.login.failed
+  - id: successful_login
+    after: failed_login
     delay: "30s..2m"
     event: user.login.success
     source: edr-001
     entity_refs:
-      user: user
-      host: host
+      user: "$ref.failed_login.user"
+      host: "$ref.failed_login.host"
     attributes:
       method: password
 
-  - after: user.login.success
+  - id: suspicious_process
+    after: successful_login
     delay: "5m..10m"
     event: process.suspicious_started
     source: edr-001
     entity_refs:
-      host: host
+      host: "$ref.successful_login.host"
     attributes:
       process_name: powershell.exe
       command_line: encoded command
 
-  - after: process.suspicious_started
+  - id: lateral_connection
+    after: suspicious_process
     delay: "1m..3m"
     event: network.lateral_connection
     source: firewall-001
     entity_refs:
-      source_host: host
-      target_host: host
-      source_ip: ip
-      target_ip: ip
+      source_host: "$ref.suspicious_process.host"
+      target_host: "$entity.host"
+      source_ip: "$entity.ip"
+      target_ip: "$entity.ip"
     attributes:
       port: 445
       protocol: tcp
 
-  - after: network.lateral_connection
+  - id: alert_triggered
+    after: lateral_connection
     delay: "1m..5m"
     event: alert.triggered
     source: edr-001
     entity_refs:
-      host: host
-      alert: alert
+      host: "$ref.lateral_connection.source_host"
+      alert: "$new.alert"
     attributes:
       severity: high
       description: Lateral movement detected

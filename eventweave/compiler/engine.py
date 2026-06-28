@@ -15,9 +15,19 @@ from eventweave.core.scenario import Scenario
 class CompileResult:
     """Result of compiling a scenario."""
 
-    def __init__(self, plan: RuntimePlan, warnings: list[str]) -> None:
+    def __init__(
+        self,
+        plan: RuntimePlan,
+        warnings: list[str],
+        errors: list[str],
+    ) -> None:
         self.plan = plan
         self.warnings = warnings
+        self.errors = errors
+
+    @property
+    def ok(self) -> bool:
+        return len(self.errors) == 0
 
 
 def compile_scenario(
@@ -26,8 +36,9 @@ def compile_scenario(
     seed: int | None = None,
 ) -> CompileResult:
     """Compile a scenario into a runtime plan with rule validation."""
+    effective_seed = seed if seed is not None else scenario.seed
     planner = ScenarioPlanner(packs_dir=packs_dir)
-    plan = planner.compile(scenario, seed=seed)
+    plan, planner_warnings = planner.compile(scenario, seed=effective_seed)
 
     registry = RuleRegistry()
     # Load rules from packs used by the scenario.
@@ -39,8 +50,9 @@ def compile_scenario(
     # Load explicit scenario rules.
     registry.load_from_scenario(scenario)
 
-    warnings = registry.validate(scenario, plan)
-    return CompileResult(plan=plan, warnings=warnings)
+    rule_warnings = registry.validate(scenario, plan)
+    all_warnings = planner_warnings + rule_warnings
+    return CompileResult(plan=plan, warnings=all_warnings, errors=[])
 
 
 def compile_scenario_file(
@@ -51,3 +63,26 @@ def compile_scenario_file(
     """Load and compile a scenario file."""
     scenario = load_scenario(path)
     return compile_scenario(scenario, packs_dir=packs_dir, seed=seed)
+
+
+def compile_scenario_strict(
+    scenario: Scenario,
+    packs_dir: str | Path | None = None,
+    seed: int | None = None,
+) -> CompileResult:
+    """Compile a scenario in strict mode: rule violations become errors."""
+    result = compile_scenario(scenario, packs_dir=packs_dir, seed=seed)
+    if result.warnings:
+        result.errors.extend(result.warnings)
+        result.warnings = []
+    return result
+
+
+def compile_scenario_file_strict(
+    path: str | Path,
+    packs_dir: str | Path | None = None,
+    seed: int | None = None,
+) -> CompileResult:
+    """Load and compile a scenario file in strict mode."""
+    scenario = load_scenario(path)
+    return compile_scenario_strict(scenario, packs_dir=packs_dir, seed=seed)

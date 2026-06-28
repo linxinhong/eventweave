@@ -1,0 +1,2 @@
+# Do not ignore golden event_plan.jsonl files used for snapshot tests.
+!*.jsonl

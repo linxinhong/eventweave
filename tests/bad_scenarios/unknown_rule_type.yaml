@@ -1,0 +1,14 @@
+id: unknown_rule_type
+domain: ecommerce
+for_each: order
+entities:
+  order:
+    count: 1
+timeline:
+  - id: create
+    event: order.created
+rules:
+  - id: bad_rule
+    type: does_not_exist
+    attributes:
+      event: order.created

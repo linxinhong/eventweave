@@ -1,0 +1,1191 @@
+{
+  "scenario": {
+    "id": "security_lateral_movement",
+    "name": "Lateral movement alert scenario",
+    "domain": "security",
+    "version": "1.0",
+    "duration": "45m",
+    "seed": 20260628,
+    "for_each": "user",
+    "entities": {
+      "user": {
+        "count": 5,
+        "type": "user",
+        "attributes": {},
+        "tags": []
+      },
+      "host": {
+        "count": 10,
+        "type": "host",
+        "attributes": {},
+        "tags": []
+      },
+      "ip": {
+        "count": 15,
+        "type": "ip",
+        "attributes": {},
+        "tags": []
+      },
+      "alert": {
+        "count": 3,
+        "type": "alert",
+        "attributes": {},
+        "tags": []
+      }
+    },
+    "sources": [
+      {
+        "id": "edr-001",
+        "type": "security_device",
+        "domain": null,
+        "role": "edr",
+        "rate": {
+          "base_qps": 300.0,
+          "burst_qps": 3000.0,
+          "jitter": 0.15
+        },
+        "time_policy": {
+          "mode": "realtime",
+          "late_arrival_ratio": 0.0,
+          "out_of_order_ratio": 0.0
+        },
+        "outputs": [
+          {
+            "type": "kafka",
+            "topic": "mock.security.edr"
+          }
+        ]
+      },
+      {
+        "id": "firewall-001",
+        "type": "security_device",
+        "domain": null,
+        "role": "firewall",
+        "rate": {
+          "base_qps": 1000.0,
+          "burst_qps": 8000.0,
+          "jitter": 0.2
+        },
+        "time_policy": {
+          "mode": "realtime",
+          "late_arrival_ratio": 0.0,
+          "out_of_order_ratio": 0.0
+        },
+        "outputs": [
+          {
+            "type": "syslog",
+            "protocol": "udp",
+            "address": "127.0.0.1:514"
+          }
+        ]
+      }
+    ],
+    "timeline": [
+      {
+        "id": "failed_login",
+        "event": "user.login.failed",
+        "source": "edr-001",
+        "at": "00:01:00",
+        "after": null,
+        "delay": null,
+        "probability": 1.0,
+        "repeat": 1,
+        "semantic": null,
+        "attributes": {
+          "reason": "Invalid password"
+        },
+        "entity_refs": {
+          "user": "$flow",
+          "host": "$entity.host"
+        },
+        "labels": [],
+        "ground_truth": {}
+      },
+      {
+        "id": "successful_login",
+        "event": "user.login.success",
+        "source": "edr-001",
+        "at": null,
+        "after": "failed_login",
+        "delay": "30s..2m",
+        "probability": 1.0,
+        "repeat": 1,
+        "semantic": null,
+        "attributes": {
+          "method": "password"
+        },
+        "entity_refs": {
+          "user": "$ref.failed_login.user",
+          "host": "$ref.failed_login.host"
+        },
+        "labels": [],
+        "ground_truth": {}
+      },
+      {
+        "id": "suspicious_process",
+        "event": "process.suspicious_started",
+        "source": "edr-001",
+        "at": null,
+        "after": "successful_login",
+        "delay": "5m..10m",
+        "probability": 1.0,
+        "repeat": 1,
+        "semantic": null,
+        "attributes": {
+          "process_name": "powershell.exe",
+          "command_line": "encoded command"
+        },
+        "entity_refs": {
+          "host": "$ref.successful_login.host"
+        },
+        "labels": [],
+        "ground_truth": {}
+      },
+      {
+        "id": "lateral_connection",
+        "event": "network.lateral_connection",
+        "source": "firewall-001",
+        "at": null,
+        "after": "suspicious_process",
+        "delay": "1m..3m",
+        "probability": 1.0,
+        "repeat": 1,
+        "semantic": null,
+        "attributes": {
+          "port": 445,
+          "protocol": "tcp"
+        },
+        "entity_refs": {
+          "source_host": "$ref.suspicious_process.host",
+          "target_host": "$entity.host",
+          "source_ip": "$entity.ip",
+          "target_ip": "$entity.ip"
+        },
+        "labels": [],
+        "ground_truth": {}
+      },
+      {
+        "id": "alert_triggered",
+        "event": "alert.triggered",
+        "source": "edr-001",
+        "at": null,
+        "after": "lateral_connection",
+        "delay": "1m..5m",
+        "probability": 1.0,
+        "repeat": 1,
+        "semantic": null,
+        "attributes": {
+          "severity": "high",
+          "description": "Lateral movement detected"
+        },
+        "entity_refs": {
+          "host": "$ref.lateral_connection.source_host",
+          "alert": "$new.alert"
+        },
+        "labels": [],
+        "ground_truth": {}
+      }
+    ],
+    "rules": [
+      {
+        "id": "login_success_after_failed_attempts",
+        "type": "event_after",
+        "event": "user.login.success",
+        "after": "user.login.failed",
+        "scope": "flow"
+      },
+      {
+        "id": "alert_must_reference_existing_host",
+        "type": "required_entity_ref",
+        "event": "alert.triggered",
+        "ref": "host"
+      },
+      {
+        "id": "lateral_connection_must_reference_two_hosts",
+        "type": "required_entity_ref",
+        "event": "network.lateral_connection",
+        "refs": [
+          "source_host",
+          "target_host"
+        ]
+      }
+    ]
+  },
+  "entities": [
+    {
+      "id": "user_001",
+      "type": "user",
+      "domain": "security",
+      "attributes": {},
+      "tags": [],
+      "created_at": "2026-06-28 05:06:12.022326+00:00"
+    },
+    {
+      "id": "user_002",
+      "type": "user",
+      "domain": "security",
+      "attributes": {},
+      "tags": [],
+      "created_at": "2026-06-28 05:06:12.022544+00:00"
+    },
+    {
+      "id": "user_003",
+      "type": "user",
+      "domain": "security",
+      "attributes": {},
+      "tags": [],
+      "created_at": "2026-06-28 05:06:12.022548+00:00"
+    },
+    {
+      "id": "user_004",
+      "type": "user",
+      "domain": "security",
+      "attributes": {},
+      "tags": [],
+      "created_at": "2026-06-28 05:06:12.022551+00:00"
+    },
+    {
+      "id": "user_005",
+      "type": "user",
+      "domain": "security",
+      "attributes": {},
+      "tags": [],
+      "created_at": "2026-06-28 05:06:12.022554+00:00"
+    },
+    {
+      "id": "host_001",
+      "type": "host",
+      "domain": "security",
+      "attributes": {},
+      "tags": [],
+      "created_at": "2026-06-28 05:06:12.022557+00:00"
+    },
+    {
+      "id": "host_002",
+      "type": "host",
+      "domain": "security",
+      "attributes": {},
+      "tags": [],
+      "created_at": "2026-06-28 05:06:12.022560+00:00"
+    },
+    {
+      "id": "host_003",
+      "type": "host",
+      "domain": "security",
+      "attributes": {},
+      "tags": [],
+      "created_at": "2026-06-28 05:06:12.022562+00:00"
+    },
+    {
+      "id": "host_004",
+      "type": "host",
+      "domain": "security",
+      "attributes": {},
+      "tags": [],
+      "created_at": "2026-06-28 05:06:12.022563+00:00"
+    },
+    {
+      "id": "host_005",
+      "type": "host",
+      "domain": "security",
+      "attributes": {},
+      "tags": [],
+      "created_at": "2026-06-28 05:06:12.022565+00:00"
+    },
+    {
+      "id": "host_006",
+      "type": "host",
+      "domain": "security",
+      "attributes": {},
+      "tags": [],
+      "created_at": "2026-06-28 05:06:12.022567+00:00"
+    },
+    {
+      "id": "host_007",
+      "type": "host",
+      "domain": "security",
+      "attributes": {},
+      "tags": [],
+      "created_at": "2026-06-28 05:06:12.022569+00:00"
+    },
+    {
+      "id": "host_008",
+      "type": "host",
+      "domain": "security",
+      "attributes": {},
+      "tags": [],
+      "created_at": "2026-06-28 05:06:12.022571+00:00"
+    },
+    {
+      "id": "host_009",
+      "type": "host",
+      "domain": "security",
+      "attributes": {},
+      "tags": [],
+      "created_at": "2026-06-28 05:06:12.022573+00:00"
+    },
+    {
+      "id": "host_010",
+      "type": "host",
+      "domain": "security",
+      "attributes": {},
+      "tags": [],
+      "created_at": "2026-06-28 05:06:12.022575+00:00"
+    },
+    {
+      "id": "ip_001",
+      "type": "ip",
+      "domain": "security",
+      "attributes": {},
+      "tags": [],
+      "created_at": "2026-06-28 05:06:12.022578+00:00"
+    },
+    {
+      "id": "ip_002",
+      "type": "ip",
+      "domain": "security",
+      "attributes": {},
+      "tags": [],
+      "created_at": "2026-06-28 05:06:12.022580+00:00"
+    },
+    {
+      "id": "ip_003",
+      "type": "ip",
+      "domain": "security",
+      "attributes": {},
+      "tags": [],
+      "created_at": "2026-06-28 05:06:12.022582+00:00"
+    },
+    {
+      "id": "ip_004",
+      "type": "ip",
+      "domain": "security",
+      "attributes": {},
+      "tags": [],
+      "created_at": "2026-06-28 05:06:12.022583+00:00"
+    },
+    {
+      "id": "ip_005",
+      "type": "ip",
+      "domain": "security",
+      "attributes": {},
+      "tags": [],
+      "created_at": "2026-06-28 05:06:12.022585+00:00"
+    },
+    {
+      "id": "ip_006",
+      "type": "ip",
+      "domain": "security",
+      "attributes": {},
+      "tags": [],
+      "created_at": "2026-06-28 05:06:12.022587+00:00"
+    },
+    {
+      "id": "ip_007",
+      "type": "ip",
+      "domain": "security",
+      "attributes": {},
+      "tags": [],
+      "created_at": "2026-06-28 05:06:12.022589+00:00"
+    },
+    {
+      "id": "ip_008",
+      "type": "ip",
+      "domain": "security",
+      "attributes": {},
+      "tags": [],
+      "created_at": "2026-06-28 05:06:12.022591+00:00"
+    },
+    {
+      "id": "ip_009",
+      "type": "ip",
+      "domain": "security",
+      "attributes": {},
+      "tags": [],
+      "created_at": "2026-06-28 05:06:12.022593+00:00"
+    },
+    {
+      "id": "ip_010",
+      "type": "ip",
+      "domain": "security",
+      "attributes": {},
+      "tags": [],
+      "created_at": "2026-06-28 05:06:12.022595+00:00"
+    },
+    {
+      "id": "ip_011",
+      "type": "ip",
+      "domain": "security",
+      "attributes": {},
+      "tags": [],
+      "created_at": "2026-06-28 05:06:12.022597+00:00"
+    },
+    {
+      "id": "ip_012",
+      "type": "ip",
+      "domain": "security",
+      "attributes": {},
+      "tags": [],
+      "created_at": "2026-06-28 05:06:12.022598+00:00"
+    },
+    {
+      "id": "ip_013",
+      "type": "ip",
+      "domain": "security",
+      "attributes": {},
+      "tags": [],
+      "created_at": "2026-06-28 05:06:12.022600+00:00"
+    },
+    {
+      "id": "ip_014",
+      "type": "ip",
+      "domain": "security",
+      "attributes": {},
+      "tags": [],
+      "created_at": "2026-06-28 05:06:12.022602+00:00"
+    },
+    {
+      "id": "ip_015",
+      "type": "ip",
+      "domain": "security",
+      "attributes": {},
+      "tags": [],
+      "created_at": "2026-06-28 05:06:12.022604+00:00"
+    },
+    {
+      "id": "alert_001",
+      "type": "alert",
+      "domain": "security",
+      "attributes": {},
+      "tags": [],
+      "created_at": "2026-06-28 05:06:12.022606+00:00"
+    },
+    {
+      "id": "alert_002",
+      "type": "alert",
+      "domain": "security",
+      "attributes": {},
+      "tags": [],
+      "created_at": "2026-06-28 05:06:12.022608+00:00"
+    },
+    {
+      "id": "alert_003",
+      "type": "alert",
+      "domain": "security",
+      "attributes": {},
+      "tags": [],
+      "created_at": "2026-06-28 05:06:12.022610+00:00"
+    },
+    {
+      "id": "alert_001",
+      "type": "alert",
+      "domain": "security",
+      "attributes": {},
+      "tags": [],
+      "created_at": "2026-06-28 05:06:12.022783+00:00"
+    },
+    {
+      "id": "alert_002",
+      "type": "alert",
+      "domain": "security",
+      "attributes": {},
+      "tags": [],
+      "created_at": "2026-06-28 05:06:12.022848+00:00"
+    },
+    {
+      "id": "alert_003",
+      "type": "alert",
+      "domain": "security",
+      "attributes": {},
+      "tags": [],
+      "created_at": "2026-06-28 05:06:12.022902+00:00"
+    },
+    {
+      "id": "alert_004",
+      "type": "alert",
+      "domain": "security",
+      "attributes": {},
+      "tags": [],
+      "created_at": "2026-06-28 05:06:12.022953+00:00"
+    },
+    {
+      "id": "alert_005",
+      "type": "alert",
+      "domain": "security",
+      "attributes": {},
+      "tags": [],
+      "created_at": "2026-06-28 05:06:12.023009+00:00"
+    }
+  ],
+  "relations": [],
+  "events": [
+    {
+      "event_id": "evt-security-lateral-movement-001-001",
+      "scenario_id": "security_lateral_movement",
+      "flow_id": "user_001",
+      "source_id": "edr-001",
+      "event_type": "user.login.failed",
+      "event_time": "2026-06-28 05:07:12.022626+00:00",
+      "generated_at": "2026-06-28 05:06:12.022688+00:00",
+      "emit_time": null,
+      "ingest_time": null,
+      "entity_refs": {
+        "flow": "user_001",
+        "user": "user_001",
+        "host": "host_006"
+      },
+      "attributes": {
+        "reason": "Invalid password"
+      },
+      "semantic_refs": [],
+      "labels": [],
+      "ground_truth": {
+        "is_key_event": true
+      }
+    },
+    {
+      "event_id": "evt-security-lateral-movement-002-001",
+      "scenario_id": "security_lateral_movement",
+      "flow_id": "user_002",
+      "source_id": "edr-001",
+      "event_type": "user.login.failed",
+      "event_time": "2026-06-28 05:07:12.022626+00:00",
+      "generated_at": "2026-06-28 05:06:12.022802+00:00",
+      "emit_time": null,
+      "ingest_time": null,
+      "entity_refs": {
+        "flow": "user_002",
+        "user": "user_002",
+        "host": "host_009"
+      },
+      "attributes": {
+        "reason": "Invalid password"
+      },
+      "semantic_refs": [],
+      "labels": [],
+      "ground_truth": {
+        "is_key_event": true
+      }
+    },
+    {
+      "event_id": "evt-security-lateral-movement-003-001",
+      "scenario_id": "security_lateral_movement",
+      "flow_id": "user_003",
+      "source_id": "edr-001",
+      "event_type": "user.login.failed",
+      "event_time": "2026-06-28 05:07:12.022626+00:00",
+      "generated_at": "2026-06-28 05:06:12.022861+00:00",
+      "emit_time": null,
+      "ingest_time": null,
+      "entity_refs": {
+        "flow": "user_003",
+        "user": "user_003",
+        "host": "host_001"
+      },
+      "attributes": {
+        "reason": "Invalid password"
+      },
+      "semantic_refs": [],
+      "labels": [],
+      "ground_truth": {
+        "is_key_event": true
+      }
+    },
+    {
+      "event_id": "evt-security-lateral-movement-004-001",
+      "scenario_id": "security_lateral_movement",
+      "flow_id": "user_004",
+      "source_id": "edr-001",
+      "event_type": "user.login.failed",
+      "event_time": "2026-06-28 05:07:12.022626+00:00",
+      "generated_at": "2026-06-28 05:06:12.022913+00:00",
+      "emit_time": null,
+      "ingest_time": null,
+      "entity_refs": {
+        "flow": "user_004",
+        "user": "user_004",
+        "host": "host_003"
+      },
+      "attributes": {
+        "reason": "Invalid password"
+      },
+      "semantic_refs": [],
+      "labels": [],
+      "ground_truth": {
+        "is_key_event": true
+      }
+    },
+    {
+      "event_id": "evt-security-lateral-movement-005-001",
+      "scenario_id": "security_lateral_movement",
+      "flow_id": "user_005",
+      "source_id": "edr-001",
+      "event_type": "user.login.failed",
+      "event_time": "2026-06-28 05:07:12.022626+00:00",
+      "generated_at": "2026-06-28 05:06:12.022969+00:00",
+      "emit_time": null,
+      "ingest_time": null,
+      "entity_refs": {
+        "flow": "user_005",
+        "user": "user_005",
+        "host": "host_003"
+      },
+      "attributes": {
+        "reason": "Invalid password"
+      },
+      "semantic_refs": [],
+      "labels": [],
+      "ground_truth": {
+        "is_key_event": true
+      }
+    },
+    {
+      "event_id": "evt-security-lateral-movement-001-002",
+      "scenario_id": "security_lateral_movement",
+      "flow_id": "user_001",
+      "source_id": "edr-001",
+      "event_type": "user.login.success",
+      "event_time": "2026-06-28 05:07:48.726289+00:00",
+      "generated_at": "2026-06-28 05:06:12.022729+00:00",
+      "emit_time": null,
+      "ingest_time": null,
+      "entity_refs": {
+        "flow": "user_001",
+        "user": "user_001",
+        "host": "host_006"
+      },
+      "attributes": {
+        "method": "password"
+      },
+      "semantic_refs": [],
+      "labels": [],
+      "ground_truth": {
+        "is_key_event": true
+      }
+    },
+    {
+      "event_id": "evt-security-lateral-movement-005-002",
+      "scenario_id": "security_lateral_movement",
+      "flow_id": "user_005",
+      "source_id": "edr-001",
+      "event_type": "user.login.success",
+      "event_time": "2026-06-28 05:07:51.795093+00:00",
+      "generated_at": "2026-06-28 05:06:12.022980+00:00",
+      "emit_time": null,
+      "ingest_time": null,
+      "entity_refs": {
+        "flow": "user_005",
+        "user": "user_005",
+        "host": "host_003"
+      },
+      "attributes": {
+        "method": "password"
+      },
+      "semantic_refs": [],
+      "labels": [],
+      "ground_truth": {
+        "is_key_event": true
+      }
+    },
+    {
+      "event_id": "evt-security-lateral-movement-002-002",
+      "scenario_id": "security_lateral_movement",
+      "flow_id": "user_002",
+      "source_id": "edr-001",
+      "event_type": "user.login.success",
+      "event_time": "2026-06-28 05:08:23.980078+00:00",
+      "generated_at": "2026-06-28 05:06:12.022815+00:00",
+      "emit_time": null,
+      "ingest_time": null,
+      "entity_refs": {
+        "flow": "user_002",
+        "user": "user_002",
+        "host": "host_009"
+      },
+      "attributes": {
+        "method": "password"
+      },
+      "semantic_refs": [],
+      "labels": [],
+      "ground_truth": {
+        "is_key_event": true
+      }
+    },
+    {
+      "event_id": "evt-security-lateral-movement-003-002",
+      "scenario_id": "security_lateral_movement",
+      "flow_id": "user_003",
+      "source_id": "edr-001",
+      "event_type": "user.login.success",
+      "event_time": "2026-06-28 05:08:40.414393+00:00",
+      "generated_at": "2026-06-28 05:06:12.022872+00:00",
+      "emit_time": null,
+      "ingest_time": null,
+      "entity_refs": {
+        "flow": "user_003",
+        "user": "user_003",
+        "host": "host_001"
+      },
+      "attributes": {
+        "method": "password"
+      },
+      "semantic_refs": [],
+      "labels": [],
+      "ground_truth": {
+        "is_key_event": true
+      }
+    },
+    {
+      "event_id": "evt-security-lateral-movement-004-002",
+      "scenario_id": "security_lateral_movement",
+      "flow_id": "user_004",
+      "source_id": "edr-001",
+      "event_type": "user.login.success",
+      "event_time": "2026-06-28 05:08:56.704853+00:00",
+      "generated_at": "2026-06-28 05:06:12.022923+00:00",
+      "emit_time": null,
+      "ingest_time": null,
+      "entity_refs": {
+        "flow": "user_004",
+        "user": "user_004",
+        "host": "host_003"
+      },
+      "attributes": {
+        "method": "password"
+      },
+      "semantic_refs": [],
+      "labels": [],
+      "ground_truth": {
+        "is_key_event": true
+      }
+    },
+    {
+      "event_id": "evt-security-lateral-movement-002-003",
+      "scenario_id": "security_lateral_movement",
+      "flow_id": "user_002",
+      "source_id": "edr-001",
+      "event_type": "process.suspicious_started",
+      "event_time": "2026-06-28 05:13:29.215286+00:00",
+      "generated_at": "2026-06-28 05:06:12.022826+00:00",
+      "emit_time": null,
+      "ingest_time": null,
+      "entity_refs": {
+        "flow": "user_002",
+        "host": "host_009"
+      },
+      "attributes": {
+        "process_name": "powershell.exe",
+        "command_line": "encoded command"
+      },
+      "semantic_refs": [],
+      "labels": [],
+      "ground_truth": {
+        "is_key_event": true
+      }
+    },
+    {
+      "event_id": "evt-security-lateral-movement-003-003",
+      "scenario_id": "security_lateral_movement",
+      "flow_id": "user_003",
+      "source_id": "edr-001",
+      "event_type": "process.suspicious_started",
+      "event_time": "2026-06-28 05:14:02.047436+00:00",
+      "generated_at": "2026-06-28 05:06:12.022882+00:00",
+      "emit_time": null,
+      "ingest_time": null,
+      "entity_refs": {
+        "flow": "user_003",
+        "host": "host_001"
+      },
+      "attributes": {
+        "process_name": "powershell.exe",
+        "command_line": "encoded command"
+      },
+      "semantic_refs": [],
+      "labels": [],
+      "ground_truth": {
+        "is_key_event": true
+      }
+    },
+    {
+      "event_id": "evt-security-lateral-movement-001-003",
+      "scenario_id": "security_lateral_movement",
+      "flow_id": "user_001",
+      "source_id": "edr-001",
+      "event_type": "process.suspicious_started",
+      "event_time": "2026-06-28 05:16:10.892628+00:00",
+      "generated_at": "2026-06-28 05:06:12.022750+00:00",
+      "emit_time": null,
+      "ingest_time": null,
+      "entity_refs": {
+        "flow": "user_001",
+        "host": "host_006"
+      },
+      "attributes": {
+        "process_name": "powershell.exe",
+        "command_line": "encoded command"
+      },
+      "semantic_refs": [],
+      "labels": [],
+      "ground_truth": {
+        "is_key_event": true
+      }
+    },
+    {
+      "event_id": "evt-security-lateral-movement-002-004",
+      "scenario_id": "security_lateral_movement",
+      "flow_id": "user_002",
+      "source_id": "firewall-001",
+      "event_type": "network.lateral_connection",
+      "event_time": "2026-06-28 05:16:23.402177+00:00",
+      "generated_at": "2026-06-28 05:06:12.022837+00:00",
+      "emit_time": null,
+      "ingest_time": null,
+      "entity_refs": {
+        "flow": "user_002",
+        "source_host": "host_009",
+        "target_host": "host_002",
+        "source_ip": "ip_013",
+        "target_ip": "ip_004"
+      },
+      "attributes": {
+        "port": 445,
+        "protocol": "tcp"
+      },
+      "semantic_refs": [],
+      "labels": [],
+      "ground_truth": {
+        "is_key_event": true
+      }
+    },
+    {
+      "event_id": "evt-security-lateral-movement-003-004",
+      "scenario_id": "security_lateral_movement",
+      "flow_id": "user_003",
+      "source_id": "firewall-001",
+      "event_type": "network.lateral_connection",
+      "event_time": "2026-06-28 05:16:58.526201+00:00",
+      "generated_at": "2026-06-28 05:06:12.022893+00:00",
+      "emit_time": null,
+      "ingest_time": null,
+      "entity_refs": {
+        "flow": "user_003",
+        "source_host": "host_001",
+        "target_host": "host_008",
+        "source_ip": "ip_004",
+        "target_ip": "ip_001"
+      },
+      "attributes": {
+        "port": 445,
+        "protocol": "tcp"
+      },
+      "semantic_refs": [],
+      "labels": [],
+      "ground_truth": {
+        "is_key_event": true
+      }
+    },
+    {
+      "event_id": "evt-security-lateral-movement-004-003",
+      "scenario_id": "security_lateral_movement",
+      "flow_id": "user_004",
+      "source_id": "edr-001",
+      "event_type": "process.suspicious_started",
+      "event_time": "2026-06-28 05:17:11.501491+00:00",
+      "generated_at": "2026-06-28 05:06:12.022933+00:00",
+      "emit_time": null,
+      "ingest_time": null,
+      "entity_refs": {
+        "flow": "user_004",
+        "host": "host_003"
+      },
+      "attributes": {
+        "process_name": "powershell.exe",
+        "command_line": "encoded command"
+      },
+      "semantic_refs": [],
+      "labels": [],
+      "ground_truth": {
+        "is_key_event": true
+      }
+    },
+    {
+      "event_id": "evt-security-lateral-movement-005-003",
+      "scenario_id": "security_lateral_movement",
+      "flow_id": "user_005",
+      "source_id": "edr-001",
+      "event_type": "process.suspicious_started",
+      "event_time": "2026-06-28 05:17:18.811260+00:00",
+      "generated_at": "2026-06-28 05:06:12.022989+00:00",
+      "emit_time": null,
+      "ingest_time": null,
+      "entity_refs": {
+        "flow": "user_005",
+        "host": "host_003"
+      },
+      "attributes": {
+        "process_name": "powershell.exe",
+        "command_line": "encoded command"
+      },
+      "semantic_refs": [],
+      "labels": [],
+      "ground_truth": {
+        "is_key_event": true
+      }
+    },
+    {
+      "event_id": "evt-security-lateral-movement-001-004",
+      "scenario_id": "security_lateral_movement",
+      "flow_id": "user_001",
+      "source_id": "firewall-001",
+      "event_type": "network.lateral_connection",
+      "event_time": "2026-06-28 05:17:57.616334+00:00",
+      "generated_at": "2026-06-28 05:06:12.022769+00:00",
+      "emit_time": null,
+      "ingest_time": null,
+      "entity_refs": {
+        "flow": "user_001",
+        "source_host": "host_006",
+        "target_host": "host_001",
+        "source_ip": "ip_001",
+        "target_ip": "ip_015"
+      },
+      "attributes": {
+        "port": 445,
+        "protocol": "tcp"
+      },
+      "semantic_refs": [],
+      "labels": [],
+      "ground_truth": {
+        "is_key_event": true
+      }
+    },
+    {
+      "event_id": "evt-security-lateral-movement-003-005",
+      "scenario_id": "security_lateral_movement",
+      "flow_id": "user_003",
+      "source_id": "edr-001",
+      "event_type": "alert.triggered",
+      "event_time": "2026-06-28 05:18:27.285246+00:00",
+      "generated_at": "2026-06-28 05:06:12.022905+00:00",
+      "emit_time": null,
+      "ingest_time": null,
+      "entity_refs": {
+        "flow": "user_003",
+        "host": "host_001",
+        "alert": "alert_003"
+      },
+      "attributes": {
+        "severity": "high",
+        "description": "Lateral movement detected"
+      },
+      "semantic_refs": [],
+      "labels": [],
+      "ground_truth": {
+        "is_key_event": true
+      }
+    },
+    {
+      "event_id": "evt-security-lateral-movement-005-004",
+      "scenario_id": "security_lateral_movement",
+      "flow_id": "user_005",
+      "source_id": "firewall-001",
+      "event_type": "network.lateral_connection",
+      "event_time": "2026-06-28 05:19:38.414087+00:00",
+      "generated_at": "2026-06-28 05:06:12.023000+00:00",
+      "emit_time": null,
+      "ingest_time": null,
+      "entity_refs": {
+        "flow": "user_005",
+        "source_host": "host_003",
+        "target_host": "host_004",
+        "source_ip": "ip_015",
+        "target_ip": "ip_003"
+      },
+      "attributes": {
+        "port": 445,
+        "protocol": "tcp"
+      },
+      "semantic_refs": [],
+      "labels": [],
+      "ground_truth": {
+        "is_key_event": true
+      }
+    },
+    {
+      "event_id": "evt-security-lateral-movement-004-004",
+      "scenario_id": "security_lateral_movement",
+      "flow_id": "user_004",
+      "source_id": "firewall-001",
+      "event_type": "network.lateral_connection",
+      "event_time": "2026-06-28 05:19:46.061624+00:00",
+      "generated_at": "2026-06-28 05:06:12.022944+00:00",
+      "emit_time": null,
+      "ingest_time": null,
+      "entity_refs": {
+        "flow": "user_004",
+        "source_host": "host_003",
+        "target_host": "host_009",
+        "source_ip": "ip_005",
+        "target_ip": "ip_012"
+      },
+      "attributes": {
+        "port": 445,
+        "protocol": "tcp"
+      },
+      "semantic_refs": [],
+      "labels": [],
+      "ground_truth": {
+        "is_key_event": true
+      }
+    },
+    {
+      "event_id": "evt-security-lateral-movement-002-005",
+      "scenario_id": "security_lateral_movement",
+      "flow_id": "user_002",
+      "source_id": "edr-001",
+      "event_type": "alert.triggered",
+      "event_time": "2026-06-28 05:20:18.861038+00:00",
+      "generated_at": "2026-06-28 05:06:12.022852+00:00",
+      "emit_time": null,
+      "ingest_time": null,
+      "entity_refs": {
+        "flow": "user_002",
+        "host": "host_009",
+        "alert": "alert_002"
+      },
+      "attributes": {
+        "severity": "high",
+        "description": "Lateral movement detected"
+      },
+      "semantic_refs": [],
+      "labels": [],
+      "ground_truth": {
+        "is_key_event": true
+      }
+    },
+    {
+      "event_id": "evt-security-lateral-movement-001-005",
+      "scenario_id": "security_lateral_movement",
+      "flow_id": "user_001",
+      "source_id": "edr-001",
+      "event_type": "alert.triggered",
+      "event_time": "2026-06-28 05:21:21.146834+00:00",
+      "generated_at": "2026-06-28 05:06:12.022788+00:00",
+      "emit_time": null,
+      "ingest_time": null,
+      "entity_refs": {
+        "flow": "user_001",
+        "host": "host_006",
+        "alert": "alert_001"
+      },
+      "attributes": {
+        "severity": "high",
+        "description": "Lateral movement detected"
+      },
+      "semantic_refs": [],
+      "labels": [],
+      "ground_truth": {
+        "is_key_event": true
+      }
+    },
+    {
+      "event_id": "evt-security-lateral-movement-005-005",
+      "scenario_id": "security_lateral_movement",
+      "flow_id": "user_005",
+      "source_id": "edr-001",
+      "event_type": "alert.triggered",
+      "event_time": "2026-06-28 05:21:28.115889+00:00",
+      "generated_at": "2026-06-28 05:06:12.023012+00:00",
+      "emit_time": null,
+      "ingest_time": null,
+      "entity_refs": {
+        "flow": "user_005",
+        "host": "host_003",
+        "alert": "alert_005"
+      },
+      "attributes": {
+        "severity": "high",
+        "description": "Lateral movement detected"
+      },
+      "semantic_refs": [],
+      "labels": [],
+      "ground_truth": {
+        "is_key_event": true
+      }
+    },
+    {
+      "event_id": "evt-security-lateral-movement-004-005",
+      "scenario_id": "security_lateral_movement",
+      "flow_id": "user_004",
+      "source_id": "edr-001",
+      "event_type": "alert.triggered",
+      "event_time": "2026-06-28 05:21:49.929028+00:00",
+      "generated_at": "2026-06-28 05:06:12.022960+00:00",
+      "emit_time": null,
+      "ingest_time": null,
+      "entity_refs": {
+        "flow": "user_004",
+        "host": "host_003",
+        "alert": "alert_004"
+      },
+      "attributes": {
+        "severity": "high",
+        "description": "Lateral movement detected"
+      },
+      "semantic_refs": [],
+      "labels": [],
+      "ground_truth": {
+        "is_key_event": true
+      }
+    }
+  ],
+  "sources": [
+    {
+      "id": "edr-001",
+      "type": "security_device",
+      "domain": null,
+      "role": "edr",
+      "rate": {
+        "base_qps": 300.0,
+        "burst_qps": 3000.0,
+        "jitter": 0.15
+      },
+      "time_policy": {
+        "mode": "realtime",
+        "late_arrival_ratio": 0.0,
+        "out_of_order_ratio": 0.0
+      },
+      "outputs": [
+        {
+          "type": "kafka",
+          "topic": "mock.security.edr"
+        }
+      ]
+    },
+    {
+      "id": "firewall-001",
+      "type": "security_device",
+      "domain": null,
+      "role": "firewall",
+      "rate": {
+        "base_qps": 1000.0,
+        "burst_qps": 8000.0,
+        "jitter": 0.2
+      },
+      "time_policy": {
+        "mode": "realtime",
+        "late_arrival_ratio": 0.0,
+        "out_of_order_ratio": 0.0
+      },
+      "outputs": [
+        {
+          "type": "syslog",
+          "protocol": "udp",
+          "address": "127.0.0.1:514"
+        }
+      ]
+    }
+  ],
+  "generated_at": "2026-06-28 05:06:12.023032+00:00"
+}

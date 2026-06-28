@@ -1,0 +1,47 @@
+[
+  {
+    "id": "edr-001",
+    "type": "security_device",
+    "domain": null,
+    "role": "edr",
+    "rate": {
+      "base_qps": 300.0,
+      "burst_qps": 3000.0,
+      "jitter": 0.15
+    },
+    "time_policy": {
+      "mode": "realtime",
+      "late_arrival_ratio": 0.0,
+      "out_of_order_ratio": 0.0
+    },
+    "outputs": [
+      {
+        "type": "kafka",
+        "topic": "mock.security.edr"
+      }
+    ]
+  },
+  {
+    "id": "firewall-001",
+    "type": "security_device",
+    "domain": null,
+    "role": "firewall",
+    "rate": {
+      "base_qps": 1000.0,
+      "burst_qps": 8000.0,
+      "jitter": 0.2
+    },
+    "time_policy": {
+      "mode": "realtime",
+      "late_arrival_ratio": 0.0,
+      "out_of_order_ratio": 0.0
+    },
+    "outputs": [
+      {
+        "type": "syslog",
+        "protocol": "udp",
+        "address": "127.0.0.1:514"
+      }
+    ]
+  }
+]

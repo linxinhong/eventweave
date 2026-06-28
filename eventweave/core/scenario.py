@@ -28,6 +28,11 @@ class Scenario(BaseModel):
     version: str = Field(default="1.0")
     duration: str = Field(default="1h")
     seed: int | None = None
+    for_each: str | None = Field(
+        default=None,
+        description="Primary entity type that defines a flow. "
+        "If unset, inferred from the first timeline event type.",
+    )
     entities: dict[str, EntityTemplate] = Field(default_factory=dict)
     sources: list[Source] = Field(default_factory=list)
     timeline: list[TimelineItem] = Field(default_factory=list)

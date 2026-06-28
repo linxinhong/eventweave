@@ -1,0 +1,21 @@
+id: rule_violation
+domain: ecommerce
+for_each: order
+entities:
+  order:
+    count: 1
+  refund:
+    count: 1
+timeline:
+  - id: request_refund
+    at: "00:00:00"
+    event: refund.requested
+    entity_refs:
+      order: "$flow"
+      refund: "$new.refund"
+rules:
+  - id: order_must_be_paid_before_refund
+    type: event_after
+    event: refund.requested
+    after: order.paid
+    scope: order
