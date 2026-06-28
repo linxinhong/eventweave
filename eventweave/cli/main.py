@@ -89,7 +89,7 @@ def compile(
     # Use scenario id as output subdirectory.
     output_dir = output / result.plan.scenario.id
     writer = PlanWriter(output_dir)
-    written = writer.write(result.plan)
+    written = writer.write(result.plan, semantic_tasks=result.semantic_tasks)
 
     console.print(f"[green]Compiled {result.plan.scenario.id!r}[/green]")
     console.print(f"Output: {output_dir}")

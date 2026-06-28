@@ -8,8 +8,10 @@ from eventweave.compiler.loader import load_scenario
 from eventweave.compiler.pack_loader import PackRegistry
 from eventweave.compiler.planner import ScenarioPlanner
 from eventweave.compiler.rules import RuleRegistry
+from eventweave.compiler.semantic_task_builder import build_semantic_tasks
 from eventweave.core.runtime_plan import RuntimePlan
 from eventweave.core.scenario import Scenario
+from eventweave.core.semantic import SemanticTask
 
 
 class CompileResult:
@@ -18,10 +20,12 @@ class CompileResult:
     def __init__(
         self,
         plan: RuntimePlan,
+        semantic_tasks: list[SemanticTask],
         warnings: list[str],
         errors: list[str],
     ) -> None:
         self.plan = plan
+        self.semantic_tasks = semantic_tasks
         self.warnings = warnings
         self.errors = errors
 
@@ -40,6 +44,8 @@ def compile_scenario(
     planner = ScenarioPlanner(packs_dir=packs_dir)
     plan, planner_warnings = planner.compile(scenario, seed=effective_seed)
 
+    semantic_tasks = build_semantic_tasks(scenario)
+
     registry = RuleRegistry()
     # Load rules from packs used by the scenario.
     pack_registry = PackRegistry(packs_dir=packs_dir)
@@ -52,7 +58,12 @@ def compile_scenario(
 
     rule_warnings = registry.validate(scenario, plan)
     all_warnings = planner_warnings + rule_warnings
-    return CompileResult(plan=plan, warnings=all_warnings, errors=[])
+    return CompileResult(
+        plan=plan,
+        semantic_tasks=semantic_tasks,
+        warnings=all_warnings,
+        errors=[],
+    )
 
 
 def compile_scenario_file(

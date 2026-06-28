@@ -6,6 +6,7 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
+from eventweave.core.semantic import SemanticTask
 from eventweave.core.source import Source
 from eventweave.core.timeline import TimelineItem
 
@@ -36,4 +37,5 @@ class Scenario(BaseModel):
     entities: dict[str, EntityTemplate] = Field(default_factory=dict)
     sources: list[Source] = Field(default_factory=list)
     timeline: list[TimelineItem] = Field(default_factory=list)
+    semantic_tasks: list[SemanticTask] = Field(default_factory=list)
     rules: list[str | dict[str, Any]] = Field(default_factory=list)

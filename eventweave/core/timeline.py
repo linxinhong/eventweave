@@ -6,6 +6,8 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
+from eventweave.core.semantic import SemanticTaskSpec
+
 
 class TimelineItem(BaseModel):
     """A single item in a scenario-level timeline template."""
@@ -30,7 +32,7 @@ class TimelineItem(BaseModel):
     )
     probability: float = Field(default=1.0, ge=0, le=1)
     repeat: int = Field(default=1, ge=1)
-    semantic: dict[str, Any] | None = Field(default=None)
+    semantic: SemanticTaskSpec | None = Field(default=None)
     attributes: dict[str, Any] = Field(default_factory=dict)
     entity_refs: dict[str, str] = Field(default_factory=dict)
     labels: list[str] = Field(default_factory=list)

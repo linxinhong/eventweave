@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Any
 
 from eventweave.core.runtime_plan import RuntimePlan
+from eventweave.core.semantic import SemanticTask
 
 
 class PlanWriter:
@@ -15,7 +16,11 @@ class PlanWriter:
     def __init__(self, output_dir: str | Path) -> None:
         self.output_dir = Path(output_dir)
 
-    def write(self, plan: RuntimePlan) -> dict[str, Path]:
+    def write(
+        self,
+        plan: RuntimePlan,
+        semantic_tasks: list[SemanticTask] | None = None,
+    ) -> dict[str, Path]:
         self.output_dir.mkdir(parents=True, exist_ok=True)
         written: dict[str, Path] = {}
 
@@ -30,6 +35,12 @@ class PlanWriter:
             "sources.json", [s.model_dump() for s in plan.sources]
         )
         written["runtime_plan"] = self._write_json("runtime_plan.json", plan.model_dump())
+
+        semantic_tasks = semantic_tasks or []
+        written["semantic_tasks"] = self._write_json(
+            "semantic_tasks.json",
+            [t.model_dump() for t in semantic_tasks],
+        )
 
         event_plan_path = self.output_dir / "event_plan.jsonl"
         with event_plan_path.open("w", encoding="utf-8") as f:
