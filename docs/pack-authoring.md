@@ -16,7 +16,34 @@ It defines:
 Packs make EventWeave reusable across domains such as e-commerce, security,
 IoT, SaaS, and healthcare.
 
-## Create a new pack
+## Scaffold a new pack
+
+The fastest way to start is the scaffold command:
+
+```bash
+eventweave pack scaffold mydomain
+eventweave pack validate mydomain
+eventweave compile packs/mydomain/examples/basic.yaml -o dist
+```
+
+This creates `packs/mydomain/` with a minimal but runnable skeleton:
+
+```text
+packs/mydomain/
+├── pack.yaml
+├── entities/
+│   └── thing.yaml
+├── events/
+│   └── thing.yaml
+├── rules.yaml
+├── semantic/
+└── examples/
+    └── basic.yaml
+```
+
+Use `--force` to overwrite an existing directory.
+
+## Create a new pack manually
 
 ```bash
 cd packs

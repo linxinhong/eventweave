@@ -90,6 +90,11 @@ eventweave pack list
 eventweave pack inspect ecommerce
 eventweave pack validate ecommerce
 
+# Scaffold a new domain pack
+eventweave pack scaffold mydomain
+eventweave pack validate mydomain
+eventweave compile packs/mydomain/examples/basic.yaml -o dist
+
 # Or use the high-performance Go runtime
 cd runtime-go
 go run ./cmd/eventweave-runtime run ../dist/ecommerce_refund_flow_semantic \
@@ -271,7 +276,7 @@ The matching event in `event_plan.jsonl` now references the concrete asset id:
 
 ## Project status
 
-Current version: **v0.5.0** — Pack Ecosystem
+Current version: **v0.5.1** — Pack Scaffold
 
 What works:
 
@@ -300,10 +305,10 @@ What works:
 - Pack ecosystem with `eventweave pack list / inspect / validate`
 - Formal pack manifest, local registry, and pack validation
 - Self-contained pack examples under `packs/<domain>/examples/`
+- `eventweave pack scaffold` for quick pack creation
 
 What is planned:
 
-- v0.5.1: Pack scaffold command
 - v0.5.2: OpenAI-compatible Provider
 - v0.6: Agent Evaluation Harness
 - v0.6.x: Prometheus metrics and Kafka batching

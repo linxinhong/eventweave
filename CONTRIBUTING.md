@@ -71,7 +71,13 @@ Before submitting a PR:
 
 ## Adding a domain pack
 
-Packs live in `packs/<domain>/`. A minimal pack needs:
+Packs live in `packs/<domain>/`. The fastest way to start is:
+
+```bash
+eventweave pack scaffold <domain>
+```
+
+A minimal pack needs:
 
 ```text
 packs/<domain>/
