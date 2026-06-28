@@ -127,6 +127,16 @@ go run ./cmd/eventweave-runtime run ../dist/ecommerce_refund_flow_semantic \
   --sink file --output ../out/events.jsonl --no-wait \
   --stats-json ../out/stats.json
 
+# Go runtime: serve events over multiple protocol endpoints
+cd runtime-go
+go run ./cmd/eventweave-runtime serve ../dist/security_lateral_movement \
+  --server-config ../examples/runtime/security_multi_source.yaml \
+  --limit 100
+# In another terminal:
+# curl http://127.0.0.1:8081/events
+# nc -l 127.0.0.1 5515  # for syslog_tcp
+# nc -u -l 127.0.0.1 5514  # for syslog_udp (send any packet first)
+
 # Compile a scenario with ground truth and evaluate a sample agent output
 eventweave compile examples/security/lateral_movement.yaml -o dist
 eventweave eval task dist/security_lateral_movement -o dist/security_lateral_movement/eval/task.json
@@ -291,7 +301,7 @@ The matching event in `event_plan.jsonl` now references the concrete asset id:
 
 ## Project status
 
-Current version: **v0.6.1** — Evaluation Polish
+Current version: **v0.6.2** — Multi-source / Multi-port Runtime Server
 
 What works:
 
@@ -327,10 +337,12 @@ What works:
   deterministic evaluator, and `eventweave eval task / run`
 - v0.6.1: Precision metrics, `matched/missed/extra` finding details,
   `eventweave eval validate-output`, and sample agent output
+- v0.6.2: Multi-source / multi-port Go runtime server with HTTP and Syslog
+  endpoints via `eventweave-runtime serve`
 
 What is planned:
 
-- v0.7: Dataset Suites / Benchmark Packs
+- v0.7.0: Dataset Suites / Benchmark Packs
 - v0.7.x: Prometheus metrics and Kafka batching
 
 ## Pack Ecosystem

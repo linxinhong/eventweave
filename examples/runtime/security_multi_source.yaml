@@ -1,0 +1,22 @@
+servers:
+  - id: edr_syslog_tcp
+    protocol: syslog_tcp
+    bind: 127.0.0.1
+    port: 5515
+    source_filter:
+      source_id: edr-001
+
+  - id: firewall_syslog_udp
+    protocol: syslog_udp
+    bind: 127.0.0.1
+    port: 5514
+    source_filter:
+      source_id: firewall-001
+
+  - id: edr_http
+    protocol: http
+    bind: 127.0.0.1
+    port: 8081
+    path: /events
+    source_filter:
+      source_id: edr-001

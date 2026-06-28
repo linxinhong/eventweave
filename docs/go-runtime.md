@@ -132,6 +132,27 @@ Benchmark throughput. Defaults to `--sink null` and `--no-wait` unless you
 explicitly set `--sink`, `--rate`, or `--speed`. Output is a concise benchmark
 summary including events, duration, and throughput.
 
+### `serve`
+
+Start a multi-source, multi-port server. Each endpoint is configured in a YAML
+file and can filter events by `source_id` or `event_type`.
+
+```bash
+eventweave-runtime serve dist/security_lateral_movement \
+  --server-config examples/runtime/security_multi_source.yaml \
+  --limit 1000
+```
+
+Supported protocols per endpoint:
+
+- `http` — `GET /events` returns a stream of SSE `data:` frames.
+- `syslog_tcp` — accepts TCP connections and pushes RFC3164-like messages.
+- `syslog_udp` — listens on UDP; forwards messages to clients after they send
+  a registration datagram.
+
+See [docs/multi-source-runtime.md](multi-source-runtime.md) for the full
+configuration reference.
+
 ## Sinks
 
 v0.4.2 ships with six sinks:
