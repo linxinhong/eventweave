@@ -85,6 +85,11 @@ python examples/receivers/http_receiver.py &
 eventweave run dist/ecommerce_refund_flow_semantic \
   --sink http --url http://127.0.0.1:8080/events --no-wait
 
+# Or use the high-performance Go runtime
+cd runtime-go
+go run ./cmd/eventweave-runtime run ../dist/ecommerce_refund_flow_semantic \
+  --sink file --output ../out/events.jsonl --no-wait
+
 # Export events as JSONL
 eventweave export dist/ecommerce_refund_flow --format jsonl --output out/events.jsonl
 ```
@@ -240,7 +245,7 @@ The matching event in `event_plan.jsonl` now references the concrete asset id:
 
 ## Project status
 
-Current version: **v0.3** — Python Local Runtime
+Current version: **v0.4** — Go High-Performance Runtime MVP
 
 What works:
 
@@ -256,14 +261,16 @@ What works:
 - File-based semantic asset cache and validator
 - CLI `semantic generate` and `semantic inspect`
 - Placeholder `semantic_refs` resolved to concrete asset ids in `event_plan.jsonl`
-- Python Local Runtime with `stdout`, `file`, and `null` sinks
-- Time acceleration (`--speed`) and immediate replay (`--no-wait`)
+- Python Local Runtime with `stdout`, `file`, `http`, and `null` sinks
+- Time acceleration (`--speed`), immediate replay (`--no-wait`), and `--limit`
 - Runtime stats and unresolved semantic ref warnings
+- Go runtime MVP in `runtime-go/` with compatible CLI and sinks
+- Go runtime reads the same `event_plan.jsonl` produced by Python compiler
 
 What is planned:
 
-- v0.3.1: Semantic refs polish and asset-level resolution improvements
-- v0.4: Go High-Performance Runtime
+- v0.4.1: Kafka / Syslog sinks for Go runtime
+- v0.4.2: Prometheus metrics and basic backpressure
 - v0.5: Pack Ecosystem
 - v0.6: Agent Evaluation Harness
 

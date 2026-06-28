@@ -40,3 +40,30 @@ jobs:
 
       - name: Run pytest
         run: uv run pytest -q
+
+  go-runtime:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        go-version: ["1.22", "1.23"]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Go ${{ matrix.go-version }}
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ matrix.go-version }}
+
+      - name: Build Go runtime
+        working-directory: ./runtime-go
+        run: go build ./...
+
+      - name: Vet Go runtime
+        working-directory: ./runtime-go
+        run: go vet ./...
+
+      - name: Test Go runtime
+        working-directory: ./runtime-go
+        run: go test ./...
