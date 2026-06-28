@@ -36,12 +36,16 @@ func (s *RuntimeStats) Duration() time.Duration {
 }
 
 // Print outputs the stats in a human-readable format.
-func (s *RuntimeStats) Print(sinkName string) {
+func (s *RuntimeStats) Print(sinkName, target string) {
 	fmt.Println("Runtime finished")
 	fmt.Printf("Events emitted: %d\n", s.Emitted)
 	if s.Failed > 0 {
 		fmt.Printf("Events failed: %d\n", s.Failed)
 	}
 	fmt.Printf("Duration: %.3fs\n", s.Duration().Seconds())
-	fmt.Printf("Sink: %s\n", sinkName)
+	fmt.Printf("Sink: %s", sinkName)
+	if target != "" && target != sinkName {
+		fmt.Printf(" (%s)", target)
+	}
+	fmt.Println()
 }

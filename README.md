@@ -90,6 +90,14 @@ cd runtime-go
 go run ./cmd/eventweave-runtime run ../dist/ecommerce_refund_flow_semantic \
   --sink file --output ../out/events.jsonl --no-wait
 
+# Go runtime: stream to Kafka
+go run ./cmd/eventweave-runtime run ../dist/ecommerce_refund_flow_semantic \
+  --sink kafka --brokers localhost:9092 --topic events --no-wait
+
+# Go runtime: stream to Syslog
+go run ./cmd/eventweave-runtime run ../dist/ecommerce_refund_flow_semantic \
+  --sink syslog --syslog-addr 127.0.0.1:514 --syslog-proto udp --no-wait
+
 # Export events as JSONL
 eventweave export dist/ecommerce_refund_flow --format jsonl --output out/events.jsonl
 ```
@@ -245,7 +253,7 @@ The matching event in `event_plan.jsonl` now references the concrete asset id:
 
 ## Project status
 
-Current version: **v0.4** — Go High-Performance Runtime MVP
+Current version: **v0.4.1** — Kafka / Syslog Sinks for Go Runtime
 
 What works:
 
@@ -266,10 +274,11 @@ What works:
 - Runtime stats and unresolved semantic ref warnings
 - Go runtime MVP in `runtime-go/` with compatible CLI and sinks
 - Go runtime reads the same `event_plan.jsonl` produced by Python compiler
+- Go runtime Kafka sink with configurable brokers, topic, and message key
+- Go runtime Syslog sink over UDP/TCP with configurable facility, severity, and tag
 
 What is planned:
 
-- v0.4.1: Kafka / Syslog sinks for Go runtime
 - v0.4.2: Prometheus metrics and basic backpressure
 - v0.5: Pack Ecosystem
 - v0.6: Agent Evaluation Harness

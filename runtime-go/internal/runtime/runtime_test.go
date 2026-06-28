@@ -89,3 +89,41 @@ func TestLocalRuntimeWarnsUnresolvedRefs(t *testing.T) {
 		t.Fatalf("expected 1 unresolved ref, got %d", stats.UnresolvedRefs)
 	}
 }
+
+func TestLocalRuntimeKafkaSink(t *testing.T) {
+	dir := t.TempDir()
+	writeEventPlan(t, dir)
+
+	rt, err := New(config.RuntimeConfig{
+		PlanDir: dir,
+		Sink:    "kafka",
+		Brokers: "localhost:9092",
+		Topic:   "events",
+		NoWait:  true,
+	})
+	if err != nil {
+		t.Fatalf("new runtime: %v", err)
+	}
+	if rt.Target() != "localhost:9092/events" {
+		t.Fatalf("unexpected target: %s", rt.Target())
+	}
+}
+
+func TestLocalRuntimeSyslogSink(t *testing.T) {
+	dir := t.TempDir()
+	writeEventPlan(t, dir)
+
+	rt, err := New(config.RuntimeConfig{
+		PlanDir:     dir,
+		Sink:        "syslog",
+		SyslogAddr:  "127.0.0.1:514",
+		SyslogProto: "udp",
+		NoWait:      true,
+	})
+	if err != nil {
+		t.Fatalf("new runtime: %v", err)
+	}
+	if rt.Target() != "udp://127.0.0.1:514" {
+		t.Fatalf("unexpected target: %s", rt.Target())
+	}
+}

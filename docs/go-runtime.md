@@ -37,20 +37,36 @@ eventweave-runtime run dist/ecommerce_refund_flow_semantic --sink stdout --limit
 # Stream to HTTP receiver
 eventweave-runtime run dist/ecommerce_refund_flow_semantic \
   --sink http --url http://127.0.0.1:8080/events --no-wait
+
+# Stream to Kafka
+eventweave-runtime run dist/ecommerce_refund_flow_semantic \
+  --sink kafka --brokers localhost:9092 --topic events --no-wait
+
+# Stream to a local Syslog server
+eventweave-runtime run dist/ecommerce_refund_flow_semantic \
+  --sink syslog --syslog-addr 127.0.0.1:514 --syslog-proto udp --no-wait
 ```
 
 ## CLI options
 
-| Option        | Description                                      |
-|---------------|--------------------------------------------------|
-| `--sink`      | `stdout`, `file`, `null`, `http`                 |
-| `--output`    | Output path for `file` sink                      |
-| `--url`       | Target URL for `http` sink                       |
-| `--speed`     | Time acceleration factor (default 1.0)           |
-| `--no-wait`   | Emit all events immediately                      |
-| `--limit`     | Maximum number of events to emit                 |
-| `--timeout`   | HTTP request timeout (default 5s)                |
-| `--retries`   | HTTP retry attempts for transient failures       |
+| Option              | Description                                               |
+|---------------------|-----------------------------------------------------------|
+| `--sink`            | `stdout`, `file`, `null`, `http`, `kafka`, `syslog`       |
+| `--output`          | Output path for `file` sink                               |
+| `--url`             | Target URL for `http` sink                                |
+| `--brokers`         | Kafka broker list, comma-separated                        |
+| `--topic`           | Kafka topic                                               |
+| `--key-field`       | Kafka message key: `event_id`, `flow_id`, `source_id`, `''` |
+| `--syslog-addr`     | Syslog server `host:port`                                 |
+| `--syslog-proto`    | Syslog protocol: `udp` or `tcp` (default `udp`)           |
+| `--syslog-facility` | Syslog facility number (default 16 = local0)              |
+| `--syslog-severity` | Syslog severity number (default 6 = info)                 |
+| `--syslog-tag`      | Syslog tag (default `eventweave`)                         |
+| `--speed`           | Time acceleration factor (default 1.0)                    |
+| `--no-wait`         | Emit all events immediately                               |
+| `--limit`           | Maximum number of events to emit                          |
+| `--timeout`         | Network request timeout for `http` and `kafka` (default 5s) |
+| `--retries`         | Retry attempts for transient network failures             |
 
 ## Output
 
@@ -58,7 +74,7 @@ eventweave-runtime run dist/ecommerce_refund_flow_semantic \
 Runtime finished
 Events emitted: 55
 Duration: 0.005s
-Sink: file
+Sink: file (out/events.jsonl)
 ```
 
 If any event still contains unresolved `semantic://` placeholders, a warning is
@@ -77,7 +93,7 @@ runtime-go/
 │   ├── scheduler/   # event ordering
 │   ├── clock/       # scenario-time to real-time mapping
 │   ├── sink/        # Sink interface
-│   ├── sinks/       # stdout, file, null, http sinks
+│   ├── sinks/       # stdout, file, null, http, kafka, syslog sinks
 │   ├── stats/       # runtime stats
 │   └── runtime/     # LocalRuntime orchestration
 └── go.mod
@@ -85,17 +101,26 @@ runtime-go/
 
 ## Sinks
 
-v0.4 ships with four sinks:
+v0.4.1 ships with six sinks:
 
 - `stdout` prints JSON lines.
 - `file` appends to a JSONL file.
 - `null` counts events without emitting.
 - `http` POSTs each event as JSON to a URL, with timeout and retry.
+- `kafka` publishes each event as JSON to a topic using `segmentio/kafka-go`.
+- `syslog` sends RFC3164-like messages over UDP or TCP.
 
-Retry behavior:
+Retry behavior for `http` and `kafka`:
 
 - 5xx responses and connection errors are retried up to `--retries` times.
 - 4xx responses are not retried.
+
+Kafka message keys are controlled by `--key-field`:
+
+- `event_id` (default)
+- `flow_id`
+- `source_id`
+- empty string for null key
 
 ## Compatibility with Python runtime
 
@@ -105,13 +130,13 @@ runtimes produce identical output.
 
 ## Limitations
 
-v0.4 is an MVP. It does not include:
+v0.4.1 is an MVP. It does not include:
 
-- Kafka, Syslog, ClickHouse, or Elasticsearch sinks
+- ClickHouse, Elasticsearch, or other database sinks
 - Multi-worker concurrency
 - Backpressure handling
 - Long-running daemon mode
 - Pause/resume API
 - Prometheus metrics
 
-These are planned for v0.4.1 and later.
+These are planned for v0.4.2 and later.
