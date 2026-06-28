@@ -26,7 +26,7 @@ def test_perfect_match() -> None:
                 type="suspicious_login",
                 stage="initial_access",
                 entities=["user_001", "host_001"],
-                evidence_events=["evt-001"],
+                evidence_event_ids=["evt-001"],
             ),
         ]
     )
@@ -75,7 +75,7 @@ def test_entity_and_event_recall_partial() -> None:
             ExpectedFinding(
                 type="suspicious_login",
                 entities=["user_001", "host_001"],
-                evidence_events=["evt-001", "evt-002"],
+                evidence_event_ids=["evt-001", "evt-002"],
             ),
         ]
     )
@@ -145,7 +145,7 @@ def test_case_insensitive_matching() -> None:
                 type="Suspicious Login",
                 stage="Initial Access",
                 entities=["USER_001"],
-                evidence_events=["EVT-001"],
+                evidence_event_ids=["EVT-001"],
             ),
         ]
     )

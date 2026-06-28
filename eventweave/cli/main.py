@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Annotated
 
 import typer
+from pydantic import ValidationError
 from rich.console import Console
 from rich.table import Table
 
@@ -663,6 +664,27 @@ def eval_run(
         table.add_row(name, f"{value:.2f}")
     console.print(table)
     console.print(f"[green]Report written to {output}[/green]")
+
+
+@eval_app.command("validate-output")
+def eval_validate_output(
+    path: Annotated[Path, typer.Argument(help="Path to agent output JSON.")],
+) -> None:
+    """Validate an agent output JSON file against the AgentOutput schema."""
+    if not path.exists():
+        console.print(f"[red]Agent output not found: {path}[/red]")
+        raise typer.Exit(code=1)
+
+    with path.open("r", encoding="utf-8") as f:
+        data = json.load(f)
+
+    try:
+        AgentOutput.model_validate(data)
+    except ValidationError as exc:
+        console.print(f"[red]Invalid agent output:[/red] {exc}")
+        raise typer.Exit(code=1) from exc
+
+    console.print(f"[green]Valid agent output: {path}[/green]")
 
 
 if __name__ == "__main__":

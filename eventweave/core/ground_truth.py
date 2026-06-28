@@ -4,16 +4,21 @@ from __future__ import annotations
 
 from typing import Any
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class ExpectedFinding(BaseModel):
     """An expected finding for agent evaluation."""
 
+    model_config = ConfigDict(populate_by_name=True)
+
     type: str
     entities: list[str] = Field(default_factory=list)
     stage: str | None = None
-    evidence_events: list[str] = Field(default_factory=list)
+    evidence_event_ids: list[str] = Field(
+        default_factory=list,
+        alias="evidence_events",
+    )
     attributes: dict[str, Any] = Field(default_factory=dict)
 
 
