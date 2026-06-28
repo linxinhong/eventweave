@@ -1,0 +1,10 @@
+host:
+  description: An endpoint or server.
+  fields:
+    hostname:
+      type: string
+    ip:
+      type: string
+      format: ipv4
+    os:
+      type: string

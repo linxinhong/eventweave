@@ -1,0 +1,9 @@
+process.suspicious_started:
+  description: A suspicious process started on a host.
+  entity_refs:
+    host: host
+  fields:
+    process_name:
+      type: string
+    command_line:
+      type: string

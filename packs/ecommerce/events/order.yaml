@@ -1,0 +1,21 @@
+order.created:
+  description: A new order is created.
+  entity_refs:
+    customer: customer
+    order: order
+  fields:
+    amount:
+      type: number
+    currency:
+      type: string
+
+order.paid:
+  description: Payment completed for an order.
+  entity_refs:
+    order: order
+    payment: payment
+  fields:
+    amount:
+      type: number
+    method:
+      type: string

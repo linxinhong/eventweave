@@ -1,0 +1,5 @@
+id: security
+name: Security Operations
+version: "1.0"
+depends_on:
+  - common

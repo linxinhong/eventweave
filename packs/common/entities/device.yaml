@@ -1,0 +1,13 @@
+device:
+  description: A physical or virtual device.
+  fields:
+    hostname:
+      type: string
+      description: Device hostname.
+    ip:
+      type: string
+      format: ipv4
+      description: Device IP address.
+    os:
+      type: string
+      description: Operating system.

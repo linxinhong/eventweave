@@ -1,0 +1,13 @@
+user:
+  description: A user or employee.
+  fields:
+    name:
+      type: string
+      description: Display name.
+    email:
+      type: string
+      format: email
+      description: Email address.
+    department:
+      type: string
+      description: Department or organization unit.

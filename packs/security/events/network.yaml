@@ -1,0 +1,12 @@
+network.lateral_connection:
+  description: A lateral network connection between hosts.
+  entity_refs:
+    source_host: host
+    target_host: host
+    source_ip: ip
+    target_ip: ip
+  fields:
+    port:
+      type: integer
+    protocol:
+      type: string

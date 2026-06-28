@@ -1,0 +1,15 @@
+refund:
+  description: A refund request.
+  fields:
+    amount:
+      type: number
+    reason:
+      type: string
+    status:
+      type: string
+      enum:
+        - requested
+        - approved
+        - rejected
+  refs:
+    order: order

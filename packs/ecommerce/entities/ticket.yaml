@@ -1,0 +1,18 @@
+ticket:
+  description: A customer service ticket.
+  fields:
+    subject:
+      type: string
+    priority:
+      type: string
+      enum:
+        - low
+        - medium
+        - high
+    status:
+      type: string
+      enum:
+        - open
+        - closed
+  refs:
+    order: order

@@ -1,0 +1,96 @@
+id: ecommerce_refund_flow
+name: E-commerce refund flow
+domain: ecommerce
+duration: 30m
+seed: 20260628
+
+entities:
+  customer:
+    count: 10
+    type: customer
+
+  product:
+    count: 5
+    type: product
+
+  order:
+    count: 20
+    type: order
+
+sources:
+  - id: order-service
+    type: service
+    role: order_service
+    rate:
+      base_qps: 100
+      burst_qps: 800
+      jitter: 0.1
+    outputs:
+      - type: jsonl
+        path: ./out/orders.jsonl
+
+  - id: ticket-service
+    type: service
+    role: ticket_service
+    rate:
+      base_qps: 20
+      burst_qps: 100
+      jitter: 0.2
+    outputs:
+      - type: jsonl
+        path: ./out/tickets.jsonl
+
+timeline:
+  - at: "00:00:00"
+    event: order.created
+    source: order-service
+    entity_refs:
+      customer: customer
+      order: primary
+    attributes:
+      amount: 299.0
+      currency: CNY
+
+  - after: order.created
+    delay: "1m..5m"
+    event: order.paid
+    source: order-service
+    entity_refs:
+      order: order.created.order
+    attributes:
+      method: alipay
+
+  - after: order.paid
+    delay: "5m..20m"
+    probability: 0.2
+    event: refund.requested
+    source: order-service
+    entity_refs:
+      customer: customer
+      order: order.created.order
+    attributes:
+      reason: Product did not match description
+
+  - after: refund.requested
+    delay: "10s..1m"
+    probability: 0.5
+    event: ticket.created
+    source: ticket-service
+    entity_refs:
+      customer: customer
+      order: order.created.order
+    attributes:
+      subject: Refund request
+      priority: medium
+
+rules:
+  - id: order_must_be_paid_before_refund
+    type: event_after
+    event: refund.requested
+    after: order.paid
+    scope: order
+
+  - id: ticket_must_reference_existing_order
+    type: required_entity_ref
+    event: ticket.created
+    ref: order

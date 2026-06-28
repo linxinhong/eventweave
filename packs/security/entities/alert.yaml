@@ -1,0 +1,20 @@
+alert:
+  description: A security alert.
+  fields:
+    severity:
+      type: string
+      enum:
+        - low
+        - medium
+        - high
+        - critical
+    description:
+      type: string
+    status:
+      type: string
+      enum:
+        - new
+        - investigating
+        - resolved
+  refs:
+    host: host

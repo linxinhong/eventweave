@@ -1,0 +1,10 @@
+alert.triggered:
+  description: A security alert is triggered.
+  entity_refs:
+    host: host
+    alert: alert
+  fields:
+    severity:
+      type: string
+    description:
+      type: string
