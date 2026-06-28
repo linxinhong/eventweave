@@ -22,11 +22,13 @@ class LocalRuntime:
         sink: Sink | None = None,
         speed: float = 1.0,
         no_wait: bool = False,
+        limit: int | None = None,
     ) -> None:
         self.plan_dir = Path(plan_dir)
         self.sink = sink or StdoutSink()
         self.speed = speed
         self.no_wait = no_wait
+        self.limit = limit
         self.stats = RuntimeStats()
 
     def _load_events(self) -> list[Event]:
@@ -51,6 +53,8 @@ class LocalRuntime:
     def run(self) -> RuntimeStats:
         """Run the local runtime and return statistics."""
         events = sort_events(self._load_events())
+        if self.limit is not None:
+            events = events[: self.limit]
         if not events:
             self.stats.finish()
             return self.stats
@@ -72,5 +76,6 @@ class LocalRuntime:
         finally:
             self.sink.close()
 
+        self.stats.failed = self.sink.failed()
         self.stats.finish()
         return self.stats

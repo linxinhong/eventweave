@@ -29,3 +29,7 @@ class Sink(ABC):
     @abstractmethod
     def count(self) -> int:
         """Return the number of events written."""
+
+    def failed(self) -> int:
+        """Return the number of events that failed to write. Default 0."""
+        return 0
