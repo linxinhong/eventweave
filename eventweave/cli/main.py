@@ -12,6 +12,7 @@ from rich.table import Table
 
 from eventweave.ai.cache import SemanticCache
 from eventweave.ai.provider import ProviderConfig
+from eventweave.ai.resolver import SemanticResolver
 from eventweave.ai.sidecar import SemanticSidecar
 from eventweave.compiler import compile_scenario_file, compile_scenario_file_strict
 from eventweave.compiler.loader import ScenarioLoadError
@@ -228,10 +229,25 @@ def semantic_generate(
     )
     pool = sidecar.generate_all(tasks, events=events, force=force)
 
+    # Resolve semantic_refs placeholders to concrete asset ids and rewrite event plan.
+    resolver = SemanticResolver(pool)
+    resolved_events = resolver.resolve_events(events)
+    stats = resolver.stats(resolved_events)
+
+    events_path.write_text(
+        "\n".join(event.model_dump_json() for event in resolved_events) + "\n",
+        encoding="utf-8",
+    )
+
     pool_path = plan_dir / "semantic_pool.json"
     pool_path.write_text(pool.model_dump_json(indent=2), encoding="utf-8")
 
     console.print(f"[green]Generated {len(pool.assets)} semantic assets[/green]")
+    console.print(f"Resolved semantic_refs for {stats['resolved']} events")
+    if stats["unresolved"]:
+        console.print(
+            f"[yellow]{stats['unresolved']} events still have task-level refs[/yellow]"
+        )
     console.print(f"Output: {pool_path}")
 
 

@@ -31,5 +31,6 @@ class TemplateProvider(Provider):
             meta=SemanticAssetMeta(
                 provider=self.provider_type,
                 source_task=task.id,
+                source_event=context.event.event_id if context.event else None,
             ),
         )

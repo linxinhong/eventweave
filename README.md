@@ -168,6 +168,42 @@ rules:
 }
 ```
 
+## Semantic output sample
+
+After running `eventweave semantic generate`, `semantic_pool.json` contains
+validated text assets:
+
+```json
+{
+  "scenario_id": "ecommerce_refund_flow_semantic",
+  "assets": [
+    {
+      "id": "request_refund_2-mock-evt-ecommerce-refund-flow-semantic-006-003-0",
+      "type": "refund.reason",
+      "text": "[refund.reason] Mock semantic content for task request_refund_2.",
+      "meta": {
+        "provider": "mock",
+        "source_task": "request_refund_2",
+        "source_event": "evt-ecommerce-refund-flow-semantic-006-003",
+        "review_status": "approved"
+      }
+    }
+  ]
+}
+```
+
+The matching event in `event_plan.jsonl` now references the concrete asset id:
+
+```json
+{
+  "event_id": "evt-ecommerce-refund-flow-semantic-006-003",
+  "event_type": "refund.requested",
+  "semantic_refs": [
+    "request_refund_2-mock-evt-ecommerce-refund-flow-semantic-006-003-0"
+  ]
+}
+```
+
 ---
 
 ## Core concepts

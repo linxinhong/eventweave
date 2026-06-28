@@ -87,3 +87,6 @@ runtime-go/eventweave-runtime
 
 # Local agent session state
 .agtalk/
+
+# uv lock file (project currently uses uv pip install, not uv sync)
+uv.lock
