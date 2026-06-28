@@ -24,7 +24,9 @@ from eventweave.core.ground_truth import GroundTruth
 from eventweave.core.scenario import Scenario
 from eventweave.core.semantic import SemanticPool, SemanticTask
 from eventweave.evaluation.agent_output import AgentOutput
+from eventweave.evaluation.benchmark import Scorecard
 from eventweave.evaluation.evaluator import Evaluator
+from eventweave.evaluation.runner import BenchmarkRunError, load_suite, run_benchmark
 from eventweave.pack.scaffold import ScaffoldError, scaffold_pack
 from eventweave.runtime.local import LocalRuntime
 from eventweave.runtime.sink import Sink
@@ -215,6 +217,12 @@ eval_app = typer.Typer(
     help="Agent evaluation harness.",
 )
 app.add_typer(eval_app)
+
+benchmark_app = typer.Typer(
+    name="benchmark",
+    help="Multi-scenario benchmark suites and scorecards.",
+)
+app.add_typer(benchmark_app)
 
 
 def _get_registry(packs_dir: Path | None) -> PackRegistry:
@@ -685,6 +693,117 @@ def eval_validate_output(
         raise typer.Exit(code=1) from exc
 
     console.print(f"[green]Valid agent output: {path}[/green]")
+
+
+@benchmark_app.command("list")
+def benchmark_list(
+    suites_dir: Annotated[
+        Path, typer.Option("--suites-dir", help="Directory containing benchmark suite YAML files.")
+    ] = Path("benchmarks"),
+) -> None:
+    """List available benchmark suites."""
+    if not suites_dir.exists():
+        console.print(f"[red]Benchmark suites directory not found: {suites_dir}[/red]")
+        raise typer.Exit(code=1)
+
+    suites: list[tuple[str, str, Path]] = []
+    for path in sorted(suites_dir.glob("*.yaml")):
+        try:
+            suite = load_suite(path)
+            suites.append((suite.id, suite.name or "", path))
+        except Exception as exc:  # noqa: BLE001
+            console.print(f"[yellow]Skipping {path}: {exc}[/yellow]")
+
+    if not suites:
+        console.print("[yellow]No benchmark suites found.[/yellow]")
+        return
+
+    table = Table(title="Benchmark Suites")
+    table.add_column("ID", style="cyan")
+    table.add_column("Name", style="green")
+    table.add_column("Path", style="dim")
+    for suite_id, name, path in suites:
+        table.add_row(suite_id, name, str(path))
+    console.print(table)
+
+
+@benchmark_app.command("run")
+def benchmark_run(
+    suite: Annotated[
+        Path, typer.Option("--suite", help="Path to benchmark suite YAML file.")
+    ],
+    agent_outputs: Annotated[
+        list[Path],
+        typer.Option("--agent-outputs", help="One or more agent output directories."),
+    ],
+    output: Annotated[
+        Path, typer.Option("--output", "-o", help="Output path for the scorecard JSON.")
+    ] = Path("scorecard.json"),
+) -> None:
+    """Run a benchmark suite against one or more agent output directories."""
+    if not suite.exists():
+        console.print(f"[red]Suite not found: {suite}[/red]")
+        raise typer.Exit(code=1)
+
+    missing_dirs = [d for d in agent_outputs if not d.exists()]
+    if missing_dirs:
+        dirs = ", ".join(str(d) for d in missing_dirs)
+        console.print(f"[red]Agent output directories not found: {dirs}[/red]")
+        raise typer.Exit(code=1)
+
+    benchmark_suite = load_suite(suite)
+    try:
+        scorecard = run_benchmark(benchmark_suite, agent_outputs)
+    except BenchmarkRunError as exc:
+        console.print(f"[red]Benchmark run failed:[/red] {exc}")
+        raise typer.Exit(code=1) from exc
+
+    output.parent.mkdir(parents=True, exist_ok=True)
+    output.write_text(scorecard.model_dump_json(indent=2), encoding="utf-8")
+
+    table = Table(title=f"Benchmark Scorecard: {scorecard.suite.id}")
+    table.add_column("Agent", style="cyan")
+    table.add_column("Overall", style="magenta")
+    table.add_column("Balanced", style="magenta")
+    for result in scorecard.results:
+        table.add_row(
+            result.agent_name,
+            f"{result.aggregate.get('overall_score', 0.0):.2f}",
+            f"{result.aggregate.get('balanced_score', 0.0):.2f}",
+        )
+    console.print(table)
+    console.print(f"Ranking: {', '.join(scorecard.ranking)}")
+    console.print(f"[green]Scorecard written to {output}[/green]")
+
+
+@benchmark_app.command("leaderboard")
+def benchmark_leaderboard(
+    scorecard_path: Annotated[Path, typer.Argument(help="Path to scorecard JSON.")],
+) -> None:
+    """Print a leaderboard from a scorecard JSON file."""
+    if not scorecard_path.exists():
+        console.print(f"[red]Scorecard not found: {scorecard_path}[/red]")
+        raise typer.Exit(code=1)
+
+    with scorecard_path.open("r", encoding="utf-8") as f:
+        scorecard = Scorecard.model_validate(json.load(f))
+
+    table = Table(title=f"Leaderboard: {scorecard.suite.id}")
+    table.add_column("Rank", style="cyan")
+    table.add_column("Agent", style="green")
+    table.add_column("Overall", style="magenta")
+    table.add_column("Balanced", style="magenta")
+
+    results_by_name = {r.agent_name: r for r in scorecard.results}
+    for rank, agent_name in enumerate(scorecard.ranking, start=1):
+        result = results_by_name[agent_name]
+        table.add_row(
+            str(rank),
+            agent_name,
+            f"{result.aggregate.get('overall_score', 0.0):.2f}",
+            f"{result.aggregate.get('balanced_score', 0.0):.2f}",
+        )
+    console.print(table)
 
 
 if __name__ == "__main__":
