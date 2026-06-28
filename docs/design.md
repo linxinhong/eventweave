@@ -1373,6 +1373,16 @@ Evaluation Harness 读取 ground truth
 解释一致性
 ```
 
+具体实现见 `docs/agent-evaluation.md`，当前版本使用确定性精确匹配计算：
+
+```text
+finding_type_recall
+entity_recall
+event_id_recall
+timeline_stage_accuracy
+overall_score
+```
+
 ---
 
 ## 19. 质量评估
@@ -1621,16 +1631,17 @@ hospital
 
 目标：支持 Agent 评测。
 
+状态：已完成。详见 `docs/agent-evaluation.md`。
+
 范围：
 
 ```text
-ground truth schema
+ground truth schema（scenario 中可选声明）
 agent output schema
-评测指标
-评测报告
-安全场景评测
-运维场景评测
-电商场景评测
+评测指标（finding_type_recall / entity_recall / event_id_recall / timeline_stage_accuracy / overall_score）
+评测报告（JSON + 控制台表格）
+安全场景评测（lateral_movement 示例）
+CLI：eventweave eval task / eventweave eval run
 ```
 
 验收：
@@ -1639,6 +1650,7 @@ agent output schema
 可以生成带 ground truth 的事件流
 可以读取 Agent 输出
 可以生成评测报告
+评测完全离线、确定性、无 LLM 调用
 ```
 
 ---

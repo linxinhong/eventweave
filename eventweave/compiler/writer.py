@@ -25,6 +25,10 @@ class PlanWriter:
         written: dict[str, Path] = {}
 
         written["scenario"] = self._write_json("scenario.json", plan.scenario.model_dump())
+        if plan.scenario.ground_truth is not None:
+            written["ground_truth"] = self._write_json(
+                "ground_truth.json", plan.scenario.ground_truth.model_dump()
+            )
         written["entities"] = self._write_json(
             "entities.json", [e.model_dump() for e in plan.entities]
         )

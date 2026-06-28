@@ -105,6 +105,22 @@ timeline:
       severity: high
       description: Lateral movement detected
 
+ground_truth:
+  scenario_id: security_lateral_movement
+  expected_findings:
+    - type: suspicious_login
+      stage: initial_access
+    - type: suspicious_process
+      stage: execution
+    - type: lateral_movement
+      stage: lateral_movement
+    - type: alert_triggered
+      stage: exfiltration
+  expected_summary: >-
+    Suspicious login followed by encoded PowerShell execution, lateral SMB
+    connection, and a high-severity EDR alert.
+  key_event_ids: []
+
 rules:
   - id: login_success_after_failed_attempts
     type: event_after
