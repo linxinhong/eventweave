@@ -4,11 +4,13 @@ import (
 	"fmt"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/linxinhong/eventweave/runtime-go/internal/clock"
 	"github.com/linxinhong/eventweave/runtime-go/internal/config"
 	"github.com/linxinhong/eventweave/runtime-go/internal/event"
 	"github.com/linxinhong/eventweave/runtime-go/internal/loader"
+	"github.com/linxinhong/eventweave/runtime-go/internal/ratelimit"
 	"github.com/linxinhong/eventweave/runtime-go/internal/scheduler"
 	"github.com/linxinhong/eventweave/runtime-go/internal/sink"
 	fileSink "github.com/linxinhong/eventweave/runtime-go/internal/sinks/file"
@@ -67,8 +69,9 @@ func (r *LocalRuntime) Run() (*stats.RuntimeStats, error) {
 		return nil, err
 	}
 
-	stats := stats.New()
-	stats.UnresolvedRefs = countUnresolvedRefs(events)
+	st := stats.New()
+	st.LoadedEvents = len(events)
+	st.UnresolvedRefs = countUnresolvedRefs(events)
 
 	sorted := scheduler.SortEvents(events)
 	if r.cfg.Limit > 0 && len(sorted) > r.cfg.Limit {
@@ -76,11 +79,15 @@ func (r *LocalRuntime) Run() (*stats.RuntimeStats, error) {
 	}
 
 	if len(sorted) == 0 {
-		stats.Finish()
-		return stats, nil
+		st.Finish(r.cfg.Sink, r.target)
+		return st, nil
 	}
 
-	clk, err := clock.New(sorted[0].EventTime, r.cfg.Speed, r.cfg.NoWait)
+	first, last := sorted[0].EventTime, sorted[len(sorted)-1].EventTime
+	st.FirstEventTime = &first
+	st.LastEventTime = &last
+
+	limiter, clk, err := r.buildLimiter(sorted[0].EventTime)
 	if err != nil {
 		return nil, err
 	}
@@ -91,17 +98,51 @@ func (r *LocalRuntime) Run() (*stats.RuntimeStats, error) {
 	defer r.sink.Close()
 
 	for _, ev := range sorted {
-		clk.WaitUntil(ev.EventTime)
+		if err := r.wait(limiter, clk, ev.EventTime); err != nil {
+			return nil, err
+		}
 		if err := r.sink.Write(ev); err != nil {
+			st.Failed++
+			if r.cfg.MaxFailures > 0 && st.Failed >= r.cfg.MaxFailures {
+				break
+			}
 			continue
 		}
-		stats.Emitted++
+		st.Emitted++
 	}
 
 	_ = r.sink.Flush()
-	stats.Failed = r.sink.Failed()
-	stats.Finish()
-	return stats, nil
+	st.Failed += r.sink.Failed()
+	st.Finish(r.cfg.Sink, r.target)
+	return st, nil
+}
+
+func (r *LocalRuntime) buildLimiter(start time.Time) (ratelimit.Limiter, *clock.RuntimeClock, error) {
+	if r.cfg.NoWait {
+		return &ratelimit.NoWaitLimiter{}, nil, nil
+	}
+	if r.cfg.Rate > 0 {
+		lim, err := ratelimit.NewRateLimiter(r.cfg.Rate)
+		if err != nil {
+			return nil, nil, err
+		}
+		return lim, nil, nil
+	}
+	clk, err := clock.New(start, r.cfg.Speed, false)
+	if err != nil {
+		return nil, nil, err
+	}
+	return nil, clk, nil
+}
+
+func (r *LocalRuntime) wait(limiter ratelimit.Limiter, clk *clock.RuntimeClock, target time.Time) error {
+	if limiter != nil {
+		return limiter.Wait()
+	}
+	if clk != nil {
+		clk.WaitUntil(target)
+	}
+	return nil
 }
 
 func countUnresolvedRefs(events []event.Event) int {

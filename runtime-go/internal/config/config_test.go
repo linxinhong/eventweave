@@ -98,3 +98,51 @@ func TestValidateSpeedMustBePositive(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 }
+
+func TestValidateRateConflicts(t *testing.T) {
+	cfg := validConfig()
+	cfg.Rate = 100
+	if err := cfg.Validate(); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	cfg.NoWait = true
+	if err := cfg.Validate(); err == nil {
+		t.Fatal("expected error for rate + no-wait")
+	}
+	cfg.NoWait = false
+
+	cfg.Speed = 2
+	if err := cfg.Validate(); err == nil {
+		t.Fatal("expected error for rate + speed")
+	}
+}
+
+func TestValidateRateMustBePositive(t *testing.T) {
+	cfg := validConfig()
+	cfg.Rate = -1
+	if err := cfg.Validate(); err == nil {
+		t.Fatal("expected error for negative rate")
+	}
+}
+
+func TestValidateNoWaitConflictsWithSpeed(t *testing.T) {
+	cfg := validConfig()
+	cfg.NoWait = true
+	cfg.Speed = 2
+	if err := cfg.Validate(); err == nil {
+		t.Fatal("expected error for no-wait + speed")
+	}
+}
+
+func TestValidateMaxFailuresMustBeNonNegative(t *testing.T) {
+	cfg := validConfig()
+	cfg.MaxFailures = -1
+	if err := cfg.Validate(); err == nil {
+		t.Fatal("expected error for negative max-failures")
+	}
+	cfg.MaxFailures = 5
+	if err := cfg.Validate(); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}

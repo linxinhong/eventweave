@@ -25,6 +25,9 @@ type RuntimeConfig struct {
 	Tag         string
 	SyslogProto string
 	SyslogAddr  string
+	Rate        float64
+	MaxFailures int
+	StatsJSON   string
 }
 
 // Validate checks that the config is usable.
@@ -58,8 +61,35 @@ func (c *RuntimeConfig) Validate() error {
 			return errors.New("--syslog-proto must be udp or tcp")
 		}
 	}
-	if !c.NoWait && c.Speed <= 0 {
-		return errors.New("--speed must be positive unless --no-wait is set")
+	if err := c.validateTiming(); err != nil {
+		return err
+	}
+	if c.MaxFailures < 0 {
+		return errors.New("--max-failures must be non-negative")
+	}
+	return nil
+}
+
+// validateTiming enforces that --rate, --speed, and --no-wait are mutually exclusive.
+func (c *RuntimeConfig) validateTiming() error {
+	hasRate := c.Rate > 0
+	hasSpeed := c.Speed != 1.0 && c.Speed > 0
+	hasNoWait := c.NoWait
+
+	if hasNoWait && hasRate {
+		return errors.New("--no-wait and --rate are mutually exclusive")
+	}
+	if hasNoWait && hasSpeed {
+		return errors.New("--no-wait and --speed are mutually exclusive")
+	}
+	if hasRate && hasSpeed {
+		return errors.New("--rate and --speed are mutually exclusive")
+	}
+	if c.Rate < 0 {
+		return errors.New("--rate must be non-negative")
+	}
+	if !hasNoWait && !hasRate && c.Speed <= 0 {
+		return errors.New("--speed must be positive unless --no-wait or --rate is set")
 	}
 	return nil
 }
