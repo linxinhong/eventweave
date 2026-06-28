@@ -1,0 +1,6 @@
+id: ecommerce_baseline
+name: E-commerce baseline benchmark
+description: Core business-flow detection scenarios for e-commerce operations agents.
+scenarios:
+  - id: refund_flow
+    scenario_path: examples/ecommerce/refund.yaml

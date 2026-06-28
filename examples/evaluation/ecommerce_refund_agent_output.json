@@ -1,0 +1,33 @@
+{
+  "scenario_id": "ecommerce_refund_flow",
+  "findings": [
+    {
+      "type": "refund_requested",
+      "stage": "dispute",
+      "entities": [],
+      "evidence_event_ids": [],
+      "confidence": 0.92,
+      "attributes": {}
+    },
+    {
+      "type": "ticket_created",
+      "stage": "support",
+      "entities": [],
+      "evidence_event_ids": [],
+      "confidence": 0.88,
+      "attributes": {}
+    }
+  ],
+  "key_event_ids": [],
+  "timeline_stages": [
+    {
+      "stage": "dispute",
+      "event_ids": []
+    },
+    {
+      "stage": "support",
+      "event_ids": []
+    }
+  ],
+  "summary": "A subset of paid orders trigger refund requests, some of which escalate to support tickets."
+}
