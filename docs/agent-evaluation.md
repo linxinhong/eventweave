@@ -32,11 +32,11 @@ ground_truth:
     - type: suspicious_login
       stage: initial_access
       entities: [user_001, host_001]
-      evidence_events: [evt-security-lateral-movement-001-001]
+      evidence_event_ids: [evt-security-lateral-movement-001-001]
     - type: lateral_movement
       stage: lateral_movement
       entities: [host_001, host_002]
-      evidence_events: [evt-security-lateral-movement-001-004]
+      evidence_event_ids: [evt-security-lateral-movement-001-004]
   expected_summary: >-
     Suspicious login followed by lateral movement and an EDR alert.
   key_event_ids:
@@ -50,8 +50,10 @@ Fields:
   - `type` — finding type (matched case-insensitively).
   - `stage` — optional MITRE / business-flow stage (matched case-insensitively).
   - `entities` — entity IDs the finding should mention.
-  - `evidence_events` — event IDs supporting the finding.
+  - `evidence_event_ids` — event IDs supporting the finding.
   - `attributes` — optional extra key/value metadata.
+
+The field `evidence_events` is still accepted as a legacy alias for `evidence_event_ids`.
 - `expected_summary` — expected narrative summary.
 - `key_event_ids` — most important event IDs in the scenario.
 - `attributes` — optional scenario-level metadata.
@@ -87,13 +89,41 @@ The agent must produce a JSON document matching `AgentOutput`:
 
 `eventweave eval run` computes the following metrics using exact normalized matching:
 
+**Recall**
+
 - `finding_type_recall` — fraction of expected findings whose `type` was reported.
 - `entity_recall` — average per-matched-finding recall of expected entity IDs.
 - `event_id_recall` — average per-matched-finding recall of expected evidence event IDs.
 - `timeline_stage_accuracy` — fraction of expected findings whose `stage` was reported correctly.
-- `overall_score` — simple average of the four metrics.
 
-A finding matches when its normalized `type` equals the expected type and, if the expected finding declares a `stage`, the normalized `stage` also matches.
+**Precision**
+
+- `finding_type_precision` — fraction of reported findings that match an expected finding.
+- `entity_precision` — average per-matched-finding precision of reported entity IDs.
+- `event_id_precision` — average per-matched-finding precision of reported evidence event IDs.
+
+**Aggregates**
+
+- `overall_score` — simple average of the four original recall/stage metrics (kept for backward compatibility).
+- `balanced_score` — average of all seven metrics above, balancing recall and precision.
+
+Recall measures漏报； precision measures误报. A finding matches when its normalized `type` equals the expected type and, if the expected finding declares a `stage`, the normalized `stage` also matches.
+
+## Report details
+
+`report.json` includes:
+
+```json
+{
+  "matched_findings": [],
+  "missed_findings": [],
+  "extra_findings": []
+}
+```
+
+- `matched_findings` — expected findings that were reported, with per-finding recall/precision.
+- `missed_findings` — expected findings that the agent did not report.
+- `extra_findings` — agent findings that do not match any expected finding (potential hallucinations).
 
 ## CLI reference
 
@@ -119,3 +149,25 @@ eventweave eval run \
 ```
 
 The command prints a metrics table and writes a JSON report.
+
+### `eventweave eval validate-output`
+
+Validate an agent output JSON file against the `AgentOutput` schema.
+
+```bash
+eventweave eval validate-output agent_output.json
+```
+
+## Sample evaluation workflow
+
+Use the built-in sample agent output to see a perfect score:
+
+```bash
+eventweave compile examples/security/lateral_movement.yaml -o dist
+eventweave eval run \
+  --ground-truth dist/security_lateral_movement/ground_truth.json \
+  --agent-output examples/evaluation/security_lateral_movement_agent_output.json \
+  --output report.json
+```
+
+Expected result: `overall_score = 1.00`, `balanced_score = 1.00`.

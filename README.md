@@ -127,6 +127,15 @@ go run ./cmd/eventweave-runtime run ../dist/ecommerce_refund_flow_semantic \
   --sink file --output ../out/events.jsonl --no-wait \
   --stats-json ../out/stats.json
 
+# Compile a scenario with ground truth and evaluate a sample agent output
+eventweave compile examples/security/lateral_movement.yaml -o dist
+eventweave eval task dist/security_lateral_movement -o dist/security_lateral_movement/eval/task.json
+eventweave eval validate-output examples/evaluation/security_lateral_movement_agent_output.json
+eventweave eval run \
+  --ground-truth dist/security_lateral_movement/ground_truth.json \
+  --agent-output examples/evaluation/security_lateral_movement_agent_output.json \
+  --output report.json
+
 # Export events as JSONL
 eventweave export dist/ecommerce_refund_flow --format jsonl --output out/events.jsonl
 ```
@@ -282,7 +291,7 @@ The matching event in `event_plan.jsonl` now references the concrete asset id:
 
 ## Project status
 
-Current version: **v0.5.2** — Generic AI Provider
+Current version: **v0.6.1** — Evaluation Polish
 
 What works:
 
@@ -314,13 +323,15 @@ What works:
 - `eventweave pack scaffold` for quick pack creation
 - Generic `ai` provider for Chat Completions compatible APIs (Kimi, DeepSeek,
   Qwen, Ollama, etc.) with environment-variable credentials
+- v0.6.0: Agent Evaluation Harness with ground truth, `AgentOutput` schema,
+  deterministic evaluator, and `eventweave eval task / run`
+- v0.6.1: Precision metrics, `matched/missed/extra` finding details,
+  `eventweave eval validate-output`, and sample agent output
 
 What is planned:
 
-- v0.6: Agent Evaluation Harness
-- v0.6.x: Prometheus metrics and Kafka batching
-- v0.5: Pack Ecosystem
-- v0.6: Agent Evaluation Harness
+- v0.7: Dataset Suites / Benchmark Packs
+- v0.7.x: Prometheus metrics and Kafka batching
 
 ## Pack Ecosystem
 
