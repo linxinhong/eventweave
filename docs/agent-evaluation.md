@@ -171,3 +171,59 @@ eventweave eval run \
 ```
 
 Expected result: `overall_score = 1.00`, `balanced_score = 1.00`.
+
+## Benchmark suites
+
+For multi-scenario evaluation, define a benchmark suite YAML file and run it against one or more agent output directories.
+
+### Suite format
+
+```yaml
+id: security_baseline
+name: Security baseline benchmark
+description: Core detection scenarios for security operations agents.
+scenarios:
+  - id: lateral_movement
+    scenario_path: examples/security/lateral_movement.yaml
+```
+
+Each referenced scenario must declare `ground_truth`. Agent outputs are matched by `{scenario_id}.json` inside each agent directory, with a fallback to `{scenario_id}_agent_output.json`.
+
+### CLI
+
+List available suites:
+
+```bash
+eventweave benchmark list
+```
+
+Run a suite:
+
+```bash
+eventweave benchmark run \
+  --suite benchmarks/security.yaml \
+  --agent-outputs agents/gpt-4o/ \
+  --output scorecards/security.json
+```
+
+Compare multiple agents:
+
+```bash
+eventweave benchmark run \
+  --suite benchmarks/security.yaml \
+  --agent-outputs agents/gpt-4o/ \
+  --agent-outputs agents/claude-sonnet/ \
+  --output scorecards/security.json
+
+eventweave benchmark leaderboard scorecards/security.json
+```
+
+### Scorecard output
+
+The scorecard JSON contains:
+
+- `suite` — the benchmark suite definition.
+- `results` — per-agent per-scenario reports and aggregate metrics.
+- `ranking` — agent names ordered by `balanced_score`, then `overall_score`.
+
+Aggregate metrics are simple averages across all scenarios in the suite.

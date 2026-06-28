@@ -146,6 +146,21 @@ eventweave eval run \
   --agent-output examples/evaluation/security_lateral_movement_agent_output.json \
   --output report.json
 
+# Run a multi-scenario benchmark suite and compare agents
+eventweave benchmark list
+eventweave benchmark run \
+  --suite benchmarks/security.yaml \
+  --agent-outputs examples/evaluation/ \
+  --output scorecards/security.json
+eventweave benchmark leaderboard scorecards/security.json
+
+# Compare multiple agents on the same suite
+eventweave benchmark run \
+  --suite benchmarks/security.yaml \
+  --agent-outputs agents/gpt-4o/ \
+  --agent-outputs agents/claude-sonnet/ \
+  --output scorecards/security.json
+
 # Export events as JSONL
 eventweave export dist/ecommerce_refund_flow --format jsonl --output out/events.jsonl
 ```
@@ -301,7 +316,7 @@ The matching event in `event_plan.jsonl` now references the concrete asset id:
 
 ## Project status
 
-Current version: **v0.6.2** — Multi-source / Multi-port Runtime Server
+Current version: **v0.7.0** — Dataset Suites / Benchmark Packs
 
 What works:
 
@@ -339,10 +354,11 @@ What works:
   `eventweave eval validate-output`, and sample agent output
 - v0.6.2: Multi-source / multi-port Go runtime server with HTTP and Syslog
   endpoints via `eventweave-runtime serve`
+- v0.7.0: Multi-scenario benchmark suites, scorecards, and local leaderboard
+  via `eventweave benchmark list / run / leaderboard`
 
 What is planned:
 
-- v0.7.0: Dataset Suites / Benchmark Packs
 - v0.7.x: Prometheus metrics and Kafka batching
 
 ## Pack Ecosystem
