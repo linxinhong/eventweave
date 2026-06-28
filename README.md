@@ -85,6 +85,11 @@ python examples/receivers/http_receiver.py &
 eventweave run dist/ecommerce_refund_flow_semantic \
   --sink http --url http://127.0.0.1:8080/events --no-wait
 
+# List and inspect domain packs
+eventweave pack list
+eventweave pack inspect ecommerce
+eventweave pack validate ecommerce
+
 # Or use the high-performance Go runtime
 cd runtime-go
 go run ./cmd/eventweave-runtime run ../dist/ecommerce_refund_flow_semantic \
@@ -266,7 +271,7 @@ The matching event in `event_plan.jsonl` now references the concrete asset id:
 
 ## Project status
 
-Current version: **v0.4.2** — Runtime Metrics / Benchmark / Basic Backpressure
+Current version: **v0.5.0** — Pack Ecosystem
 
 What works:
 
@@ -292,13 +297,47 @@ What works:
 - Go runtime `--rate` for fixed EPS replay
 - Go runtime `bench` sub-command for throughput testing
 - Go runtime `--stats-json` and `--max-failures`
+- Pack ecosystem with `eventweave pack list / inspect / validate`
+- Formal pack manifest, local registry, and pack validation
+- Self-contained pack examples under `packs/<domain>/examples/`
 
 What is planned:
 
-- v0.4.3: Kafka batching and basic worker pool
-- v0.5: Prometheus metrics and pack ecosystem
+- v0.5.1: Pack scaffold command
+- v0.5.2: OpenAI-compatible Provider
+- v0.6: Agent Evaluation Harness
+- v0.6.x: Prometheus metrics and Kafka batching
 - v0.5: Pack Ecosystem
 - v0.6: Agent Evaluation Harness
+
+## Pack Ecosystem
+
+EventWeave is extensible through **packs**. A pack defines entities, events,
+rules, semantic templates, and examples for a domain.
+
+```text
+packs/<domain>/
+├── pack.yaml
+├── entities/
+├── events/
+├── rules.yaml
+├── semantic/          # optional
+└── examples/          # optional but recommended
+```
+
+Use the pack CLI:
+
+```bash
+eventweave pack list
+eventweave pack inspect ecommerce
+eventweave pack validate ecommerce
+```
+
+See [docs/pack-spec.md](docs/pack-spec.md) for the manifest specification and
+[docs/pack-authoring.md](docs/pack-authoring.md) for a step-by-step authoring
+guide.
+
+---
 
 See [docs/design.md](docs/design.md) for the full design and roadmap.
 

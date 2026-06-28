@@ -78,12 +78,20 @@ packs/<domain>/
 ├── pack.yaml
 ├── entities/
 ├── events/
-└── rules.yaml
+├── rules.yaml
+└── examples/
 ```
 
-- Add at least one runnable example in `examples/<domain>/`.
+- Add `id`, `name`, `version`, and `description` to `pack.yaml`.
+- Add at least one runnable example in `packs/<domain>/examples/`.
+- Validate the pack before submitting:
+  ```bash
+  eventweave pack validate <domain>
+  ```
 - Add tests if the pack introduces new rules or behavior.
 - Reuse `packs/common/` for shared entity types when possible.
+- Follow the manifest spec in [docs/pack-spec.md](docs/pack-spec.md) and the
+  authoring guide in [docs/pack-authoring.md](docs/pack-authoring.md).
 
 ## Do not submit
 

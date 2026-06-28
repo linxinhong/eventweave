@@ -1,8 +1,10 @@
 # Pack Specification
 
-Packs are domain-specific extensions for EventWeave. The core framework remains domain-agnostic; packs provide entity schemas, event schemas, and declarative rules.
+Packs are domain-specific extensions for EventWeave. The core framework remains
+domain-agnostic; packs provide entity schemas, event schemas, declarative rules,
+and runnable examples.
 
-## Pack layout (v0.1 A-lite)
+## Pack layout (v0.5)
 
 ```text
 packs/<domain>/
@@ -13,7 +15,10 @@ packs/<domain>/
 ├── events/
 │   ├── order.yaml
 │   └── refund.yaml
-└── rules.yaml
+├── rules.yaml
+├── semantic/          # optional
+└── examples/          # optional but recommended
+    └── refund.yaml
 ```
 
 ## pack.yaml
@@ -22,16 +27,23 @@ packs/<domain>/
 id: ecommerce
 name: E-commerce
 version: "1.0"
+description: Orders, payments, refunds, and tickets.
 depends_on:
   - common
 ```
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `id` | string | Pack identifier, must match directory name. |
-| `name` | string | Human-readable name. |
-| `version` | string | Pack version. |
-| `depends_on` | list | Other packs this pack depends on. |
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `id` | string | yes | Pack identifier, should match directory name. |
+| `name` | string | yes | Human-readable name. |
+| `version` | string | yes | Pack version. |
+| `description` | string | no | Short description of the domain. |
+| `depends_on` | list | no | Other packs this pack depends on. |
+| `entities_path` | string | no | Path to entity schemas (default `entities`). |
+| `events_path` | string | no | Path to event schemas (default `events`). |
+| `rules_path` | string | no | Path to rules file (default `rules.yaml`). |
+| `semantic_path` | string | no | Path to semantic templates (default `semantic`). Use `""` to disable. |
+| `examples_path` | string | no | Path to examples (default `examples`). Use `""` to disable. |
 
 ## Entity schemas
 
@@ -152,18 +164,50 @@ depends_on:
   - common
 ```
 
-The compiler loads dependencies recursively. The `common` pack provides shared entity types such as `user` and `device`.
+The compiler loads dependencies recursively. The `common` pack provides shared
+entity types such as `user` and `device`.
 
-## v0.1 limitations
+## Examples
+
+Packs may include runnable scenarios in `examples/`:
+
+```text
+packs/ecommerce/examples/refund.yaml
+```
+
+Examples are validated by `eventweave pack validate <id>` to ensure they still
+compile against the current pack schemas.
+
+## Validation
+
+Run pack validation with:
+
+```bash
+eventweave pack validate ecommerce
+```
+
+Validation checks:
+
+- `pack.yaml` exists and parses.
+- Required fields (`id`, `name`, `version`) are present.
+- `id` matches the directory name (warning otherwise).
+- All `depends_on` packs exist.
+- `entities/` directory exists.
+- `events/` directory exists (warning if missing).
+- `rules.yaml` exists and has a top-level `rules` list (warning if missing).
+- Each entity and event schema has a `type` matching its key.
+- Every example scenario compiles successfully.
+
+## v0.5 limitations
 
 - No dynamic Python rule plugins.
-- No pack registry or marketplace.
-- No pack version resolution.
-- Pack schemas are informational; v0.1 does not enforce strict JSON Schema validation.
+- No remote pack marketplace.
+- No pack version resolution or semver constraints.
+- Pack schemas are informational; strict JSON Schema validation is not enforced.
 
 ## Future extensions
 
-- `semantic/` directory for prompt templates and text assets.
+- Remote pack registry and `eventweave pack install`.
+- Semantic dependency resolution.
 - `encoders/` directory for domain-specific output formats.
-- `examples/` directory for pack-specific scenarios.
-- `tests/` directory for pack tests.
+- `tests/` directory for pack-level tests.
