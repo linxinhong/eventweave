@@ -106,3 +106,31 @@ def test_runtime_does_not_mutate_events(tmp_path):
     runtime.run()
     assert events[0].semantic_refs == ["asset1"]
     assert events[0].event_id == "e1"
+
+
+def test_run_limit(tmp_path):
+    plan_dir = _write_plan(
+        tmp_path,
+        [
+            _event("e1", "login", "2024-01-01T00:00:00Z"),
+            _event("e2", "login", "2024-01-01T00:00:01Z"),
+            _event("e3", "login", "2024-01-01T00:00:02Z"),
+        ],
+    )
+    sink = NullSink()
+    runtime = LocalRuntime(plan_dir, sink=sink, no_wait=True, limit=2)
+    stats = runtime.run()
+    assert stats.emitted == 2
+    assert sink.count() == 2
+
+
+def test_runtime_stats_success_failure_counts(tmp_path):
+    plan_dir = _write_plan(
+        tmp_path,
+        [_event("e1", "login", "2024-01-01T00:00:00Z")],
+    )
+    sink = NullSink()
+    runtime = LocalRuntime(plan_dir, sink=sink, no_wait=True)
+    stats = runtime.run()
+    assert stats.emitted == 1
+    assert stats.failed == 0

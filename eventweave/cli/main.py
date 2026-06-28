@@ -23,6 +23,7 @@ from eventweave.core.semantic import SemanticPool, SemanticTask
 from eventweave.runtime.local import LocalRuntime
 from eventweave.runtime.sink import Sink
 from eventweave.runtime.sinks.file import FileSink
+from eventweave.runtime.sinks.http import HTTPSink
 from eventweave.runtime.sinks.null import NullSink
 from eventweave.runtime.sinks.stdout import StdoutSink
 
@@ -306,6 +307,20 @@ def run(
     dry_run: Annotated[
         bool, typer.Option("--dry-run", help="Use null sink and print stats only.")
     ] = False,
+    url: Annotated[
+        str | None,
+        typer.Option("--url", help="Target URL for http sink."),
+    ] = None,
+    timeout: Annotated[
+        float, typer.Option("--timeout", help="HTTP request timeout in seconds.")
+    ] = 5.0,
+    retries: Annotated[
+        int, typer.Option("--retries", help="HTTP retry attempts for transient failures.")
+    ] = 0,
+    limit: Annotated[
+        int | None,
+        typer.Option("--limit", help="Maximum number of events to emit.")
+    ] = None,
 ) -> None:
     """Run a compiled event plan through a local runtime."""
     effective_sink: Sink
@@ -313,6 +328,11 @@ def run(
         effective_sink = NullSink()
     elif sink == "file":
         effective_sink = FileSink(output)
+    elif sink == "http":
+        if not url:
+            console.print("[red]--url is required for http sink[/red]")
+            raise typer.Exit(code=1)
+        effective_sink = HTTPSink(url, timeout=timeout, retries=retries)
     elif sink == "null":
         effective_sink = NullSink()
     elif sink == "stdout":
@@ -326,6 +346,7 @@ def run(
         sink=effective_sink,
         speed=speed,
         no_wait=no_wait,
+        limit=limit,
     )
     stats = runtime.run()
 
@@ -336,6 +357,8 @@ def run(
 
     console.print("[green]Runtime finished[/green]")
     console.print(f"Events emitted: {stats.emitted}")
+    if stats.failed:
+        console.print(f"[red]Events failed: {stats.failed}[/red]")
     console.print(f"Duration: {stats.duration:.3f}s")
 
 
