@@ -361,13 +361,25 @@ def pack_scaffold(
 def semantic_generate(
     plan_dir: Annotated[Path, typer.Argument(help="Path to compiled runtime plan directory.")],
     provider: Annotated[
-        str, typer.Option("--provider", "-p", help="Provider type (mock/template).")
+        str, typer.Option("--provider", "-p", help="Provider type (mock/template/ai).")
     ] = "mock",
     force: Annotated[bool, typer.Option("--force", help="Regenerate cached assets.")] = False,
     cache_dir: Annotated[
         Path | None,
         typer.Option("--cache-dir", help="Directory for the semantic asset cache."),
     ] = None,
+    base_url: Annotated[
+        str | None,
+        typer.Option("--base-url", help="AI API base URL (or EVENTWEAVE_AI_BASE_URL)."),
+    ] = None,
+    model: Annotated[
+        str | None,
+        typer.Option("--model", help="AI model name (or EVENTWEAVE_AI_MODEL)."),
+    ] = None,
+    api_key_env: Annotated[
+        str,
+        typer.Option("--api-key-env", help="Environment variable holding the AI API key."),
+    ] = "EVENTWEAVE_AI_API_KEY",
 ) -> None:
     """Generate semantic assets for a compiled runtime plan."""
     scenario_path = plan_dir / "scenario.json"
@@ -385,10 +397,16 @@ def semantic_generate(
     tasks = _load_semantic_tasks(tasks_path)
     events = _load_events(events_path) if events_path.exists() else []
 
+    provider_config = ProviderConfig(
+        provider,
+        base_url=base_url,
+        model=model,
+        api_key_env=api_key_env,
+    )
     cache = SemanticCache(cache_dir or (plan_dir / ".semantic_cache"))
     sidecar = SemanticSidecar(
         scenario,
-        provider=ProviderConfig(provider),
+        provider=provider_config,
         cache=cache,
     )
     pool = sidecar.generate_all(tasks, events=events, force=force)

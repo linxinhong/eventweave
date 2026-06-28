@@ -5,6 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
+from eventweave.ai.ai_provider import AIChatProvider
 from eventweave.ai.cache import SemanticCache
 from eventweave.ai.mock_provider import MockProvider
 from eventweave.ai.provider import GenerationContext, Provider, ProviderConfig
@@ -17,6 +18,7 @@ from eventweave.core.semantic import SemanticAsset, SemanticPool, SemanticTask
 _PROVIDER_REGISTRY: dict[str, type[Provider]] = {
     "mock": MockProvider,
     "template": TemplateProvider,
+    "ai": AIChatProvider,
 }
 
 
