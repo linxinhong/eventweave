@@ -68,6 +68,15 @@ eventweave semantic generate dist/ecommerce_refund_flow_semantic --provider temp
 # Inspect generated semantic assets
 eventweave semantic inspect dist/ecommerce_refund_flow_semantic/semantic_pool.json
 
+# Run the resolved event plan through the local runtime
+eventweave run dist/ecommerce_refund_flow_semantic --sink file --output out/events.jsonl --no-wait
+
+# Or replay to stdout with 10x time acceleration
+eventweave run dist/ecommerce_refund_flow_semantic --sink stdout --speed 10
+
+# Dry-run to count events without emitting
+eventweave run dist/ecommerce_refund_flow_semantic --dry-run
+
 # Export events as JSONL
 eventweave export dist/ecommerce_refund_flow --format jsonl --output out/events.jsonl
 ```
@@ -223,7 +232,7 @@ The matching event in `event_plan.jsonl` now references the concrete asset id:
 
 ## Project status
 
-Current version: **v0.2** — AI Semantic Sidecar
+Current version: **v0.3** — Python Local Runtime
 
 What works:
 
@@ -238,12 +247,14 @@ What works:
 - Offline providers (`mock`, `template`) with swappable `Provider` interface
 - File-based semantic asset cache and validator
 - CLI `semantic generate` and `semantic inspect`
-- Placeholder `semantic_refs` injected into `event_plan.jsonl`
+- Placeholder `semantic_refs` resolved to concrete asset ids in `event_plan.jsonl`
+- Python Local Runtime with `stdout`, `file`, and `null` sinks
+- Time acceleration (`--speed`) and immediate replay (`--no-wait`)
+- Runtime stats and unresolved semantic ref warnings
 
 What is planned:
 
-- v0.2: AI Semantic Sidecar
-- v0.3: Python Local Runtime
+- v0.3.1: Semantic refs polish and asset-level resolution improvements
 - v0.4: Go High-Performance Runtime
 - v0.5: Pack Ecosystem
 - v0.6: Agent Evaluation Harness
