@@ -98,6 +98,19 @@ go run ./cmd/eventweave-runtime run ../dist/ecommerce_refund_flow_semantic \
 go run ./cmd/eventweave-runtime run ../dist/ecommerce_refund_flow_semantic \
   --sink syslog --syslog-addr 127.0.0.1:514 --syslog-proto udp --no-wait
 
+# Go runtime: rate-limited replay (1000 events/sec)
+go run ./cmd/eventweave-runtime run ../dist/security_lateral_movement \
+  --sink null --rate 1000 --limit 10000
+
+# Go runtime: benchmark throughput
+go run ./cmd/eventweave-runtime bench ../dist/ecommerce_refund_flow_semantic \
+  --sink null --limit 100000
+
+# Go runtime: write stats to JSON
+go run ./cmd/eventweave-runtime run ../dist/ecommerce_refund_flow_semantic \
+  --sink file --output ../out/events.jsonl --no-wait \
+  --stats-json ../out/stats.json
+
 # Export events as JSONL
 eventweave export dist/ecommerce_refund_flow --format jsonl --output out/events.jsonl
 ```
@@ -253,7 +266,7 @@ The matching event in `event_plan.jsonl` now references the concrete asset id:
 
 ## Project status
 
-Current version: **v0.4.1** — Kafka / Syslog Sinks for Go Runtime
+Current version: **v0.4.2** — Runtime Metrics / Benchmark / Basic Backpressure
 
 What works:
 
@@ -276,10 +289,14 @@ What works:
 - Go runtime reads the same `event_plan.jsonl` produced by Python compiler
 - Go runtime Kafka sink with configurable brokers, topic, and message key
 - Go runtime Syslog sink over UDP/TCP with configurable facility, severity, and tag
+- Go runtime `--rate` for fixed EPS replay
+- Go runtime `bench` sub-command for throughput testing
+- Go runtime `--stats-json` and `--max-failures`
 
 What is planned:
 
-- v0.4.2: Prometheus metrics and basic backpressure
+- v0.4.3: Kafka batching and basic worker pool
+- v0.5: Prometheus metrics and pack ecosystem
 - v0.5: Pack Ecosystem
 - v0.6: Agent Evaluation Harness
 

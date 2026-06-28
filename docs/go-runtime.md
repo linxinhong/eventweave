@@ -45,6 +45,19 @@ eventweave-runtime run dist/ecommerce_refund_flow_semantic \
 # Stream to a local Syslog server
 eventweave-runtime run dist/ecommerce_refund_flow_semantic \
   --sink syslog --syslog-addr 127.0.0.1:514 --syslog-proto udp --no-wait
+
+# Rate-limited replay (fixed EPS)
+eventweave-runtime run dist/security_lateral_movement \
+  --sink null --rate 1000 --limit 10000
+
+# Benchmark throughput
+eventweave-runtime bench dist/ecommerce_refund_flow_semantic \
+  --sink null --limit 100000
+
+# Write stats to JSON
+eventweave-runtime run dist/ecommerce_refund_flow_semantic \
+  --sink file --output out/events.jsonl --no-wait \
+  --stats-json out/stats.json
 ```
 
 ## CLI options
@@ -64,16 +77,21 @@ eventweave-runtime run dist/ecommerce_refund_flow_semantic \
 | `--syslog-tag`      | Syslog tag (default `eventweave`)                         |
 | `--speed`           | Time acceleration factor (default 1.0)                    |
 | `--no-wait`         | Emit all events immediately                               |
+| `--rate`            | Target events per second (mutually exclusive with speed/no-wait) |
 | `--limit`           | Maximum number of events to emit                          |
+| `--max-failures`    | Stop after N failed writes (0 = unlimited)                |
 | `--timeout`         | Network request timeout for `http` and `kafka` (default 5s) |
 | `--retries`         | Retry attempts for transient network failures             |
+| `--stats-json`      | Write runtime stats to a JSON file                        |
 
 ## Output
 
 ```text
 Runtime finished
+Events loaded: 55
 Events emitted: 55
 Duration: 0.005s
+Throughput: 11000 events/sec
 Sink: file (out/events.jsonl)
 ```
 
@@ -92,6 +110,7 @@ runtime-go/
 │   ├── loader/      # event_plan.jsonl reader
 │   ├── scheduler/   # event ordering
 │   ├── clock/       # scenario-time to real-time mapping
+│   ├── ratelimit/   # rate control for --rate
 │   ├── sink/        # Sink interface
 │   ├── sinks/       # stdout, file, null, http, kafka, syslog sinks
 │   ├── stats/       # runtime stats
@@ -99,9 +118,23 @@ runtime-go/
 └── go.mod
 ```
 
+## Commands
+
+### `run`
+
+Replay a compiled event plan through a sink. Use `--speed` to follow the
+scenario timeline, `--no-wait` to emit immediately, or `--rate` for a fixed
+EPS target. These three timing options are mutually exclusive.
+
+### `bench`
+
+Benchmark throughput. Defaults to `--sink null` and `--no-wait` unless you
+explicitly set `--sink`, `--rate`, or `--speed`. Output is a concise benchmark
+summary including events, duration, and throughput.
+
 ## Sinks
 
-v0.4.1 ships with six sinks:
+v0.4.2 ships with six sinks:
 
 - `stdout` prints JSON lines.
 - `file` appends to a JSONL file.
@@ -130,13 +163,13 @@ runtimes produce identical output.
 
 ## Limitations
 
-v0.4.1 is an MVP. It does not include:
+v0.4.2 is an MVP. It does not include:
 
 - ClickHouse, Elasticsearch, or other database sinks
 - Multi-worker concurrency
-- Backpressure handling
+- Advanced backpressure handling
 - Long-running daemon mode
 - Pause/resume API
 - Prometheus metrics
 
-These are planned for v0.4.2 and later.
+These are planned for v0.4.3 and later.
