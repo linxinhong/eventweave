@@ -75,7 +75,6 @@ class AIChatProvider(Provider):
         body: dict[str, Any] = {
             "model": config.model,
             "messages": messages,
-            "temperature": 0.7,
         }
 
         url = f"{config.base_url}/chat/completions"
