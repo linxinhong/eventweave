@@ -9,6 +9,7 @@ import (
 
 	"github.com/linxinhong/eventweave/runtime-go/internal/config"
 	"github.com/linxinhong/eventweave/runtime-go/internal/runtime"
+	"github.com/linxinhong/eventweave/runtime-go/internal/server"
 )
 
 func main() {
@@ -27,6 +28,40 @@ func rootCmd() *cobra.Command {
 
 	cmd.AddCommand(runCmd())
 	cmd.AddCommand(benchCmd())
+	cmd.AddCommand(serveCmd())
+	return cmd
+}
+
+func serveCmd() *cobra.Command {
+	var (
+		serverConfig string
+		limit        int
+		statsJSON    string
+	)
+
+	cmd := &cobra.Command{
+		Use:   "serve <plan-dir>",
+		Short: "Serve events over multiple protocol endpoints",
+		Long:  "Start a multi-source runtime server that exposes events over HTTP and Syslog endpoints.",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if serverConfig == "" {
+				return fmt.Errorf("--server-config is required")
+			}
+
+			rt := server.NewRuntimeServer(args[0], serverConfig, limit, statsJSON)
+			stats, err := rt.Run()
+			if err != nil {
+				return err
+			}
+			stats.Print()
+			return nil
+		},
+	}
+
+	cmd.Flags().StringVar(&serverConfig, "server-config", "", "Path to server configuration YAML (required)")
+	cmd.Flags().IntVar(&limit, "limit", 0, "Maximum number of events to serve")
+	cmd.Flags().StringVar(&statsJSON, "stats-json", "", "Write server stats to a JSON file")
 	return cmd
 }
 
