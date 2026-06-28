@@ -51,6 +51,49 @@ No LLM is called.
 eventweave semantic generate dist/ecommerce_refund_flow_semantic --provider template
 ```
 
+### `ai`
+
+Calls any Chat Completions compatible HTTP API. This works with Kimi,
+DeepSeek, Qwen-compatible gateways, and local model servers such as Ollama's
+OpenAI-compatible endpoint.
+
+AI calls are optional: `mock` remains the default. The runtime never calls an
+AI API; generation only happens during `eventweave semantic generate`. All AI
+outputs are cached and validated before being written to `semantic_pool.json`.
+
+Configure via environment variables:
+
+```bash
+export EVENTWEAVE_AI_BASE_URL=https://api.moonshot.cn/v1
+export EVENTWEAVE_AI_API_KEY=your-kimi-api-key
+export EVENTWEAVE_AI_MODEL=moonshot-v1-8k
+
+eventweave semantic generate dist/ecommerce_refund_flow_semantic --provider ai
+```
+
+Or use CLI options:
+
+```bash
+eventweave semantic generate dist/ecommerce_refund_flow_semantic \
+  --provider ai \
+  --base-url https://api.moonshot.cn/v1 \
+  --model moonshot-v1-8k \
+  --api-key-env EVENTWEAVE_AI_API_KEY
+```
+
+`--api-key-env` lets you use a custom environment variable name. The API key is
+never accepted as a CLI argument, so it cannot leak into shell history.
+
+Local model example with Ollama:
+
+```bash
+export EVENTWEAVE_AI_BASE_URL=http://127.0.0.1:11434/v1
+export EVENTWEAVE_AI_API_KEY=dummy
+export EVENTWEAVE_AI_MODEL=qwen2.5:7b
+
+eventweave semantic generate dist/ecommerce_refund_flow_semantic --provider ai
+```
+
 ### Custom provider
 
 Register a custom provider by subclassing `Provider`:
@@ -174,7 +217,26 @@ During compilation, EventWeave attaches placeholder `semantic_refs` to events:
 After `semantic generate`, these placeholders can be resolved to concrete asset
 ids from `semantic_pool.json` by a runtime or post-processor.
 
+## Safety and privacy
+
+- AI generation is optional. The default `mock` provider works without any
+  external service.
+- The runtime never calls AI APIs; AI is only used during `semantic generate`.
+- AI outputs are cached locally and validated before use.
+- Do not send sensitive real data to external AI APIs.
+- API keys are read from environment variables only and never accepted as CLI
+  arguments.
+
 ## Testing without an LLM
 
 All tests pass without API keys because the default `mock` and `template`
 providers are deterministic and offline. See `tests/ai/` for examples.
+
+To run optional live AI integration tests, set:
+
+```bash
+export EVENTWEAVE_AI_BASE_URL=https://api.moonshot.cn/v1
+export EVENTWEAVE_AI_API_KEY=your-kimi-api-key
+export EVENTWEAVE_AI_MODEL=moonshot-v1-8k
+EVENTWEAVE_RUN_AI_TESTS=1 pytest tests/ai/test_ai_provider.py
+```

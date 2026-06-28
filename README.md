@@ -65,6 +65,12 @@ eventweave compile examples/ecommerce/refund.yaml -o dist
 # Generate semantic assets for the semantic-enabled example
 eventweave semantic generate dist/ecommerce_refund_flow_semantic --provider template
 
+# Generate semantic assets with a Chat Completions compatible AI (e.g. Kimi)
+export EVENTWEAVE_AI_BASE_URL=https://api.moonshot.cn/v1
+export EVENTWEAVE_AI_API_KEY=your-kimi-api-key
+export EVENTWEAVE_AI_MODEL=moonshot-v1-8k
+eventweave semantic generate dist/ecommerce_refund_flow_semantic --provider ai
+
 # Inspect generated semantic assets
 eventweave semantic inspect dist/ecommerce_refund_flow_semantic/semantic_pool.json
 
@@ -276,7 +282,7 @@ The matching event in `event_plan.jsonl` now references the concrete asset id:
 
 ## Project status
 
-Current version: **v0.5.1** — Pack Scaffold
+Current version: **v0.5.2** — Generic AI Provider
 
 What works:
 
@@ -306,10 +312,11 @@ What works:
 - Formal pack manifest, local registry, and pack validation
 - Self-contained pack examples under `packs/<domain>/examples/`
 - `eventweave pack scaffold` for quick pack creation
+- Generic `ai` provider for Chat Completions compatible APIs (Kimi, DeepSeek,
+  Qwen, Ollama, etc.) with environment-variable credentials
 
 What is planned:
 
-- v0.5.2: OpenAI-compatible Provider
 - v0.6: Agent Evaluation Harness
 - v0.6.x: Prometheus metrics and Kafka batching
 - v0.5: Pack Ecosystem
