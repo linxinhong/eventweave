@@ -1,0 +1,125 @@
+id: security_lateral_movement
+name: Lateral movement alert scenario
+domain: security
+for_each: user
+duration: 45m
+seed: 20260628
+
+entities:
+  user:
+    count: 5
+    type: user
+
+  host:
+    count: 10
+    type: host
+
+  ip:
+    count: 15
+    type: ip
+
+  alert:
+    count: 3
+    type: alert
+
+sources:
+  - id: edr-001
+    type: security_device
+    role: edr
+    rate:
+      base_qps: 300
+      burst_qps: 3000
+      jitter: 0.15
+    outputs:
+      - type: kafka
+        topic: mock.security.edr
+
+  - id: firewall-001
+    type: security_device
+    role: firewall
+    rate:
+      base_qps: 1000
+      burst_qps: 8000
+      jitter: 0.2
+    outputs:
+      - type: syslog
+        protocol: udp
+        address: 127.0.0.1:514
+
+timeline:
+  - id: failed_login
+    at: "00:01:00"
+    event: user.login.failed
+    source: edr-001
+    entity_refs:
+      user: "$flow"
+      host: "$entity.host"
+    attributes:
+      reason: Invalid password
+
+  - id: successful_login
+    after: failed_login
+    delay: "30s..2m"
+    event: user.login.success
+    source: edr-001
+    entity_refs:
+      user: "$ref.failed_login.user"
+      host: "$ref.failed_login.host"
+    attributes:
+      method: password
+
+  - id: suspicious_process
+    after: successful_login
+    delay: "5m..10m"
+    event: process.suspicious_started
+    source: edr-001
+    entity_refs:
+      host: "$ref.successful_login.host"
+    attributes:
+      process_name: powershell.exe
+      command_line: encoded command
+
+  - id: lateral_connection
+    after: suspicious_process
+    delay: "1m..3m"
+    event: network.lateral_connection
+    source: firewall-001
+    entity_refs:
+      source_host: "$ref.suspicious_process.host"
+      target_host: "$entity.host"
+      source_ip: "$entity.ip"
+      target_ip: "$entity.ip"
+    attributes:
+      port: 445
+      protocol: tcp
+
+  - id: alert_triggered
+    after: lateral_connection
+    delay: "1m..5m"
+    event: alert.triggered
+    source: edr-001
+    entity_refs:
+      host: "$ref.lateral_connection.source_host"
+      alert: "$new.alert"
+    attributes:
+      severity: high
+      description: Lateral movement detected
+
+rules:
+  - id: login_success_after_failed_attempts
+    type: event_after
+    event: user.login.success
+    after: user.login.failed
+    scope: flow
+
+  - id: alert_must_reference_existing_host
+    type: required_entity_ref
+    event: alert.triggered
+    ref: host
+
+  - id: lateral_connection_must_reference_two_hosts
+    type: required_entity_ref
+    event: network.lateral_connection
+    refs:
+      - source_host
+      - target_host
