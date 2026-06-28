@@ -20,6 +20,11 @@ from eventweave.compiler.writer import PlanWriter
 from eventweave.core.event import Event
 from eventweave.core.scenario import Scenario
 from eventweave.core.semantic import SemanticPool, SemanticTask
+from eventweave.runtime.local import LocalRuntime
+from eventweave.runtime.sink import Sink
+from eventweave.runtime.sinks.file import FileSink
+from eventweave.runtime.sinks.null import NullSink
+from eventweave.runtime.sinks.stdout import StdoutSink
 
 app = typer.Typer(
     name="eventweave",
@@ -281,6 +286,57 @@ def semantic_inspect(
     for asset in pool.assets:
         console.print(f"\n[bold]{asset.id}[/bold] ({asset.type})")
         console.print(asset.text[:200] + "..." if len(asset.text) > 200 else asset.text)
+
+
+@app.command()
+def run(
+    plan_dir: Annotated[Path, typer.Argument(help="Path to compiled runtime plan directory.")],
+    sink: Annotated[
+        str, typer.Option("--sink", help="Output sink: stdout, file, or null.")
+    ] = "stdout",
+    output: Annotated[
+        Path, typer.Option("--output", "-o", help="Output path for file sink.")
+    ] = Path("out/events.jsonl"),
+    speed: Annotated[
+        float, typer.Option("--speed", help="Time acceleration factor.")
+    ] = 1.0,
+    no_wait: Annotated[
+        bool, typer.Option("--no-wait", help="Emit all events immediately.")
+    ] = False,
+    dry_run: Annotated[
+        bool, typer.Option("--dry-run", help="Use null sink and print stats only.")
+    ] = False,
+) -> None:
+    """Run a compiled event plan through a local runtime."""
+    effective_sink: Sink
+    if dry_run:
+        effective_sink = NullSink()
+    elif sink == "file":
+        effective_sink = FileSink(output)
+    elif sink == "null":
+        effective_sink = NullSink()
+    elif sink == "stdout":
+        effective_sink = StdoutSink()
+    else:
+        console.print(f"[red]Unsupported sink: {sink}[/red]")
+        raise typer.Exit(code=1)
+
+    runtime = LocalRuntime(
+        plan_dir,
+        sink=effective_sink,
+        speed=speed,
+        no_wait=no_wait,
+    )
+    stats = runtime.run()
+
+    if stats.unresolved_refs:
+        console.print(
+            f"[yellow]Warning: {stats.unresolved_refs} events have unresolved refs[/yellow]"
+        )
+
+    console.print("[green]Runtime finished[/green]")
+    console.print(f"Events emitted: {stats.emitted}")
+    console.print(f"Duration: {stats.duration:.3f}s")
 
 
 if __name__ == "__main__":
