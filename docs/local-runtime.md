@@ -26,6 +26,14 @@ eventweave run dist/ecommerce_refund_flow_semantic --sink stdout --speed 10
 
 # Dry-run: count events without emitting
 eventweave run dist/ecommerce_refund_flow_semantic --dry-run
+
+# Emit only the first N events
+eventweave run dist/ecommerce_refund_flow_semantic --sink stdout --limit 5
+
+# Stream to a local HTTP endpoint
+python examples/receivers/http_receiver.py &
+eventweave run dist/ecommerce_refund_flow_semantic \
+  --sink http --url http://127.0.0.1:8080/events --no-wait
 ```
 
 ## Sinks
@@ -35,6 +43,23 @@ eventweave run dist/ecommerce_refund_flow_semantic --dry-run
 | `stdout` | Print each event as a JSON line to stdout.    |
 | `file`   | Append events to a JSONL file.                |
 | `null`   | Count events without writing them.            |
+| `http`   | POST each event as JSON to a URL.             |
+
+### HTTP sink options
+
+```bash
+eventweave run dist/ecommerce_refund_flow_semantic \
+  --sink http \
+  --url http://127.0.0.1:8080/events \
+  --timeout 5.0 \
+  --retries 2 \
+  --no-wait
+```
+
+- `--url` is required for the `http` sink.
+- `--timeout` controls the request timeout in seconds (default 5.0).
+- `--retries` controls retry attempts for transient failures (5xx, connection
+  errors). 4xx responses are not retried.
 
 ## Runtime output
 
@@ -43,6 +68,7 @@ At the end of a run the CLI prints a short summary:
 ```text
 Runtime finished
 Events emitted: 55
+Events failed: 0
 Duration: 0.008s
 ```
 
@@ -55,12 +81,14 @@ Warning: 3 events have unresolved refs
 
 To avoid this warning, run `eventweave semantic generate` before `eventweave run`.
 
-## Time control
+## Time control and limits
 
 - `--speed N` accelerates scenario time by `N`. For example, `--speed 10` makes a
   10-second scenario interval take 1 second of real time.
 - `--no-wait` disables all sleeping and emits events as fast as possible. This is
   useful for generating output files and tests.
+- `--limit N` emits only the first N events, which is handy for demos and quick
+  validation.
 
 ## Architecture
 
@@ -108,11 +136,27 @@ class MySink(Sink):
         return 0
 ```
 
+## Example receiver
+
+A minimal HTTP receiver is provided for demos:
+
+```bash
+python examples/receivers/http_receiver.py
+```
+
+It listens on `http://127.0.0.1:8080/events` and prints received events as JSON
+lines. Use it with:
+
+```bash
+eventweave run dist/ecommerce_refund_flow_semantic \
+  --sink http --url http://127.0.0.1:8080/events --no-wait
+```
+
 ## Limitations
 
 v0.3 intentionally does not include:
 
-- HTTP, Kafka, Syslog, ClickHouse, or Elasticsearch sinks
+- Kafka, Syslog, ClickHouse, or Elasticsearch sinks
 - Multi-worker concurrency
 - Backpressure handling
 - Long-running daemon mode

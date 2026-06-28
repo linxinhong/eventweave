@@ -77,6 +77,14 @@ eventweave run dist/ecommerce_refund_flow_semantic --sink stdout --speed 10
 # Dry-run to count events without emitting
 eventweave run dist/ecommerce_refund_flow_semantic --dry-run
 
+# Emit only the first 5 events
+eventweave run dist/ecommerce_refund_flow_semantic --sink stdout --limit 5
+
+# Stream events to a local HTTP receiver
+python examples/receivers/http_receiver.py &
+eventweave run dist/ecommerce_refund_flow_semantic \
+  --sink http --url http://127.0.0.1:8080/events --no-wait
+
 # Export events as JSONL
 eventweave export dist/ecommerce_refund_flow --format jsonl --output out/events.jsonl
 ```
