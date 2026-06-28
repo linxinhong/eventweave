@@ -44,6 +44,7 @@ class SemanticAssetMeta(BaseModel):
 
     provider: str | None = None
     prompt_id: str | None = None
+    source_task: str | None = None
     input_hash: str | None = None
     created_by: str = Field(default="system")
     quality_score: float | None = Field(default=None, ge=0, le=1)

@@ -10,9 +10,15 @@ import typer
 from rich.console import Console
 from rich.table import Table
 
+from eventweave.ai.cache import SemanticCache
+from eventweave.ai.provider import ProviderConfig
+from eventweave.ai.sidecar import SemanticSidecar
 from eventweave.compiler import compile_scenario_file, compile_scenario_file_strict
 from eventweave.compiler.loader import ScenarioLoadError
 from eventweave.compiler.writer import PlanWriter
+from eventweave.core.event import Event
+from eventweave.core.scenario import Scenario
+from eventweave.core.semantic import SemanticPool, SemanticTask
 
 app = typer.Typer(
     name="eventweave",
@@ -25,6 +31,28 @@ console = Console()
 def _find_packs_dir() -> Path:
     """Locate packs directory relative to the current working directory."""
     return Path.cwd() / "packs"
+
+
+def _load_scenario(path: Path) -> Scenario:
+    with path.open("r", encoding="utf-8") as f:
+        data = json.load(f)
+    return Scenario.model_validate(data)
+
+
+def _load_events(path: Path) -> list[Event]:
+    events: list[Event] = []
+    with path.open("r", encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+            if line:
+                events.append(Event.model_validate(json.loads(line)))
+    return events
+
+
+def _load_semantic_tasks(path: Path) -> list[SemanticTask]:
+    with path.open("r", encoding="utf-8") as f:
+        data = json.load(f)
+    return [SemanticTask.model_validate(item) for item in data]
 
 
 @app.command()
@@ -155,6 +183,88 @@ def inspect(
     table.add_row("Sources", str(len(plan_data.get("sources", []))))
 
     console.print(table)
+
+
+semantic_app = typer.Typer(
+    name="semantic",
+    help="Generate and inspect semantic assets.",
+)
+app.add_typer(semantic_app)
+
+
+@semantic_app.command("generate")
+def semantic_generate(
+    plan_dir: Annotated[Path, typer.Argument(help="Path to compiled runtime plan directory.")],
+    provider: Annotated[
+        str, typer.Option("--provider", "-p", help="Provider type (mock/template).")
+    ] = "mock",
+    force: Annotated[bool, typer.Option("--force", help="Regenerate cached assets.")] = False,
+    cache_dir: Annotated[
+        Path | None,
+        typer.Option("--cache-dir", help="Directory for the semantic asset cache."),
+    ] = None,
+) -> None:
+    """Generate semantic assets for a compiled runtime plan."""
+    scenario_path = plan_dir / "scenario.json"
+    tasks_path = plan_dir / "semantic_tasks.json"
+    events_path = plan_dir / "event_plan.jsonl"
+
+    if not scenario_path.exists():
+        console.print(f"[red]Scenario not found: {scenario_path}[/red]")
+        raise typer.Exit(code=1)
+    if not tasks_path.exists():
+        console.print(f"[red]Semantic tasks not found: {tasks_path}[/red]")
+        raise typer.Exit(code=1)
+
+    scenario = _load_scenario(scenario_path)
+    tasks = _load_semantic_tasks(tasks_path)
+    events = _load_events(events_path) if events_path.exists() else []
+
+    cache = SemanticCache(cache_dir or (plan_dir / ".semantic_cache"))
+    sidecar = SemanticSidecar(
+        scenario,
+        provider=ProviderConfig(provider),
+        cache=cache,
+    )
+    pool = sidecar.generate_all(tasks, events=events, force=force)
+
+    pool_path = plan_dir / "semantic_pool.json"
+    pool_path.write_text(pool.model_dump_json(indent=2), encoding="utf-8")
+
+    console.print(f"[green]Generated {len(pool.assets)} semantic assets[/green]")
+    console.print(f"Output: {pool_path}")
+
+
+@semantic_app.command("inspect")
+def semantic_inspect(
+    pool_path: Annotated[Path, typer.Argument(help="Path to semantic_pool.json.")],
+) -> None:
+    """Inspect a generated semantic asset pool."""
+    if not pool_path.exists():
+        console.print(f"[red]Semantic pool not found: {pool_path}[/red]")
+        raise typer.Exit(code=1)
+
+    with pool_path.open("r", encoding="utf-8") as f:
+        data = json.load(f)
+    pool = SemanticPool.model_validate(data)
+
+    table = Table(title=f"Semantic Pool: {pool.scenario_id}")
+    table.add_column("Metric", style="cyan")
+    table.add_column("Value", style="magenta")
+
+    table.add_row("Scenario", pool.scenario_id)
+    table.add_row("Total Assets", str(len(pool.assets)))
+
+    by_type: dict[str, int] = {}
+    for asset in pool.assets:
+        by_type[asset.type] = by_type.get(asset.type, 0) + 1
+    table.add_row("Types", ", ".join(f"{k}: {v}" for k, v in by_type.items()))
+
+    console.print(table)
+
+    for asset in pool.assets:
+        console.print(f"\n[bold]{asset.id}[/bold] ({asset.type})")
+        console.print(asset.text[:200] + "..." if len(asset.text) > 200 else asset.text)
 
 
 if __name__ == "__main__":

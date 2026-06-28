@@ -4,7 +4,7 @@
 
 [![CI](https://github.com/eventweave/eventweave/actions/workflows/ci.yml/badge.svg)](https://github.com/eventweave/eventweave/actions/workflows/ci.yml)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
-[![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-green.svg)](LICENSE)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
 Generate event flows, not just fake rows.
 
@@ -61,6 +61,12 @@ eventweave validate examples/ecommerce/refund.yaml
 
 # Compile a scenario into a runtime plan
 eventweave compile examples/ecommerce/refund.yaml -o dist
+
+# Generate semantic assets for the semantic-enabled example
+eventweave semantic generate dist/ecommerce_refund_flow_semantic --provider template
+
+# Inspect generated semantic assets
+eventweave semantic inspect dist/ecommerce_refund_flow_semantic/semantic_pool.json
 
 # Export events as JSONL
 eventweave export dist/ecommerce_refund_flow --format jsonl --output out/events.jsonl
@@ -181,7 +187,7 @@ rules:
 
 ## Project status
 
-Current version: **v0.1** — Scenario Compiler MVP
+Current version: **v0.2** — AI Semantic Sidecar
 
 What works:
 
@@ -192,6 +198,11 @@ What works:
 - Deterministic output with `--seed`
 - JSONL exporter
 - Makefile and GitHub Actions CI
+- Semantic task and asset models (`SemanticTask`, `SemanticAsset`, `SemanticPool`)
+- Offline providers (`mock`, `template`) with swappable `Provider` interface
+- File-based semantic asset cache and validator
+- CLI `semantic generate` and `semantic inspect`
+- Placeholder `semantic_refs` injected into `event_plan.jsonl`
 
 What is planned:
 
@@ -224,4 +235,4 @@ See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## License
 
-Apache-2.0. See [LICENSE](LICENSE).
+MIT. See [LICENSE](LICENSE).

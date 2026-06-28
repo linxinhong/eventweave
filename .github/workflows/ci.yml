@@ -28,13 +28,15 @@ jobs:
           version: "latest"
 
       - name: Install dependencies
-        run: uv pip install -e ".[dev]"
+        run: |
+          uv venv
+          uv pip install -e ".[dev]"
 
       - name: Run ruff
-        run: ruff check eventweave tests
+        run: uv run ruff check eventweave tests
 
       - name: Run mypy
-        run: mypy eventweave
+        run: uv run mypy eventweave
 
       - name: Run pytest
-        run: pytest -q
+        run: uv run pytest -q

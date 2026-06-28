@@ -45,6 +45,7 @@ def compile_scenario(
     plan, planner_warnings = planner.compile(scenario, seed=effective_seed)
 
     semantic_tasks = build_semantic_tasks(scenario)
+    _attach_semantic_refs_placeholder(plan, semantic_tasks)
 
     registry = RuleRegistry()
     # Load rules from packs used by the scenario.
@@ -97,3 +98,30 @@ def compile_scenario_file_strict(
     """Load and compile a scenario file in strict mode."""
     scenario = load_scenario(path)
     return compile_scenario_strict(scenario, packs_dir=packs_dir, seed=seed)
+
+
+def _attach_semantic_refs_placeholder(
+    plan: RuntimePlan,
+    semantic_tasks: list[SemanticTask],
+) -> None:
+    """Attach placeholder semantic_refs to events based on matching tasks.
+
+    This is a compile-time placeholder. Actual asset ids are injected after
+    the semantic sidecar generates the asset pool.
+    """
+    tasks_by_event_type: dict[str, list[SemanticTask]] = {}
+    for task in semantic_tasks:
+        if task.valid_for:
+            for event_type in task.valid_for:
+                tasks_by_event_type.setdefault(event_type, []).append(task)
+        else:
+            # Tasks valid for all events.
+            tasks_by_event_type.setdefault("*", []).append(task)
+
+    for event in plan.events:
+        refs: set[str] = set(event.semantic_refs)
+        for task in tasks_by_event_type.get(event.event_type, []):
+            refs.add(f"semantic://{task.id}")
+        for task in tasks_by_event_type.get("*", []):
+            refs.add(f"semantic://{task.id}")
+        event.semantic_refs = sorted(refs)
