@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"time"
@@ -8,6 +9,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/linxinhong/eventweave/runtime-go/internal/config"
+	"github.com/linxinhong/eventweave/runtime-go/internal/metrics"
 	"github.com/linxinhong/eventweave/runtime-go/internal/runtime"
 	"github.com/linxinhong/eventweave/runtime-go/internal/server"
 )
@@ -37,6 +39,7 @@ func serveCmd() *cobra.Command {
 		serverConfig string
 		limit        int
 		statsJSON    string
+		metricsAddr  string
 	)
 
 	cmd := &cobra.Command{
@@ -48,6 +51,21 @@ func serveCmd() *cobra.Command {
 			if serverConfig == "" {
 				return fmt.Errorf("--server-config is required")
 			}
+
+			ms := startMetrics(metricsAddr, "serve")
+			defer stopMetrics(ms)
+
+			cfg, err := server.LoadConfig(serverConfig)
+			if err != nil {
+				return err
+			}
+			ms.SetHealth(metrics.HealthStatus{
+				Status:  "ok",
+				Mode:    "serve",
+				Servers: len(cfg.Servers),
+			})
+			metrics.SetServerUp("serve", true)
+			defer metrics.SetServerUp("serve", false)
 
 			rt := server.NewRuntimeServer(args[0], serverConfig, limit, statsJSON)
 			stats, err := rt.Run()
@@ -62,11 +80,15 @@ func serveCmd() *cobra.Command {
 	cmd.Flags().StringVar(&serverConfig, "server-config", "", "Path to server configuration YAML (required)")
 	cmd.Flags().IntVar(&limit, "limit", 0, "Maximum number of events to serve")
 	cmd.Flags().StringVar(&statsJSON, "stats-json", "", "Write server stats to a JSON file")
+	cmd.Flags().StringVar(&metricsAddr, "metrics-addr", "", "Metrics server bind address (e.g. 127.0.0.1:9090)")
 	return cmd
 }
 
 func runCmd() *cobra.Command {
-	var cfg config.RuntimeConfig
+	var (
+		cfg         config.RuntimeConfig
+		metricsAddr string
+	)
 
 	cmd := &cobra.Command{
 		Use:   "run <plan-dir>",
@@ -78,6 +100,11 @@ func runCmd() *cobra.Command {
 				return err
 			}
 
+			ms := startMetrics(metricsAddr, "run")
+			defer stopMetrics(ms)
+			metrics.SetServerUp("run", true)
+			defer metrics.SetServerUp("run", false)
+
 			rt, err := runtime.New(cfg)
 			if err != nil {
 				return err
@@ -86,6 +113,7 @@ func runCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
+			metrics.RecordRuntimeStats("run", cfg.Sink, stats)
 
 			if stats.UnresolvedRefs > 0 {
 				fmt.Fprintf(os.Stderr, "Warning: %d events have unresolved refs\n", stats.UnresolvedRefs)
@@ -102,11 +130,15 @@ func runCmd() *cobra.Command {
 
 	addRuntimeFlags(cmd, &cfg)
 	cmd.Flags().StringVar(&cfg.StatsJSON, "stats-json", "", "Write runtime stats to a JSON file")
+	cmd.Flags().StringVar(&metricsAddr, "metrics-addr", "", "Metrics server bind address (e.g. 127.0.0.1:9090)")
 	return cmd
 }
 
 func benchCmd() *cobra.Command {
-	var cfg config.RuntimeConfig
+	var (
+		cfg         config.RuntimeConfig
+		metricsAddr string
+	)
 
 	cmd := &cobra.Command{
 		Use:   "bench <plan-dir>",
@@ -124,6 +156,11 @@ func benchCmd() *cobra.Command {
 				return err
 			}
 
+			ms := startMetrics(metricsAddr, "bench")
+			defer stopMetrics(ms)
+			metrics.SetServerUp("bench", true)
+			defer metrics.SetServerUp("bench", false)
+
 			rt, err := runtime.New(cfg)
 			if err != nil {
 				return err
@@ -132,6 +169,7 @@ func benchCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
+			metrics.RecordRuntimeStats("bench", cfg.Sink, stats)
 			stats.PrintBenchmark()
 			if cfg.StatsJSON != "" {
 				if err := stats.WriteJSON(cfg.StatsJSON); err != nil {
@@ -144,7 +182,30 @@ func benchCmd() *cobra.Command {
 
 	addRuntimeFlags(cmd, &cfg)
 	cmd.Flags().StringVar(&cfg.StatsJSON, "stats-json", "", "Write benchmark stats to a JSON file")
+	cmd.Flags().StringVar(&metricsAddr, "metrics-addr", "", "Metrics server bind address (e.g. 127.0.0.1:9090)")
 	return cmd
+}
+
+func startMetrics(addr, mode string) *metrics.MetricsServer {
+	if addr == "" {
+		return nil
+	}
+	ms := metrics.NewServer(addr)
+	if err := ms.Start(); err != nil {
+		fmt.Fprintf(os.Stderr, "Warning: failed to start metrics server: %v\n", err)
+		return nil
+	}
+	ms.SetHealth(metrics.HealthStatus{Status: "ok", Mode: mode})
+	return ms
+}
+
+func stopMetrics(ms *metrics.MetricsServer) {
+	if ms == nil {
+		return
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	_ = ms.Stop(ctx)
 }
 
 func addRuntimeFlags(cmd *cobra.Command, cfg *config.RuntimeConfig) {

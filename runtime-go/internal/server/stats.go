@@ -15,15 +15,18 @@ type EndpointStats struct {
 
 // ServerStats aggregates counters across all endpoints.
 type ServerStats struct {
-	LoadedEvents int
-	Endpoints    map[string]EndpointStats
-	mu           sync.RWMutex
+	LoadedEvents      int
+	UnresolvedRefs    int
+	Endpoints         map[string]EndpointStats
+	EndpointProtocols map[string]string `json:"-"`
+	mu                sync.RWMutex
 }
 
 // NewStats creates empty server stats.
 func NewStats() *ServerStats {
 	return &ServerStats{
-		Endpoints: make(map[string]EndpointStats),
+		Endpoints:         make(map[string]EndpointStats),
+		EndpointProtocols: make(map[string]string),
 	}
 }
 

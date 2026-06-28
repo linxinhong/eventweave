@@ -5,10 +5,13 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
+	"github.com/linxinhong/eventweave/runtime-go/internal/event"
 	"github.com/linxinhong/eventweave/runtime-go/internal/loader"
+	"github.com/linxinhong/eventweave/runtime-go/internal/metrics"
 	"github.com/linxinhong/eventweave/runtime-go/internal/scheduler"
 )
 
@@ -56,6 +59,11 @@ func (rs *RuntimeServer) RunWithContext(ctx context.Context) (*ServerStats, erro
 
 	stats := NewStats()
 	stats.LoadedEvents = len(sorted)
+	stats.UnresolvedRefs = countUnresolvedRefs(sorted)
+	rs.recordEndpointProtocols(stats, cfg)
+
+	metrics.RecordEventsLoaded("serve", stats.LoadedEvents)
+	metrics.RecordUnresolvedRefs("serve", stats.UnresolvedRefs)
 
 	endpoints, err := rs.buildEndpoints(cfg)
 	if err != nil {
@@ -90,7 +98,13 @@ ServerLoop:
 			if !filter.Match(ev) {
 				continue
 			}
-			_ = ep.Write(ev)
+			protocol := stats.EndpointProtocols[ep.ID()]
+			if err := ep.Write(ev); err != nil {
+				metrics.RecordEndpointFailure(ep.ID(), protocol)
+				metrics.RecordEndpointEvent(ep.ID(), protocol, "failed")
+			} else {
+				metrics.RecordEndpointEvent(ep.ID(), protocol, "success")
+			}
 		}
 
 		// Small pacing to give clients time to consume and to avoid
@@ -140,6 +154,12 @@ func (rs *RuntimeServer) buildEndpoints(cfg *ServerConfig) ([]Endpoint, error) {
 	return endpoints, nil
 }
 
+func (rs *RuntimeServer) recordEndpointProtocols(stats *ServerStats, cfg *ServerConfig) {
+	for _, srv := range cfg.Servers {
+		stats.EndpointProtocols[srv.ID] = srv.ProtocolName()
+	}
+}
+
 func (rs *RuntimeServer) closeAll(endpoints []Endpoint) {
 	for _, ep := range endpoints {
 		_ = ep.Close()
@@ -154,4 +174,17 @@ func (c *ServerConfig) endpointFilter(id string) SourceFilter {
 		}
 	}
 	return SourceFilter{}
+}
+
+func countUnresolvedRefs(events []event.Event) int {
+	count := 0
+	for _, ev := range events {
+		for _, ref := range ev.SemanticRefs {
+			if strings.HasPrefix(ref, "semantic://") {
+				count++
+				break
+			}
+		}
+	}
+	return count
 }
