@@ -10,7 +10,7 @@ import typer
 from rich.console import Console
 from rich.table import Table
 
-from eventweave.compiler import compile_scenario_file
+from eventweave.compiler import compile_scenario_file, compile_scenario_file_strict
 from eventweave.compiler.loader import ScenarioLoadError
 from eventweave.compiler.writer import PlanWriter
 
@@ -31,14 +31,24 @@ def _find_packs_dir() -> Path:
 def validate(
     scenario: Annotated[Path, typer.Argument(help="Path to scenario YAML/JSON file.")],
     packs: Annotated[Path | None, typer.Option(help="Path to packs directory.")] = None,
+    strict: Annotated[bool, typer.Option(help="Treat rule violations as errors.")] = False,
 ) -> None:
     """Validate a scenario file."""
     packs_dir = packs or _find_packs_dir()
     try:
-        result = compile_scenario_file(scenario, packs_dir=packs_dir)
+        if strict:
+            result = compile_scenario_file_strict(scenario, packs_dir=packs_dir)
+        else:
+            result = compile_scenario_file(scenario, packs_dir=packs_dir)
     except ScenarioLoadError as exc:
         console.print(f"[red]Load error:[/red] {exc}")
         raise typer.Exit(code=1) from exc
+
+    if result.errors:
+        console.print(f"[red]Scenario {result.plan.scenario.id!r} has errors.[/red]")
+        for error in result.errors:
+            console.print(f"  - {error}")
+        raise typer.Exit(code=1)
 
     console.print(f"[green]Scenario {result.plan.scenario.id!r} is valid.[/green]")
     console.print(f"Entities: {len(result.plan.entities)}")
@@ -57,14 +67,24 @@ def compile(
     ] = Path("dist"),
     packs: Annotated[Path | None, typer.Option(help="Path to packs directory.")] = None,
     seed: Annotated[int | None, typer.Option(help="Random seed for deterministic output.")] = None,
+    strict: Annotated[bool, typer.Option(help="Treat rule violations as errors.")] = False,
 ) -> None:
     """Compile a scenario into a runtime plan."""
     packs_dir = packs or _find_packs_dir()
     try:
-        result = compile_scenario_file(scenario, packs_dir=packs_dir, seed=seed)
+        if strict:
+            result = compile_scenario_file_strict(scenario, packs_dir=packs_dir, seed=seed)
+        else:
+            result = compile_scenario_file(scenario, packs_dir=packs_dir, seed=seed)
     except ScenarioLoadError as exc:
         console.print(f"[red]Load error:[/red] {exc}")
         raise typer.Exit(code=1) from exc
+
+    if result.errors:
+        console.print(f"[red]Scenario {result.plan.scenario.id!r} has errors.[/red]")
+        for error in result.errors:
+            console.print(f"  - {error}")
+        raise typer.Exit(code=1)
 
     # Use scenario id as output subdirectory.
     output_dir = output / result.plan.scenario.id

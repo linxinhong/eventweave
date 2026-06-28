@@ -47,6 +47,8 @@ coverage.xml
 *.py,cover
 .hypothesis/
 .pytest_cache/
+.mypy_cache/
+.ruff_cache/
 cover/
 
 # Virtual environments
@@ -82,3 +84,6 @@ runtime-go/eventweave-runtime
 *.key
 .env.local
 .env.*.local
+
+# Local agent session state
+.agtalk/

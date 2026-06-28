@@ -13,6 +13,7 @@ EventWeave scenarios are written in YAML or JSON. A scenario describes:
 id: ecommerce_refund_flow
 name: E-commerce refund flow
 domain: ecommerce
+for_each: order
 duration: 30m
 seed: 20260628
 
@@ -33,20 +34,32 @@ sources:
       jitter: 0.1
 
 timeline:
-  - at: "00:00:00"
+  - id: create_order
+    at: "00:00:00"
     event: order.created
     source: order-service
+    entity_refs:
+      order: "$flow"
+      customer: "$entity.customer"
 
-  - after: order.created
+  - id: pay_order
+    after: create_order
     delay: "1m..5m"
     event: order.paid
     source: order-service
+    entity_refs:
+      order: "$ref.create_order.order"
+      payment: "$new.payment"
 
-  - after: order.paid
+  - id: request_refund
+    after: pay_order
     delay: "5m..20m"
     probability: 0.2
     event: refund.requested
     source: order-service
+    entity_refs:
+      order: "$ref.create_order.order"
+      refund: "$new.refund"
 
 rules:
   - id: order_must_be_paid_before_refund
@@ -64,12 +77,23 @@ rules:
 | `name` | string | no | Human-readable name. |
 | `domain` | string | yes | Domain pack to load. |
 | `version` | string | no | DSL version. Default `1.0`. |
+| `for_each` | string | recommended | Primary entity type that defines a flow. |
 | `duration` | string | no | Scenario duration, e.g. `30m`, `1h`. |
 | `seed` | integer | no | Random seed for deterministic output. |
 | `entities` | map | no | Entity templates to generate. |
 | `sources` | list | no | Simulated event sources. |
 | `timeline` | list | no | Scenario-level event timeline template. |
 | `rules` | list | no | Declarative rules. |
+
+## `for_each`
+
+`for_each` declares the primary entity type for flow expansion. The compiler creates one flow per instance of this type.
+
+```yaml
+for_each: order
+```
+
+If `for_each` is omitted, the compiler infers it from the first timeline event type (e.g. `order.created` -> `order`) and emits a warning.
 
 ## Entities
 
@@ -111,26 +135,23 @@ sources:
 
 ## Timeline
 
-Each timeline item describes one event in the scenario flow.
+Each timeline item describes one step in the scenario flow.
 
 ```yaml
 timeline:
-  - at: "00:00:00"
+  - id: create_order
+    at: "00:00:00"
     event: order.created
-    source: order-service
-
-  - after: order.created
-    delay: "1m..5m"
-    event: order.paid
     source: order-service
 ```
 
 | Field | Type | Description |
 |-------|------|-------------|
+| `id` | string | Step id used for `$ref` references. Defaults to `event`. |
 | `event` | string | Event type. Required. |
 | `source` | string | Source id that emits the event. |
 | `at` | string | Absolute offset from scenario start, e.g. `00:01:30`. |
-| `after` | string | Preceding event type. |
+| `after` | string | Preceding step id or event type. |
 | `delay` | string | Delay after `after`. Supports ranges like `1m..5m`. |
 | `probability` | float | Chance to emit this item. Default `1.0`. |
 | `entity_refs` | map | Role -> entity reference spec. |
@@ -141,9 +162,29 @@ timeline:
 
 | Spec | Meaning |
 |------|---------|
-| `primary` | The current flow's primary entity. |
-| `customer` | A random entity of type `customer`. |
-| `order.created.order` | The `order` ref from the previous `order.created` event in the same flow. |
+| `$flow` | The current flow's primary entity. |
+| `$entity.<type>` | Pick a random entity of `<type>` from the scenario pool. |
+| `$new.<type>` | Create a new entity of `<type>` for this flow. |
+| `$ref.<step_id>.<role>` | Reference `<role>` from a previous timeline step in the same flow. |
+
+Example:
+
+```yaml
+timeline:
+  - id: create_order
+    event: order.created
+    entity_refs:
+      order: "$flow"
+      customer: "$entity.customer"
+
+  - id: pay_order
+    after: create_order
+    event: order.paid
+    entity_refs:
+      order: "$ref.create_order.order"
+      customer: "$ref.create_order.customer"
+      payment: "$new.payment"
+```
 
 ## Rules
 
@@ -170,6 +211,8 @@ Supported rule types in v0.1:
 - `field_required`
 - `field_enum`
 
+By default rule violations are reported as warnings. Use `--strict` to treat them as errors.
+
 ## Time formats
 
 - `1h30m10s`
@@ -180,7 +223,18 @@ Supported rule types in v0.1:
 ## CLI usage
 
 ```bash
+# Validate a scenario
 eventweave validate examples/ecommerce/refund.yaml
+
+# Validate in strict mode
+eventweave validate examples/ecommerce/refund.yaml --strict
+
+# Compile a scenario
 eventweave compile examples/ecommerce/refund.yaml -o dist
+
+# Compile in strict mode
+eventweave compile examples/ecommerce/refund.yaml -o dist --strict
+
+# Export events as JSONL
 eventweave export dist/ecommerce_refund_flow --format jsonl --output out/events.jsonl
 ```

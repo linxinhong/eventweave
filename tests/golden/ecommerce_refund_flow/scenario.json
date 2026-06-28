@@ -1,0 +1,195 @@
+{
+  "id": "ecommerce_refund_flow",
+  "name": "E-commerce refund flow",
+  "domain": "ecommerce",
+  "version": "1.0",
+  "duration": "30m",
+  "seed": 20260628,
+  "for_each": "order",
+  "entities": {
+    "customer": {
+      "count": 10,
+      "type": "customer",
+      "attributes": {},
+      "tags": []
+    },
+    "product": {
+      "count": 5,
+      "type": "product",
+      "attributes": {},
+      "tags": []
+    },
+    "order": {
+      "count": 20,
+      "type": "order",
+      "attributes": {},
+      "tags": []
+    },
+    "payment": {
+      "count": 20,
+      "type": "payment",
+      "attributes": {},
+      "tags": []
+    },
+    "refund": {
+      "count": 5,
+      "type": "refund",
+      "attributes": {},
+      "tags": []
+    },
+    "ticket": {
+      "count": 5,
+      "type": "ticket",
+      "attributes": {},
+      "tags": []
+    }
+  },
+  "sources": [
+    {
+      "id": "order-service",
+      "type": "service",
+      "domain": null,
+      "role": "order_service",
+      "rate": {
+        "base_qps": 100.0,
+        "burst_qps": 800.0,
+        "jitter": 0.1
+      },
+      "time_policy": {
+        "mode": "realtime",
+        "late_arrival_ratio": 0.0,
+        "out_of_order_ratio": 0.0
+      },
+      "outputs": [
+        {
+          "type": "jsonl",
+          "path": "./out/orders.jsonl"
+        }
+      ]
+    },
+    {
+      "id": "ticket-service",
+      "type": "service",
+      "domain": null,
+      "role": "ticket_service",
+      "rate": {
+        "base_qps": 20.0,
+        "burst_qps": 100.0,
+        "jitter": 0.2
+      },
+      "time_policy": {
+        "mode": "realtime",
+        "late_arrival_ratio": 0.0,
+        "out_of_order_ratio": 0.0
+      },
+      "outputs": [
+        {
+          "type": "jsonl",
+          "path": "./out/tickets.jsonl"
+        }
+      ]
+    }
+  ],
+  "timeline": [
+    {
+      "id": "create_order",
+      "event": "order.created",
+      "source": "order-service",
+      "at": "00:00:00",
+      "after": null,
+      "delay": null,
+      "probability": 1.0,
+      "repeat": 1,
+      "semantic": null,
+      "attributes": {
+        "amount": 299.0,
+        "currency": "CNY"
+      },
+      "entity_refs": {
+        "order": "$flow",
+        "customer": "$entity.customer"
+      },
+      "labels": [],
+      "ground_truth": {}
+    },
+    {
+      "id": "pay_order",
+      "event": "order.paid",
+      "source": "order-service",
+      "at": null,
+      "after": "create_order",
+      "delay": "1m..5m",
+      "probability": 1.0,
+      "repeat": 1,
+      "semantic": null,
+      "attributes": {
+        "method": "alipay"
+      },
+      "entity_refs": {
+        "order": "$ref.create_order.order",
+        "customer": "$ref.create_order.customer",
+        "payment": "$new.payment"
+      },
+      "labels": [],
+      "ground_truth": {}
+    },
+    {
+      "id": "request_refund",
+      "event": "refund.requested",
+      "source": "order-service",
+      "at": null,
+      "after": "pay_order",
+      "delay": "5m..20m",
+      "probability": 0.2,
+      "repeat": 1,
+      "semantic": null,
+      "attributes": {
+        "reason": "Product did not match description"
+      },
+      "entity_refs": {
+        "order": "$ref.create_order.order",
+        "customer": "$ref.create_order.customer",
+        "refund": "$new.refund"
+      },
+      "labels": [],
+      "ground_truth": {}
+    },
+    {
+      "id": "create_ticket",
+      "event": "ticket.created",
+      "source": "ticket-service",
+      "at": null,
+      "after": "request_refund",
+      "delay": "10s..1m",
+      "probability": 0.5,
+      "repeat": 1,
+      "semantic": null,
+      "attributes": {
+        "subject": "Refund request",
+        "priority": "medium"
+      },
+      "entity_refs": {
+        "order": "$ref.create_order.order",
+        "customer": "$ref.create_order.customer",
+        "ticket": "$new.ticket"
+      },
+      "labels": [],
+      "ground_truth": {}
+    }
+  ],
+  "rules": [
+    {
+      "id": "order_must_be_paid_before_refund",
+      "type": "event_after",
+      "event": "refund.requested",
+      "after": "order.paid",
+      "scope": "order"
+    },
+    {
+      "id": "ticket_must_reference_existing_order",
+      "type": "required_entity_ref",
+      "event": "ticket.created",
+      "ref": "order"
+    }
+  ]
+}

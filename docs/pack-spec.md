@@ -136,6 +136,24 @@ rules:
 | `description` | string | Human-readable description. |
 | `attributes` | map | Rule-specific parameters. |
 
+### Supported rule types
+
+- `required_entity_ref` — event must reference an entity role.
+- `event_after` — event must occur after another event in the same flow.
+- `field_required` — event must contain a field.
+- `field_enum` — field value must be in allowed set.
+
+## Pack dependencies
+
+A pack can declare dependencies in `pack.yaml`:
+
+```yaml
+depends_on:
+  - common
+```
+
+The compiler loads dependencies recursively. The `common` pack provides shared entity types such as `user` and `device`.
+
 ## v0.1 limitations
 
 - No dynamic Python rule plugins.

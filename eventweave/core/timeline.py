@@ -10,6 +10,10 @@ from pydantic import BaseModel, Field
 class TimelineItem(BaseModel):
     """A single item in a scenario-level timeline template."""
 
+    id: str | None = Field(
+        default=None,
+        description="Step id used for $ref references. Defaults to event type.",
+    )
     event: str = Field(..., description="Event type to emit, e.g. order.created.")
     source: str | None = Field(default=None, description="Source id or role.")
     at: str | None = Field(
@@ -18,7 +22,7 @@ class TimelineItem(BaseModel):
     )
     after: str | None = Field(
         default=None,
-        description="Event type that this item must follow.",
+        description="Step id or event type that this item must follow.",
     )
     delay: str | None = Field(
         default=None,
