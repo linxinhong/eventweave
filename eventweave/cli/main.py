@@ -21,6 +21,7 @@ from eventweave.compiler.writer import PlanWriter
 from eventweave.core.event import Event
 from eventweave.core.scenario import Scenario
 from eventweave.core.semantic import SemanticPool, SemanticTask
+from eventweave.pack.scaffold import ScaffoldError, scaffold_pack
 from eventweave.runtime.local import LocalRuntime
 from eventweave.runtime.sink import Sink
 from eventweave.runtime.sinks.file import FileSink
@@ -325,6 +326,35 @@ def pack_validate(
         )
     else:
         console.print("[green]Validation passed.[/green]")
+
+
+@pack_app.command("scaffold")
+def pack_scaffold(
+    pack_id: Annotated[str, typer.Argument(help="Pack identifier.")],
+    packs_dir: Annotated[
+        Path | None, typer.Option("--packs-dir", help="Path to packs directory.")
+    ] = None,
+    force: Annotated[
+        bool, typer.Option("--force", help="Overwrite existing pack directory.")
+    ] = False,
+) -> None:
+    """Scaffold a new domain pack."""
+    target_dir = packs_dir or _find_packs_dir()
+    try:
+        pack_path = scaffold_pack(pack_id, target_dir, force=force)
+    except ScaffoldError as exc:
+        console.print(f"[red]{exc}[/red]")
+        console.print("Use --force to overwrite.")
+        raise typer.Exit(code=1) from exc
+
+    console.print(f"[green]Created pack at {pack_path}[/green]")
+    console.print("Next steps:")
+    console.print(f"  1. Edit {pack_path / 'pack.yaml'}")
+    console.print(f"  2. Define entities in {pack_path / 'entities'}")
+    console.print(f"  3. Define events in {pack_path / 'events'}")
+    console.print(f"  4. Update {pack_path / 'rules.yaml'}")
+    console.print(f"  5. Edit the example in {pack_path / 'examples' / 'basic.yaml'}")
+    console.print(f"  6. Run: eventweave pack validate {pack_id}")
 
 
 @semantic_app.command("generate")
