@@ -28,7 +28,7 @@ from eventweave.evaluation.agent_output import AgentOutput
 from eventweave.evaluation.benchmark import Scorecard
 from eventweave.evaluation.evaluator import Evaluator
 from eventweave.evaluation.runner import BenchmarkRunError, load_suite, run_benchmark
-from eventweave.evaluation.validator import SuiteValidator
+from eventweave.evaluation.validator import RealismGate, SuiteValidator
 from eventweave.pack.scaffold import ScaffoldError, scaffold_pack
 from eventweave.quality.realism import RealismAnalyzer
 from eventweave.runtime.local import LocalRuntime
@@ -713,6 +713,26 @@ def benchmark_validate(
         float,
         typer.Option("--min-score", help="Minimum required sample overall_score."),
     ] = 1.0,
+    min_noise_ratio: Annotated[
+        float | None,
+        typer.Option("--min-noise-ratio", help="Minimum noise events per key event."),
+    ] = None,
+    min_event_types: Annotated[
+        int | None,
+        typer.Option("--min-event-types", help="Minimum distinct event types."),
+    ] = None,
+    min_sources: Annotated[
+        int | None,
+        typer.Option("--min-sources", help="Minimum distinct source ids."),
+    ] = None,
+    max_burstiness: Annotated[
+        float | None,
+        typer.Option("--max-burstiness", help="Maximum allowed burstiness score."),
+    ] = None,
+    require_jitter: Annotated[
+        bool,
+        typer.Option("--require-jitter", help="Require scenario-level jitter to be enabled."),
+    ] = False,
     output: Annotated[
         Path | None,
         typer.Option("--output", "-o", help="Optional JSON path for validation report."),
@@ -723,7 +743,17 @@ def benchmark_validate(
         console.print(f"[red]Suite not found: {suite}[/red]")
         raise typer.Exit(code=1)
 
-    report = SuiteValidator(min_score=min_score).validate(suite)
+    realism_gates = RealismGate(
+        min_noise_ratio=min_noise_ratio,
+        min_event_types=min_event_types,
+        min_sources=min_sources,
+        max_burstiness=max_burstiness,
+        require_jitter=require_jitter,
+    )
+    report = SuiteValidator(
+        min_score=min_score,
+        realism_gates=realism_gates,
+    ).validate(suite)
 
     status = "[green]passed[/green]" if report.passed else "[red]failed[/red]"
     console.print(f"Validation for [cyan]{report.suite_id}[/cyan]: {status}")

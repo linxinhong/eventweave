@@ -105,6 +105,38 @@ timeline:
       severity: high
       description: DNS tunneling detected
 
+noise:
+  enabled: true
+  ratio: 1.0
+  events:
+    - event: dns.query
+      weight: 10
+      source: dns-001
+      entity_refs:
+        host: "$entity.host"
+        domain: "$entity.domain"
+    - event: dns.response
+      weight: 5
+      source: dns-001
+      entity_refs:
+        host: "$entity.host"
+        domain: "$entity.domain"
+    - event: edr.heartbeat
+      weight: 5
+      source: edr-001
+      entity_refs:
+        host: "$entity.host"
+    - event: user.login.success
+      weight: 2
+      source: edr-001
+      entity_refs:
+        host: "$entity.host"
+
+jitter:
+  enabled: true
+  max_offset: 5s
+  preserve_order: true
+
 ground_truth:
   scenario_id: security_dns_exfiltration
   expected_findings:

@@ -11,12 +11,11 @@ from eventweave.core.ground_truth import ExpectedFinding
 from eventweave.evaluation.benchmark import BenchmarkSuite
 from eventweave.evaluation.evaluator import Evaluator
 from eventweave.evaluation.runner import (
-    BenchmarkRunError,
     _discover_agent_output,
     _load_agent_output,
-    _load_ground_truth,
     load_suite,
 )
+from eventweave.quality.realism import RealismAnalyzer
 
 
 @dataclass
@@ -29,12 +28,24 @@ class CheckResult:
 
 
 @dataclass
+class RealismGate:
+    """Optional thresholds a scenario must satisfy to be considered realistic."""
+
+    min_noise_ratio: float | None = None
+    min_event_types: int | None = None
+    min_sources: int | None = None
+    max_burstiness: float | None = None
+    require_jitter: bool = False
+
+
+@dataclass
 class ValidationReport:
     """Report produced by validating a benchmark suite."""
 
     suite_id: str
     passed: bool = False
     checks: list[CheckResult] = field(default_factory=list)
+    realism: dict[str, Any] = field(default_factory=dict)
 
     def add(self, name: str, passed: bool, message: str = "") -> None:
         self.checks.append(CheckResult(name=name, passed=passed, message=message))
@@ -48,6 +59,7 @@ class ValidationReport:
                 {"name": c.name, "passed": c.passed, "message": c.message}
                 for c in self.checks
             ],
+            "realism": self.realism,
         }
 
 
@@ -58,9 +70,11 @@ class SuiteValidator:
         self,
         min_score: float = 1.0,
         agent_dir: str | Path | None = None,
+        realism_gates: RealismGate | None = None,
     ) -> None:
         self.min_score = min_score
         self.agent_dir = Path(agent_dir) if agent_dir is not None else Path("examples/evaluation")
+        self.realism_gates = realism_gates or RealismGate()
 
     def validate(self, suite_path: str | Path) -> ValidationReport:
         """Run all validation checks against a suite file."""
@@ -129,42 +143,6 @@ class SuiteValidator:
             return
         report.add(f"{scenario_id}_exists", True, "Scenario file exists")
 
-        try:
-            ground_truth = _load_ground_truth(scenario_path)
-        except BenchmarkRunError as exc:
-            report.add(
-                f"{scenario_id}_ground_truth",
-                False,
-                f"Failed to load ground truth: {exc}",
-            )
-            return
-        except Exception as exc:  # noqa: BLE001
-            report.add(
-                f"{scenario_id}_compile",
-                False,
-                f"Failed to compile scenario: {exc}",
-            )
-            return
-
-        report.add(
-            f"{scenario_id}_compile",
-            True,
-            "Scenario compiled successfully",
-        )
-        report.add(
-            f"{scenario_id}_ground_truth",
-            True,
-            f"Ground truth has {len(ground_truth.expected_findings)} expected findings",
-        )
-
-        self._check_scenario_id_match(scenario_path, scenario_id, ground_truth, report)
-        self._check_evidence_event_ids(scenario_path, ground_truth, report)
-        self._check_duplicate_findings(scenario_id, ground_truth.expected_findings, report)
-        self._check_sample_output(ground_truth, report)
-
-    def _compile_or_report(
-        self, scenario_path: Path, scenario_id: str, report: ValidationReport
-    ) -> Any | None:
         result = compile_scenario_file(scenario_path)
         if result.errors or result.plan is None:
             report.add(
@@ -172,19 +150,43 @@ class SuiteValidator:
                 False,
                 "Cannot validate scenario: compilation failed",
             )
-            return None
-        return result.plan
+            return
+
+        plan = result.plan
+        report.add(
+            f"{scenario_id}_compile",
+            True,
+            "Scenario compiled successfully",
+        )
+
+        if plan.scenario.ground_truth is None:
+            report.add(
+                f"{scenario_id}_ground_truth",
+                False,
+                "Scenario has no ground_truth",
+            )
+            return
+
+        ground_truth = plan.scenario.ground_truth
+        report.add(
+            f"{scenario_id}_ground_truth",
+            True,
+            f"Ground truth has {len(ground_truth.expected_findings)} expected findings",
+        )
+
+        self._check_scenario_id_match(scenario_id, ground_truth, plan, report)
+        self._check_evidence_event_ids(ground_truth, plan, report)
+        self._check_duplicate_findings(scenario_id, ground_truth.expected_findings, report)
+        self._check_sample_output(ground_truth, report)
+        self._check_realism(scenario_id, plan, ground_truth, report)
 
     def _check_scenario_id_match(
         self,
-        scenario_path: Path,
         scenario_id: str,
         ground_truth: Any,
+        plan: Any,
         report: ValidationReport,
     ) -> None:
-        plan = self._compile_or_report(scenario_path, scenario_id, report)
-        if plan is None:
-            return
         if ground_truth.scenario_id != plan.scenario.id:
             report.add(
                 f"{scenario_id}_scenario_id_match",
@@ -201,20 +203,11 @@ class SuiteValidator:
 
     def _check_evidence_event_ids(
         self,
-        scenario_path: Path,
         ground_truth: Any,
+        plan: Any,
         report: ValidationReport,
     ) -> None:
         scenario_id = ground_truth.scenario_id
-        plan = self._compile_or_report(scenario_path, scenario_id, report)
-        if plan is None:
-            report.add(
-                f"{scenario_id}_evidence_events",
-                False,
-                "Cannot validate evidence events: compilation failed",
-            )
-            return
-
         event_ids = {ev.event_id for ev in plan.events}
         invalid: set[str] = set()
         for finding in ground_truth.expected_findings:
@@ -306,4 +299,76 @@ class SuiteValidator:
                 f"{scenario_id}_sample_score",
                 False,
                 f"Sample overall_score = {score:.2f}, required >= {self.min_score:.2f}",
+            )
+
+    def _check_realism(
+        self,
+        scenario_id: str,
+        plan: Any,
+        ground_truth: Any,
+        report: ValidationReport,
+    ) -> None:
+        """Run optional realism gate checks for a compiled scenario."""
+        gate = self.realism_gates
+        if (
+            gate.min_noise_ratio is None
+            and gate.min_event_types is None
+            and gate.min_sources is None
+            and gate.max_burstiness is None
+            and not gate.require_jitter
+        ):
+            return
+
+        analysis = RealismAnalyzer(plan, ground_truth).analyze()
+        metrics: dict[str, Any] = analysis.to_dict()
+        key_events = metrics.get("ground_truth_events", 0)
+        noise_events = metrics.get("noise_events", 0)
+        metrics["noise_multiplier"] = (
+            noise_events / key_events if key_events else 0.0
+        )
+        report.realism[scenario_id] = metrics
+
+        if gate.min_noise_ratio is not None:
+            multiplier = metrics["noise_multiplier"]
+            passed = multiplier >= gate.min_noise_ratio
+            report.add(
+                f"{scenario_id}_realism_noise",
+                passed,
+                f"noise_multiplier={multiplier:.2f}, required >= {gate.min_noise_ratio:.2f}",
+            )
+
+        if gate.min_event_types is not None:
+            event_types = len(metrics.get("event_type_distribution", {}))
+            passed = event_types >= gate.min_event_types
+            report.add(
+                f"{scenario_id}_realism_event_types",
+                passed,
+                f"event_types={event_types}, required >= {gate.min_event_types}",
+            )
+
+        if gate.min_sources is not None:
+            sources = metrics.get("unique_sources", 0)
+            passed = sources >= gate.min_sources
+            report.add(
+                f"{scenario_id}_realism_sources",
+                passed,
+                f"sources={sources}, required >= {gate.min_sources}",
+            )
+
+        if gate.max_burstiness is not None:
+            burstiness = metrics.get("burstiness_score", 0.0)
+            passed = burstiness <= gate.max_burstiness
+            report.add(
+                f"{scenario_id}_realism_burstiness",
+                passed,
+                f"burstiness={burstiness:.3f}, required <= {gate.max_burstiness:.3f}",
+            )
+
+        if gate.require_jitter:
+            jitter = plan.scenario.jitter
+            passed = jitter is not None and jitter.enabled
+            report.add(
+                f"{scenario_id}_realism_jitter",
+                passed,
+                "jitter is enabled" if passed else "jitter is not enabled",
             )

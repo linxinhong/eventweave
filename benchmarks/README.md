@@ -92,6 +92,22 @@ Scenarios in benchmark suites can use `noise:` and `jitter:` to generate more
 realistic datasets. After compiling, run `eventweave quality realism <plan-dir>`
 to inspect noise ratio, burstiness, and other realism metrics.
 
+You can also enforce realism gates during validation:
+
+```bash
+eventweave benchmark validate \
+  --suite benchmarks/security.yaml \
+  --min-noise-ratio 0.5 \
+  --min-event-types 6 \
+  --min-sources 3 \
+  --max-burstiness 2.0 \
+  --require-jitter
+```
+
+The `--min-noise-ratio` gate is measured as noise events per ground-truth
+timeline event. A JSON report written with `--output` includes a `realism`
+section per scenario.
+
 ## Authoring a new suite
 
 1. Ensure each referenced scenario declares `ground_truth`.

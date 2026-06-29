@@ -99,6 +99,40 @@ timeline:
     attributes:
       reason: Payment failures exceeded retry limit
 
+noise:
+  enabled: true
+  ratio: 0.5
+  events:
+    - event: product.viewed
+      weight: 5
+      source: order-service
+      entity_refs:
+        customer: "$entity.customer"
+        product: "$entity.product"
+    - event: cart.updated
+      weight: 3
+      source: order-service
+      entity_refs:
+        customer: "$entity.customer"
+        product: "$entity.product"
+    - event: order.created
+      weight: 4
+      source: order-service
+      entity_refs:
+        order: "$entity.order"
+        customer: "$entity.customer"
+    - event: order.paid
+      weight: 2
+      source: payment-service
+      entity_refs:
+        order: "$entity.order"
+        customer: "$entity.customer"
+
+jitter:
+  enabled: true
+  max_offset: 5s
+  preserve_order: true
+
 ground_truth:
   scenario_id: ecommerce_payment_failure_spike
   expected_findings:

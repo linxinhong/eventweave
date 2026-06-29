@@ -160,6 +160,14 @@ eventweave benchmark validate \
   --suite benchmarks/security.yaml \
   --output validation/security.json
 
+# Validate with realism gates (requires noise/jitter in scenarios)
+eventweave benchmark validate \
+  --suite benchmarks/security.yaml \
+  --min-noise-ratio 0.5 \
+  --min-event-types 6 \
+  --min-sources 3 \
+  --require-jitter
+
 eventweave benchmark leaderboard scorecards/security.json
 
 # Compare multiple agents on the same suite
@@ -331,7 +339,7 @@ The matching event in `event_plan.jsonl` now references the concrete asset id:
 
 ## Project status
 
-Current version: **v0.8.0** — Synthetic Realism / Dataset Quality Tools
+Current version: **v0.8.1** — Benchmark Realism Gates
 
 What works:
 
@@ -379,10 +387,13 @@ What works:
   multi-source runtime receivers, and a starter dashboard
 - v0.8.0: Synthetic realism tools — background noise, time jitter, and
   `eventweave quality realism` reports
+- v0.8.1: Benchmark realism gates — optional `--min-noise-ratio`,
+  `--min-event-types`, `--min-sources`, `--max-burstiness`, and
+  `--require-jitter` thresholds on `eventweave benchmark validate`
 
 What is planned:
 
-- v0.8: TBD
+- v0.9: TBD
 
 ## Pack Ecosystem
 

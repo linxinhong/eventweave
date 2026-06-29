@@ -104,15 +104,38 @@ Metrics:
 | `burstiness_score` | Coefficient of variation of per-minute counts. Higher means more bursty. |
 | `ground_truth_coverage` | Fraction of expected findings with evidence event ids. |
 
-## Benchmark quality gate (optional)
+## Benchmark realism gates (v0.8.1)
 
-Benchmark suites can expect a minimum noise ratio so datasets are not too clean:
+`eventweave benchmark validate` can enforce optional realism thresholds so
+benchmark datasets are not too clean or too simple:
 
 ```bash
-eventweave benchmark validate --suite benchmarks/security.yaml --min-noise-ratio 3.0
+eventweave benchmark validate --suite benchmarks/security.yaml --min-noise-ratio 0.5
 ```
 
-This is a v0.8.1 follow-up; v0.8 focuses on the core noise/jitter/report capabilities.
+Available gates:
+
+- `--min-noise-ratio` — minimum noise events per ground-truth timeline event
+  (noise multiplier).
+- `--min-event-types` — minimum distinct event types in the compiled plan.
+- `--min-sources` — minimum distinct source ids emitting events.
+- `--max-burstiness` — maximum allowed burstiness score.
+- `--require-jitter` — require scenario-level jitter to be enabled.
+
+When any gate is set, the validation report includes a `realism` section per
+scenario with the computed metrics.
+
+```bash
+eventweave benchmark validate \
+  --suite benchmarks/security.yaml \
+  --min-noise-ratio 0.5 \
+  --min-event-types 6 \
+  --min-sources 3 \
+  --require-jitter
+```
+
+Gates are optional; `eventweave benchmark validate` without them behaves exactly
+as before.
 
 ## Limits
 

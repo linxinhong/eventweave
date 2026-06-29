@@ -113,6 +113,32 @@ timeline:
       severity: high
       description: Brute-force login detected
 
+noise:
+  enabled: true
+  ratio: 1.0
+  events:
+    - event: user.login.success
+      weight: 5
+      source: auth-service
+      entity_refs:
+        user: "$entity.user"
+        host: "$entity.host"
+    - event: firewall.allow
+      weight: 3
+      source: auth-service
+      entity_refs:
+        host: "$entity.host"
+    - event: edr.heartbeat
+      weight: 5
+      source: siem-001
+      entity_refs:
+        host: "$entity.host"
+
+jitter:
+  enabled: true
+  max_offset: 5s
+  preserve_order: true
+
 ground_truth:
   scenario_id: security_brute_force_login
   expected_findings:
