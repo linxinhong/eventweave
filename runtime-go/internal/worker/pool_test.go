@@ -96,16 +96,23 @@ func TestPoolFailPolicy(t *testing.T) {
 	defer p.Close()
 	defer close(blocker) // release worker on cleanup
 
-	// Submit one event and wait until the worker has received it.
-	done := make(chan struct{})
-	go func() {
-		_ = p.Submit(event.Event{EventID: "blocker"})
-		close(done)
-	}()
-	<-done
+	// Retry until the worker has started and accepts the first event.
+	var err error
+	deadline := time.Now().Add(200 * time.Millisecond)
+	for {
+		err = p.Submit(event.Event{EventID: "blocker"})
+		if err == nil {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("first submit failed: %v", err)
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
+	// Worker has received the event and is now blocked inside sink.Write.
 	time.Sleep(20 * time.Millisecond)
 
-	// Worker is now busy; an unbuffered queue with fail policy should reject.
+	// With an unbuffered queue and a busy worker, fail policy should reject.
 	if err := p.Submit(event.Event{EventID: "overflow"}); err == nil {
 		t.Fatal("expected queue full error")
 	}

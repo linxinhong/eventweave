@@ -2,6 +2,10 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
+from eventweave.compiler import compile_scenario_file
+from eventweave.compiler.writer import PlanWriter
 from eventweave.core.ground_truth import ExpectedFinding, GroundTruth
 from eventweave.evaluation.agent_output import AgentFinding, AgentOutput
 from eventweave.evaluation.evaluator import Evaluator
@@ -123,14 +127,22 @@ def test_balanced_score_combines_recall_and_precision() -> None:
     assert 0.0 < report.metrics["balanced_score"] < 1.0
 
 
-def test_sample_agent_output_scores_1_0() -> None:
+def test_sample_agent_output_scores_1_0(tmp_path: Path) -> None:
     """Sample agent output for security_lateral_movement should score perfectly."""
-    from pathlib import Path
-
-    gt_path = Path("dist/security_lateral_movement/ground_truth.json")
+    scenario_path = Path("examples/security/lateral_movement.yaml")
     ao_path = Path("examples/evaluation/security_lateral_movement_agent_output.json")
-    assert gt_path.exists(), f"Ground truth not found: {gt_path}"
+    assert scenario_path.exists(), f"Scenario not found: {scenario_path}"
     assert ao_path.exists(), f"Sample agent output not found: {ao_path}"
+
+    result = compile_scenario_file(
+        scenario_path, packs_dir=Path("packs"), seed=20260628
+    )
+    assert result.ok, result.errors
+
+    plan_dir = tmp_path / result.plan.scenario.id
+    PlanWriter(plan_dir).write(result.plan, semantic_tasks=result.semantic_tasks)
+    gt_path = plan_dir / "ground_truth.json"
+    assert gt_path.exists(), f"Ground truth not written: {gt_path}"
 
     gt = GroundTruth.model_validate_json(gt_path.read_text(encoding="utf-8"))
     ao = AgentOutput.model_validate_json(ao_path.read_text(encoding="utf-8"))
