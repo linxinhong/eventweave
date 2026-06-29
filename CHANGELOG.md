@@ -2,6 +2,27 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.9.3] - 2026-06-29
+
+### Added
+
+- Go runtime `serve` now supports per-endpoint encoders via the optional
+  `encoder` field in `server.yaml`.
+- Endpoints can emit vendor-specific formats (e.g., `fortinet-fortigate`,
+  `syslog-rfc3164`, `nginx-access`) while other endpoints continue to emit
+  canonical JSON.
+- Unknown encoder names in `server.yaml` are rejected at config validation time.
+
+### Changed
+
+- `HTTPServer` and `SyslogServer` constructors now accept an encoder instance.
+- Syslog endpoints avoid double-wrapping when a syslog encoder is configured.
+
+### Documentation
+
+- Updated `docs/multi-source-runtime.md` with `encoder` examples and encoding
+  behavior for HTTP and syslog endpoints.
+
 ## [0.9.2] - 2026-06-29
 
 ### Added

@@ -7,6 +7,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/linxinhong/eventweave/runtime-go/internal/encoder"
 	"gopkg.in/yaml.v3"
 )
 
@@ -22,6 +23,7 @@ type EndpointConfig struct {
 	Bind           string       `yaml:"bind"`
 	Port           int          `yaml:"port"`
 	Path           string       `yaml:"path"`
+	Encoder        string       `yaml:"encoder,omitempty"`
 	SourceFilter   SourceFilter `yaml:"source_filter"`
 	AllowedClients []string     `yaml:"allowed_clients,omitempty"`
 }
@@ -117,6 +119,12 @@ func (e *EndpointConfig) Validate() error {
 
 	if proto == "http" && e.Path == "" {
 		e.Path = "/events"
+	}
+
+	if e.Encoder != "" {
+		if _, err := encoder.Get(e.Encoder); err != nil {
+			return fmt.Errorf("unknown encoder %q: %w", e.Encoder, err)
+		}
 	}
 
 	return nil

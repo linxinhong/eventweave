@@ -7,12 +7,13 @@ import (
 	"testing"
 	"time"
 
+	"github.com/linxinhong/eventweave/runtime-go/internal/encoder"
 	"github.com/linxinhong/eventweave/runtime-go/internal/event"
 )
 
 func TestSyslogTCPServerEmitsFilteredEvents(t *testing.T) {
 	addr := "127.0.0.1:18082"
-	srv := NewSyslogServer("syslog_tcp_test", addr, "tcp", 16, 6, "eventweave")
+	srv := NewSyslogServer("syslog_tcp_test", addr, "tcp", 16, 6, "eventweave", nil)
 	if err := srv.Open(); err != nil {
 		t.Fatalf("open: %v", err)
 	}
@@ -46,9 +47,52 @@ func TestSyslogTCPServerEmitsFilteredEvents(t *testing.T) {
 	}
 }
 
+func TestSyslogTCPServerUsesSyslogEncoder(t *testing.T) {
+	addr := "127.0.0.1:18089"
+	enc, err := encoder.Get("syslog-rfc3164")
+	if err != nil {
+		t.Fatalf("get encoder: %v", err)
+	}
+	srv := NewSyslogServer("syslog_tcp_enc_test", addr, "tcp", 16, 6, "eventweave", enc)
+	if err := srv.Open(); err != nil {
+		t.Fatalf("open: %v", err)
+	}
+	defer srv.Close()
+
+	time.Sleep(50 * time.Millisecond)
+
+	conn, err := net.Dial("tcp", addr)
+	if err != nil {
+		t.Fatalf("dial: %v", err)
+	}
+	defer conn.Close()
+
+	time.Sleep(50 * time.Millisecond)
+
+	_ = srv.Write(event.Event{EventID: "enc1", SourceID: "fw-01", EventType: "firewall.allow"})
+
+	conn.SetReadDeadline(time.Now().Add(2 * time.Second))
+	reader := bufio.NewReader(conn)
+	line, err := reader.ReadString('\n')
+	if err != nil {
+		t.Fatalf("read: %v", err)
+	}
+	if !strings.HasPrefix(line, "<") {
+		t.Fatalf("expected syslog priority prefix, got %q", line)
+	}
+	if strings.Count(line, "<") > 1 {
+		t.Fatalf("expected no double syslog wrapping, got %q", line)
+	}
+
+	stats := srv.Stats()
+	if stats.Emitted != 1 {
+		t.Fatalf("expected 1 emitted, got %d", stats.Emitted)
+	}
+}
+
 func TestSyslogUDPServerEmitsFilteredEvents(t *testing.T) {
 	addr := "127.0.0.1:18083"
-	srv := NewSyslogServer("syslog_udp_test", addr, "udp", 16, 6, "eventweave")
+	srv := NewSyslogServer("syslog_udp_test", addr, "udp", 16, 6, "eventweave", nil)
 	if err := srv.Open(); err != nil {
 		t.Fatalf("open: %v", err)
 	}
@@ -89,7 +133,7 @@ func TestSyslogUDPServerEmitsFilteredEvents(t *testing.T) {
 
 func TestSyslogUDPServerRejectsUnallowedClient(t *testing.T) {
 	addr := "127.0.0.1:18084"
-	srv := NewSyslogServer("syslog_udp_allowlist", addr, "udp", 16, 6, "eventweave", "10.0.0.0/8")
+	srv := NewSyslogServer("syslog_udp_allowlist", addr, "udp", 16, 6, "eventweave", nil, "10.0.0.0/8")
 	if err := srv.Open(); err != nil {
 		t.Fatalf("open: %v", err)
 	}
@@ -124,7 +168,7 @@ func TestSyslogUDPServerRejectsUnallowedClient(t *testing.T) {
 
 func TestSyslogUDPCleanupRemovesStaleClients(t *testing.T) {
 	addr := "127.0.0.1:18085"
-	srv := NewSyslogServer("syslog_udp_cleanup", addr, "udp", 16, 6, "eventweave")
+	srv := NewSyslogServer("syslog_udp_cleanup", addr, "udp", 16, 6, "eventweave", nil)
 	if err := srv.Open(); err != nil {
 		t.Fatalf("open: %v", err)
 	}

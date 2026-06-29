@@ -5,9 +5,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"net"
+	"strings"
 	"sync"
 	"time"
 
+	"github.com/linxinhong/eventweave/runtime-go/internal/encoder"
 	"github.com/linxinhong/eventweave/runtime-go/internal/event"
 )
 
@@ -29,6 +31,7 @@ type SyslogServer struct {
 	facility int
 	severity int
 	tag      string
+	enc      encoder.Encoder
 
 	listener net.Listener
 	connMu   sync.RWMutex
@@ -49,7 +52,7 @@ type SyslogServer struct {
 
 // NewSyslogServer creates a syslog server endpoint.
 // Optional allowedCIDRs restrict which UDP sources may register as clients.
-func NewSyslogServer(id, addr, protocol string, facility, severity int, tag string, allowedCIDRs ...string) *SyslogServer {
+func NewSyslogServer(id, addr, protocol string, facility, severity int, tag string, enc encoder.Encoder, allowedCIDRs ...string) *SyslogServer {
 	ctx, cancel := context.WithCancel(context.Background())
 	s := &SyslogServer{
 		id:         id,
@@ -58,6 +61,7 @@ func NewSyslogServer(id, addr, protocol string, facility, severity int, tag stri
 		facility:   facility,
 		severity:   severity,
 		tag:        tag,
+		enc:        enc,
 		udpClients: make(map[string]time.Time),
 		ctx:        ctx,
 		cancel:     cancel,
@@ -153,12 +157,21 @@ func (s *SyslogServer) Close() error {
 
 // Write delivers a syslog message to all connected clients.
 func (s *SyslogServer) Write(ev event.Event) error {
-	body, err := json.Marshal(ev)
+	body, err := s.encodePayload(ev)
 	if err != nil {
 		s.incrFailed()
 		return err
 	}
-	msg := s.format(string(body))
+
+	var msg string
+	if s.enc != nil && isSyslogEncoder(s.enc.Name()) {
+		msg = string(body)
+		if !strings.HasSuffix(msg, "\n") {
+			msg += "\n"
+		}
+	} else {
+		msg = s.format(string(body))
+	}
 
 	switch s.protocol {
 	case "udp":
@@ -167,6 +180,17 @@ func (s *SyslogServer) Write(ev event.Event) error {
 		return s.writeTCP(msg)
 	}
 	return nil
+}
+
+func (s *SyslogServer) encodePayload(ev event.Event) ([]byte, error) {
+	if s.enc != nil {
+		return s.enc.Encode(ev)
+	}
+	return json.Marshal(ev)
+}
+
+func isSyslogEncoder(name string) bool {
+	return strings.HasPrefix(name, "syslog-")
 }
 
 func (s *SyslogServer) writeTCP(msg string) error {

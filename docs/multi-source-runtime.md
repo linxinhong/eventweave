@@ -35,8 +35,17 @@ servers:
     bind: 127.0.0.1
     port: 8081
     path: /events
+    encoder: windows-event-json
     source_filter:
       source_id: edr-001
+
+  - id: firewall_syslog_tcp
+    protocol: syslog_tcp
+    bind: 127.0.0.1
+    port: 5516
+    encoder: fortinet-fortigate
+    source_filter:
+      source_id: firewall-001
 ```
 
 ### Endpoint fields
@@ -46,6 +55,8 @@ servers:
 - `bind` — interface to bind to. Defaults to `127.0.0.1`. Use `0.0.0.0` only with explicit configuration.
 - `port` — listener port. Must be `>= 1024`.
 - `path` — HTTP path. Defaults to `/events`.
+- `encoder` — optional encoder name (e.g. `nginx-access`, `syslog-rfc3164`, `fortinet-fortigate`).
+  When set, the endpoint emits encoded output instead of canonical JSON.
 - `source_filter` — selects events for this endpoint.
   - `source_id` — match `source_id` field.
   - `event_type` — match `event_type` field.
@@ -77,17 +88,23 @@ data: {"event_id":"...",...}
 
 ```
 
+If the endpoint has an `encoder`, each `data:` payload is the encoder output. For example, an HTTP endpoint configured with `encoder: nginx-access` emits nginx combined log lines.
+
 ### Syslog TCP
 
-Clients connect to the TCP port. The server pushes one RFC3164-like message per event:
+Clients connect to the TCP port. The server pushes one message per event. By default it wraps the canonical JSON event in an RFC3164-like envelope:
 
 ```text
 <134>Jun 28 12:00:00 eventweave {"event_id":"...",...}
 ```
 
+If the endpoint configures a syslog encoder such as `syslog-rfc3164` or
+`syslog-rfc5424`, the encoder output is sent directly (no double wrapping).
+Non-syslog encoders are wrapped in the same RFC3164-like envelope.
+
 ### Syslog UDP
 
-The server listens on the UDP port. Clients must first send any datagram to that port so the server learns their address. After registration, the server forwards RFC3164-like messages to all registered clients.
+The server listens on the UDP port. Clients must first send any datagram to that port so the server learns their address. After registration, the server forwards messages to all registered clients using the same encoding rules as Syslog TCP.
 
 ## Safety defaults
 

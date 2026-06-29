@@ -9,6 +9,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/linxinhong/eventweave/runtime-go/internal/encoder"
 	"github.com/linxinhong/eventweave/runtime-go/internal/event"
 	"github.com/linxinhong/eventweave/runtime-go/internal/loader"
 	"github.com/linxinhong/eventweave/runtime-go/internal/metrics"
@@ -140,18 +141,34 @@ func (rs *RuntimeServer) buildEndpoints(cfg *ServerConfig) ([]Endpoint, error) {
 	endpoints := make([]Endpoint, 0, len(cfg.Servers))
 	for _, srv := range cfg.Servers {
 		addr := srv.Address()
+		enc, err := rs.resolveEncoder(srv.Encoder)
+		if err != nil {
+			return nil, fmt.Errorf("endpoint %s: %w", srv.ID, err)
+		}
+
 		switch srv.ProtocolName() {
 		case "http":
-			endpoints = append(endpoints, NewHTTPServer(srv.ID, addr, srv.Path))
+			endpoints = append(endpoints, NewHTTPServer(srv.ID, addr, srv.Path, enc))
 		case "syslog_udp":
-			endpoints = append(endpoints, NewSyslogServer(srv.ID, addr, "udp", 16, 6, "eventweave", srv.AllowedClients...))
+			endpoints = append(endpoints, NewSyslogServer(srv.ID, addr, "udp", 16, 6, "eventweave", enc, srv.AllowedClients...))
 		case "syslog_tcp":
-			endpoints = append(endpoints, NewSyslogServer(srv.ID, addr, "tcp", 16, 6, "eventweave", srv.AllowedClients...))
+			endpoints = append(endpoints, NewSyslogServer(srv.ID, addr, "tcp", 16, 6, "eventweave", enc, srv.AllowedClients...))
 		default:
 			return nil, fmt.Errorf("unknown protocol for endpoint %s: %s", srv.ID, srv.Protocol)
 		}
 	}
 	return endpoints, nil
+}
+
+func (rs *RuntimeServer) resolveEncoder(name string) (encoder.Encoder, error) {
+	if name == "" {
+		return nil, nil
+	}
+	enc, err := encoder.Get(name)
+	if err != nil {
+		return nil, err
+	}
+	return enc, nil
 }
 
 func (rs *RuntimeServer) recordEndpointProtocols(stats *ServerStats, cfg *ServerConfig) {

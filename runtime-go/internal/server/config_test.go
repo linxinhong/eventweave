@@ -86,3 +86,25 @@ func TestConfigRejectsWildcardBind(t *testing.T) {
 		t.Fatal("expected wildcard bind warning/error")
 	}
 }
+
+func TestConfigAcceptsKnownEncoder(t *testing.T) {
+	cfg := &ServerConfig{
+		Servers: []EndpointConfig{
+			{ID: "a", Protocol: "http", Bind: "127.0.0.1", Port: 18081, Encoder: "nginx-access"},
+		},
+	}
+	if err := cfg.Validate(); err != nil {
+		t.Fatalf("expected valid config, got %v", err)
+	}
+}
+
+func TestConfigRejectsUnknownEncoder(t *testing.T) {
+	cfg := &ServerConfig{
+		Servers: []EndpointConfig{
+			{ID: "a", Protocol: "http", Bind: "127.0.0.1", Port: 18081, Encoder: "not-real"},
+		},
+	}
+	if err := cfg.Validate(); err == nil {
+		t.Fatal("expected unknown encoder error")
+	}
+}

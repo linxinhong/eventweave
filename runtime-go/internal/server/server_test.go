@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -116,6 +117,135 @@ servers:
 	t.Logf("endpoints stats: %+v", stats.Endpoints)
 	if stats.Endpoints["edr_http"].Emitted != 2 {
 		t.Fatalf("expected 2 emitted for edr_http, got %d", stats.Endpoints["edr_http"].Emitted)
+	}
+}
+
+func TestRuntimeServerRoutesDifferentEncoders(t *testing.T) {
+	dir := t.TempDir()
+
+	events := []event.Event{
+		{
+			EventID:   "e1",
+			SourceID:  "nginx",
+			EventType: "http.request",
+			Attributes: map[string]any{
+				"remote_addr":     "192.168.1.1",
+				"request":         "GET / HTTP/1.1",
+				"status":          200,
+				"body_bytes_sent": 42,
+			},
+		},
+		{EventID: "e2", SourceID: "edr-001", EventType: "user.login"},
+	}
+	planFile := filepath.Join(dir, "event_plan.jsonl")
+	f, err := os.Create(planFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, ev := range events {
+		b, _ := json.Marshal(ev)
+		_, _ = f.Write(b)
+		_, _ = f.WriteString("\n")
+	}
+	_ = f.Close()
+
+	cfg := `
+servers:
+  - id: web_http
+    protocol: http
+    bind: 127.0.0.1
+    port: 28190
+    path: /events
+    encoder: nginx-access
+    source_filter:
+      source_id: nginx
+  - id: edr_http
+    protocol: http
+    bind: 127.0.0.1
+    port: 28191
+    path: /events
+    source_filter:
+      source_id: edr-001
+`
+	cfgFile := filepath.Join(dir, "server.yaml")
+	if err := os.WriteFile(cfgFile, []byte(cfg), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	rs := NewRuntimeServer(dir, cfgFile, 0, "")
+	serverDone := make(chan *ServerStats, 1)
+	go func() {
+		stats, err := rs.RunWithContext(ctx)
+		if err != nil {
+			t.Errorf("run: %v", err)
+		}
+		serverDone <- stats
+	}()
+
+	var webResp, edrResp *http.Response
+	for i := 0; i < 100; i++ {
+		if webResp == nil {
+			webResp, _ = http.Get("http://127.0.0.1:28190/events")
+		}
+		if edrResp == nil {
+			edrResp, _ = http.Get("http://127.0.0.1:28191/events")
+		}
+		if webResp != nil && edrResp != nil {
+			break
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	if webResp == nil || edrResp == nil {
+		t.Fatal("failed to connect to both endpoints")
+	}
+
+	webScanner := bufio.NewScanner(webResp.Body)
+	edrScanner := bufio.NewScanner(edrResp.Body)
+	var webLine, edrLine string
+	webCh := make(chan string, 1)
+	edrCh := make(chan string, 1)
+	go func() {
+		if webScanner.Scan() {
+			webCh <- webScanner.Text()
+		}
+	}()
+	go func() {
+		if edrScanner.Scan() {
+			edrCh <- edrScanner.Text()
+		}
+	}()
+
+	select {
+	case webLine = <-webCh:
+	case <-time.After(500 * time.Millisecond):
+	}
+	select {
+	case edrLine = <-edrCh:
+	case <-time.After(500 * time.Millisecond):
+	}
+
+	_ = webResp.Body.Close()
+	_ = edrResp.Body.Close()
+	cancel()
+
+	stats := <-serverDone
+	if stats == nil {
+		t.Fatal("server stats is nil")
+	}
+	if stats.Endpoints["web_http"].Emitted != 1 {
+		t.Fatalf("expected 1 emitted for web_http, got %d", stats.Endpoints["web_http"].Emitted)
+	}
+	if stats.Endpoints["edr_http"].Emitted != 1 {
+		t.Fatalf("expected 1 emitted for edr_http, got %d", stats.Endpoints["edr_http"].Emitted)
+	}
+	if !strings.Contains(webLine, "192.168.1.1") {
+		t.Fatalf("expected nginx encoded output, got %q", webLine)
+	}
+	if !strings.Contains(edrLine, "\"event_id\":\"e2\"") {
+		t.Fatalf("expected JSON output, got %q", edrLine)
 	}
 }
 

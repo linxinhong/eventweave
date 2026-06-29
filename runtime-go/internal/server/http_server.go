@@ -9,6 +9,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/linxinhong/eventweave/runtime-go/internal/encoder"
 	"github.com/linxinhong/eventweave/runtime-go/internal/event"
 )
 
@@ -23,6 +24,7 @@ type HTTPServer struct {
 	id       string
 	addr     string
 	path     string
+	enc      encoder.Encoder
 	server   *http.Server
 	mu       sync.RWMutex
 	subs     []chan event.Event
@@ -35,7 +37,7 @@ type HTTPServer struct {
 }
 
 // NewHTTPServer creates an HTTP endpoint.
-func NewHTTPServer(id, addr, path string) *HTTPServer {
+func NewHTTPServer(id, addr, path string, enc encoder.Encoder) *HTTPServer {
 	if path == "" {
 		path = "/events"
 	}
@@ -44,6 +46,7 @@ func NewHTTPServer(id, addr, path string) *HTTPServer {
 		id:     id,
 		addr:   addr,
 		path:   path,
+		enc:    enc,
 		ctx:    ctx,
 		cancel: cancel,
 	}
@@ -95,6 +98,11 @@ func (s *HTTPServer) Close() error {
 
 // Write broadcasts an event to all connected HTTP clients and retains it for replay.
 func (s *HTTPServer) Write(ev event.Event) error {
+	if _, err := s.encode(ev); err != nil {
+		s.incrFailed()
+		return err
+	}
+
 	s.mu.Lock()
 	s.buffer = append(s.buffer, ev)
 	if len(s.buffer) > httpReplayBuffer {
@@ -103,11 +111,6 @@ func (s *HTTPServer) Write(ev event.Event) error {
 	subs := make([]chan event.Event, len(s.subs))
 	copy(subs, s.subs)
 	s.mu.Unlock()
-
-	if _, err := json.Marshal(ev); err != nil {
-		s.incrFailed()
-		return err
-	}
 
 	sent := 0
 	for _, ch := range subs {
@@ -131,6 +134,13 @@ func (s *HTTPServer) Write(ev event.Event) error {
 		return fmt.Errorf("no client consumed event")
 	}
 	return nil
+}
+
+func (s *HTTPServer) encode(ev event.Event) ([]byte, error) {
+	if s.enc != nil {
+		return s.enc.Encode(ev)
+	}
+	return json.Marshal(ev)
 }
 
 // Stats returns endpoint counters.
@@ -158,7 +168,11 @@ func (s *HTTPServer) handleEvents(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Set("Content-Type", "text/event-stream")
+	if s.enc != nil {
+		w.Header().Set("Content-Type", s.enc.ContentType())
+	} else {
+		w.Header().Set("Content-Type", "text/event-stream")
+	}
 	w.Header().Set("Cache-Control", "no-cache")
 	w.Header().Set("Connection", "keep-alive")
 	w.WriteHeader(http.StatusOK)
@@ -186,7 +200,7 @@ func (s *HTTPServer) handleEvents(w http.ResponseWriter, r *http.Request) {
 	}()
 
 	writeEvent := func(ev event.Event) bool {
-		body, err := json.Marshal(ev)
+		body, err := s.encode(ev)
 		if err != nil {
 			return true
 		}
