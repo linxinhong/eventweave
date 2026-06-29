@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from eventweave.encoders.base import EncodeError, Encoder, EncodeResult
+from eventweave.encoders.go_compat import GO_ENCODER_NAMES
 from eventweave.encoders.jsonl import JsonlEncoder
 from eventweave.encoders.nginx import NginxAccessEncoder
 from eventweave.encoders.registry import encoder, get_encoder, list_encoders
@@ -19,4 +20,5 @@ __all__ = [
     "Rfc3164Encoder",
     "Rfc5424Encoder",
     "NginxAccessEncoder",
+    "GO_ENCODER_NAMES",
 ]

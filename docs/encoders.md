@@ -41,19 +41,63 @@ automatically when the registry is queried:
 
 ### Python CLI
 
+The `encode` command is a group with subcommands:
+
+```bash
+eventweave encode list
+eventweave encode run dist/security_lateral_movement \
+  --encoder syslog-rfc3164 \
+  --output out/syslog.log
+eventweave encode inspect fortinet-fortigate
+eventweave encode preflight dist/security_lateral_movement \
+  --encoder fortinet-fortigate
+```
+
 List encoders:
 
 ```bash
-eventweave encode --list
+eventweave encode list
 ```
 
 Encode a compiled event plan:
 
 ```bash
-eventweave encode dist/security_lateral_movement \
+eventweave encode run dist/security_lateral_movement \
   --encoder syslog-rfc3164 \
   --output out/syslog.log
 ```
+
+Inspect an encoder (metadata and required fields):
+
+```bash
+eventweave encode inspect nginx-access
+```
+
+Example output:
+
+```text
+Encoder: nginx-access
+┏━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃ Property              ┃ Value                                           ┃
+┡━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
+│ Name                  │ nginx-access                                    │
+│ Content-Type          │ text/plain                                      │
+│ Description           │ nginx combined log format.                      │
+│ Required fields       │ remote_addr, request, status, body_bytes_sent   │
+│ Optional fields       │ remote_user, http_referer, http_user_agent      │
+│ Supported event types │ http.request                                    │
+│ Available in          │ python, go                                      │
+└───────────────────────┴─────────────────────────────────────────────────┘
+```
+
+Preflight-check a plan before encoding:
+
+```bash
+eventweave encode preflight dist/security_lateral_movement \
+  --encoder fortinet-fortigate
+```
+
+The preflight command reports how many events are encodable, which event types fail, and which required fields are missing.
 
 Use an encoder during `run` or `export`:
 
@@ -148,3 +192,39 @@ class MyFormatEncoder(Encoder):
 
 The registry discovers the module at runtime when an encoder name is looked up.
 Encoder names must be globally unique.
+
+## Encoder metadata
+
+Encoders expose metadata through the `Encoder` base class:
+
+- `name` — encoder identifier
+- `content_type` — MIME type of encoded output
+- `description` — short human-readable description
+- `required_fields` — attributes that must be present for encoding to succeed
+- `optional_fields` — attributes that are read when present
+- `supported_event_types` — event types the encoder is intended for
+
+`eventweave encode inspect <encoder>` prints this metadata, plus whether a Go
+runtime implementation exists.
+
+## Pack encoder mapping
+
+Packs can declare which encoders are recommended for which event types by adding
+an `encoders:` block to `pack.yaml`:
+
+```yaml
+encoders:
+  - name: fortinet-fortigate
+    required_fields:
+      - devname
+      - type
+      - subtype
+      - srcip
+      - dstip
+      - action
+    supported_event_types:
+      - network.lateral_connection
+```
+
+`eventweave pack validate <pack>` checks that every declared encoder is
+registered and that every `supported_event_type` exists in the pack.

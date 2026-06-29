@@ -13,11 +13,13 @@ class DBAPPSecurityWAFEncoder(Encoder):
 
     name = "dbappsecurity-waf"
     content_type = "application/x-ndjson"
-
-    _required = ["devname", "srcip", "dstip", "url", "attack_type"]
+    description = "DBAPPSecurity WAF JSON attack log format."
+    required_fields = ["devname", "srcip", "dstip", "url", "attack_type"]
+    optional_fields = ["method", "severity", "policy", "rule_id", "payload"]
+    supported_event_types = ["waf.attack", "web.request"]
 
     def encode(self, event: Event) -> EncodeResult:
-        missing = [f for f in self._required if f not in event.attributes]
+        missing = [f for f in self.required_fields if f not in event.attributes]
         if missing:
             return self._fail(f"missing required fields: {', '.join(missing)}")
 

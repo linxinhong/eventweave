@@ -15,6 +15,7 @@ class JsonlEncoder(Encoder):
 
     name = "jsonl"
     content_type = "application/x-ndjson"
+    description = "Canonical EventWeave JSON Lines encoder."
 
     def encode(self, event: Event) -> EncodeResult:
         return EncodeResult(

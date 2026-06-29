@@ -15,10 +15,26 @@ class WindowsEventJsonEncoder(Encoder):
 
     name = "windows-event-json"
     content_type = "application/x-ndjson"
+    description = "Windows Event Log JSON record format."
+    required_fields = ["EventID"]
+    optional_fields = [
+        "ProviderName",
+        "ProviderGuid",
+        "Version",
+        "Level",
+        "Task",
+        "Opcode",
+        "Keywords",
+        "EventRecordID",
+        "Computer",
+        "Channel",
+    ]
+    supported_event_types = ["windows.event"]
 
     def encode(self, event: Event) -> EncodeResult:
-        if "EventID" not in event.attributes:
-            return self._fail("missing required field: EventID")
+        missing = [f for f in self.required_fields if f not in event.attributes]
+        if missing:
+            return self._fail(f"missing required fields: {', '.join(missing)}")
 
         system: dict[str, object] = {
             "Provider": {

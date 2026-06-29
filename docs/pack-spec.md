@@ -47,6 +47,36 @@ depends_on:
 | `semantic_path` | string | no | Path to semantic templates (default `semantic`). Use `""` to disable. |
 | `realism_path` | string | no | Path to realism profiles (default `realism`). Use `""` to disable. |
 | `examples_path` | string | no | Path to examples (default `examples`). Use `""` to disable. |
+| `encoders` | list | no | Recommended encoder mapping for this pack (see below). |
+
+### Encoder mapping
+
+A pack can declare which encoders are recommended for its event types:
+
+```yaml
+encoders:
+  - name: fortinet-fortigate
+    description: FortiGate traffic log format
+    required_fields:
+      - devname
+      - type
+      - subtype
+      - srcip
+      - dstip
+      - action
+    supported_event_types:
+      - network.lateral_connection
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `name` | string | Encoder name, must be registered globally. |
+| `description` | string | Short description. |
+| `required_fields` | list | Fields required by this encoder. |
+| `supported_event_types` | list | Event types from this pack that the encoder handles. |
+
+`eventweave pack validate` checks that the encoder is registered and that each
+`supported_event_type` exists in the pack.
 
 ## Entity schemas
 

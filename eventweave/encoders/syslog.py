@@ -38,6 +38,14 @@ class Rfc3164Encoder(Encoder):
 
     name = "syslog-rfc3164"
     content_type = "text/plain"
+    description = "RFC3164-style syslog message."
+    optional_fields = [
+        "syslog_facility",
+        "syslog_severity",
+        "hostname",
+        "syslog_tag",
+        "message",
+    ]
 
     def encode(self, event: Event) -> EncodeResult:
         try:
@@ -59,6 +67,14 @@ class Rfc5424Encoder(Encoder):
 
     name = "syslog-rfc5424"
     content_type = "text/plain"
+    description = "RFC5424-style syslog message."
+    optional_fields = [
+        "syslog_facility",
+        "syslog_severity",
+        "hostname",
+        "syslog_tag",
+        "message",
+    ]
 
     def encode(self, event: Event) -> EncodeResult:
         try:

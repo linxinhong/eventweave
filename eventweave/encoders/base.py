@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from typing import Any
 
 from pydantic import BaseModel, Field
 
@@ -33,6 +34,10 @@ class Encoder(ABC):
 
     name: str
     content_type: str
+    description: str = ""
+    required_fields: list[str] = Field(default_factory=list)
+    optional_fields: list[str] = Field(default_factory=list)
+    supported_event_types: list[str] = Field(default_factory=list)
 
     @abstractmethod
     def encode(self, event: Event) -> EncodeResult:
@@ -40,6 +45,17 @@ class Encoder(ABC):
 
         Must not mutate *event*.
         """
+
+    def get_info(self) -> dict[str, Any]:
+        """Return encoder metadata for inspection and documentation."""
+        return {
+            "name": self.name,
+            "content_type": self.content_type,
+            "description": self.description,
+            "required_fields": list(self.required_fields),
+            "optional_fields": list(self.optional_fields),
+            "supported_event_types": list(self.supported_event_types),
+        }
 
     def _ok(self, output: str) -> EncodeResult:
         return EncodeResult(success=True, output=output)

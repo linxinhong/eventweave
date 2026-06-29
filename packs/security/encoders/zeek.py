@@ -13,8 +13,16 @@ class ZeekConnEncoder(Encoder):
 
     name = "zeek-conn"
     content_type = "text/plain"
-
-    _required = ["uid", "id.orig_h", "id.orig_p", "id.resp_h", "id.resp_p", "proto"]
+    description = "Zeek conn.log TSV network connection format."
+    required_fields = ["uid", "id.orig_h", "id.orig_p", "id.resp_h", "id.resp_p", "proto"]
+    optional_fields = [
+        "service",
+        "duration",
+        "orig_bytes",
+        "resp_bytes",
+        "conn_state",
+    ]
+    supported_event_types = ["network.connection"]
     _columns = [
         "ts",
         "uid",
@@ -31,7 +39,7 @@ class ZeekConnEncoder(Encoder):
     ]
 
     def encode(self, event: Event) -> EncodeResult:
-        missing = [f for f in self._required if f not in event.attributes]
+        missing = [f for f in self.required_fields if f not in event.attributes]
         if missing:
             return self._fail(f"missing required fields: {', '.join(missing)}")
 
@@ -47,8 +55,16 @@ class ZeekDNSEncoder(Encoder):
 
     name = "zeek-dns"
     content_type = "text/plain"
-
-    _required = ["uid", "id.orig_h", "id.orig_p", "id.resp_h", "id.resp_p", "query"]
+    description = "Zeek dns.log TSV DNS query/response format."
+    required_fields = ["uid", "id.orig_h", "id.orig_p", "id.resp_h", "id.resp_p", "query"]
+    optional_fields = [
+        "proto",
+        "trans_id",
+        "qtype_name",
+        "rcode_name",
+        "answers",
+    ]
+    supported_event_types = ["network.dns"]
     _columns = [
         "ts",
         "uid",
@@ -65,7 +81,7 @@ class ZeekDNSEncoder(Encoder):
     ]
 
     def encode(self, event: Event) -> EncodeResult:
-        missing = [f for f in self._required if f not in event.attributes]
+        missing = [f for f in self.required_fields if f not in event.attributes]
         if missing:
             return self._fail(f"missing required fields: {', '.join(missing)}")
 

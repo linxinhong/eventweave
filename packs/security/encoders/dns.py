@@ -13,11 +13,13 @@ class DnsJsonEncoder(Encoder):
 
     name = "dns-json"
     content_type = "application/x-ndjson"
-
-    _required = ["client_ip", "query"]
+    description = "DNS query/response JSON format."
+    required_fields = ["client_ip", "query"]
+    optional_fields = ["qtype", "rcode", "answers", "resolver", "action"]
+    supported_event_types = ["network.dns"]
 
     def encode(self, event: Event) -> EncodeResult:
-        missing = [f for f in self._required if f not in event.attributes]
+        missing = [f for f in self.required_fields if f not in event.attributes]
         if missing:
             return self._fail(f"missing required fields: {', '.join(missing)}")
 

@@ -9,6 +9,7 @@ import yaml
 from pydantic import BaseModel, Field
 
 from eventweave.core.realism_profile import RealismProfile, RealismProfileBundle
+from eventweave.encoders.registry import _default_registry
 
 
 class PackLoadError(Exception):
@@ -60,6 +61,15 @@ class PackRule(BaseModel):
     attributes: dict[str, Any] = Field(default_factory=dict)
 
 
+class EncoderMetadata(BaseModel):
+    """Encoder mapping declared by a pack."""
+
+    name: str
+    description: str | None = None
+    required_fields: list[str] = Field(default_factory=list)
+    supported_event_types: list[str] = Field(default_factory=list)
+
+
 class Pack(BaseModel):
     """A domain pack containing schemas and rules."""
 
@@ -72,6 +82,7 @@ class Pack(BaseModel):
     events: dict[str, EventSchema] = Field(default_factory=dict)
     rules: list[PackRule] = Field(default_factory=list)
     realism_profiles: dict[str, RealismProfile] = Field(default_factory=dict)
+    encoders: list[EncoderMetadata] = Field(default_factory=list)
     # Paths are populated by the registry; not part of pack.yaml directly.
     entities_path: Path = Field(default=Path("entities"))
     events_path: Path = Field(default=Path("events"))
@@ -141,6 +152,10 @@ class PackRegistry:
             examples_path=_optional_path(meta.get("examples_path", "examples")),
             realism_path=_optional_path(meta.get("realism_path", "realism")),
             encoders_path=_optional_path(meta.get("encoders_path", "encoders")),
+            encoders=[
+                EncoderMetadata.model_validate(item)
+                for item in meta.get("encoders", [])
+            ],
         )
 
     def load(self, domain: str) -> Pack:
@@ -265,6 +280,21 @@ class PackRegistry:
                 issues.append(
                     f"ERROR: Event schema type mismatch: {event_type} != {event_schema.type}"
                 )
+
+        # Validate encoder metadata against the global encoder registry.
+        for encoder_meta in full_pack.encoders:
+            if not _default_registry.has(encoder_meta.name):
+                issues.append(
+                    f"ERROR: Encoder '{encoder_meta.name}' declared in pack.yaml "
+                    "is not registered"
+                )
+                continue
+            for event_type in encoder_meta.supported_event_types:
+                if event_type not in full_pack.events:
+                    issues.append(
+                        f"ERROR: Encoder '{encoder_meta.name}' references unknown "
+                        f"event type '{event_type}'"
+                    )
 
         # Validate examples compile.
         if meta.examples_path:

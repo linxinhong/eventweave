@@ -3,3 +3,133 @@ name: Security Operations
 version: "1.0"
 depends_on:
   - common
+encoders:
+  - name: fortinet-fortigate
+    required_fields:
+      - devname
+      - type
+      - subtype
+      - srcip
+      - dstip
+      - action
+    supported_event_types:
+      - network.lateral_connection
+  - name: paloalto-traffic
+    required_fields:
+      - receive_time
+      - serial
+      - src
+      - dst
+      - sport
+      - dport
+      - proto
+      - action
+    supported_event_types:
+      - network.lateral_connection
+  - name: zeek-conn
+    required_fields:
+      - uid
+      - id.orig_h
+      - id.orig_p
+      - id.resp_h
+      - id.resp_p
+      - proto
+    supported_event_types:
+      - network.lateral_connection
+  - name: zeek-dns
+    required_fields:
+      - uid
+      - id.orig_h
+      - id.orig_p
+      - id.resp_h
+      - id.resp_p
+      - query
+    supported_event_types:
+      - network.lateral_connection
+  - name: dns-json
+    required_fields:
+      - client_ip
+      - query
+      - qtype
+    supported_event_types:
+      - network.lateral_connection
+  - name: sangfor-af
+    required_fields:
+      - devname
+      - srcip
+      - dstip
+      - action
+    supported_event_types:
+      - network.lateral_connection
+  - name: huawei-usg
+    required_fields:
+      - devname
+      - srcip
+      - dstip
+      - action
+    supported_event_types:
+      - network.lateral_connection
+  - name: h3c-secpath
+    required_fields:
+      - devname
+      - srcip
+      - dstip
+      - action
+    supported_event_types:
+      - network.lateral_connection
+  - name: topsec-ngfw
+    required_fields:
+      - devname
+      - srcip
+      - dstip
+      - action
+    supported_event_types:
+      - network.lateral_connection
+  - name: qianxin-ngfw
+    required_fields:
+      - devname
+      - srcip
+      - dstip
+      - action
+    supported_event_types:
+      - network.lateral_connection
+  - name: hillstone-ngfw
+    required_fields:
+      - devname
+      - srcip
+      - dstip
+      - action
+    supported_event_types:
+      - network.lateral_connection
+  - name: suricata-eve
+    required_fields:
+      - event_type
+      - src_ip
+      - dest_ip
+    supported_event_types:
+      - alert.triggered
+  - name: dbappsecurity-waf
+    required_fields:
+      - devname
+      - srcip
+      - dstip
+      - url
+      - attack_type
+    supported_event_types:
+      - alert.triggered
+  - name: nsfocus-ips
+    required_fields:
+      - devname
+      - srcip
+      - dstip
+      - attack_name
+    supported_event_types:
+      - alert.triggered
+  - name: windows-event-json
+    required_fields:
+      - EventID
+    supported_event_types:
+      - alert.triggered
+      - user.login.failed
+      - user.login.success
+      - process.suspicious_started

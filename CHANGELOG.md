@@ -2,6 +2,27 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.9.2] - 2026-06-29
+
+### Added
+
+- Encoder introspection: every encoder now exposes `description`,
+  `required_fields`, `optional_fields`, and `supported_event_types`.
+- `eventweave encode inspect <encoder>` to display encoder metadata,
+  required fields, and Go runtime availability.
+- `eventweave encode preflight <plan_dir> --encoder <name>` to check
+  encodability, report failures by event type, and list missing fields.
+- Pack-level encoder mapping via the optional `encoders:` block in
+  `pack.yaml`, plus validation in `eventweave pack validate`.
+- `packs/security/pack.yaml` now declares recommended encoders for its
+  event types.
+
+### Changed
+
+- `eventweave encode` is now a command group:
+  - `eventweave encode run` replaces the old top-level `eventweave encode`.
+  - `eventweave encode list` replaces `eventweave encode --list`.
+
 ## [0.9.1] - 2026-06-29
 
 ### Added

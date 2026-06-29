@@ -13,8 +13,21 @@ class PaloAltoTrafficEncoder(Encoder):
 
     name = "paloalto-traffic"
     content_type = "text/plain"
-
-    _required = ["receive_time", "serial", "src", "dst", "sport", "dport", "proto", "action"]
+    description = "Palo Alto Networks PAN-OS traffic CSV-style log format."
+    required_fields = ["receive_time", "serial", "src", "dst", "sport", "dport", "proto", "action"]
+    optional_fields = [
+        "type",
+        "subtype",
+        "natsrc",
+        "natdst",
+        "rule",
+        "app",
+        "from",
+        "to",
+        "bytes",
+        "packets",
+    ]
+    supported_event_types = ["firewall.traffic"]
     _columns = [
         "receive_time",
         "serial",
@@ -37,7 +50,7 @@ class PaloAltoTrafficEncoder(Encoder):
     ]
 
     def encode(self, event: Event) -> EncodeResult:
-        missing = [f for f in self._required if f not in event.attributes]
+        missing = [f for f in self.required_fields if f not in event.attributes]
         if missing:
             return self._fail(f"missing required fields: {', '.join(missing)}")
 

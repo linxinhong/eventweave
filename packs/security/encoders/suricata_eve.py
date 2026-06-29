@@ -15,10 +15,23 @@ class SuricataEveEncoder(Encoder):
 
     name = "suricata-eve"
     content_type = "application/x-ndjson"
+    description = "Suricata EVE JSON alert and network event format."
+    required_fields = ["event_type", "src_ip", "dest_ip"]
+    optional_fields = [
+        "src_port",
+        "dest_port",
+        "proto",
+        "alert",
+        "http",
+        "dns",
+        "flow_id",
+        "in_iface",
+        "vlan",
+    ]
+    supported_event_types = ["network.connection", "network.dns", "ids.alert", "web.request"]
 
     def encode(self, event: Event) -> EncodeResult:
-        required = ["event_type", "src_ip", "dest_ip"]
-        missing = [f for f in required if f not in event.attributes]
+        missing = [f for f in self.required_fields if f not in event.attributes]
         if missing:
             return self._fail(f"missing required fields: {', '.join(missing)}")
 

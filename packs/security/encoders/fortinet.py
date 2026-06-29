@@ -13,8 +13,21 @@ class FortinetFortigateEncoder(Encoder):
 
     name = "fortinet-fortigate"
     content_type = "text/plain"
-
-    _required = ["devname", "type", "subtype", "srcip", "dstip", "action"]
+    description = "Fortinet FortiGate key-value traffic log format."
+    required_fields = ["devname", "type", "subtype", "srcip", "dstip", "action"]
+    optional_fields = [
+        "date",
+        "time",
+        "srcport",
+        "dstport",
+        "proto",
+        "service",
+        "policyid",
+        "sentbyte",
+        "rcvdbyte",
+        "eventtime",
+    ]
+    supported_event_types = ["firewall.traffic"]
     _fields: list[tuple[str, str]] = [
         ("date", "date"),
         ("time", "time"),
@@ -35,7 +48,7 @@ class FortinetFortigateEncoder(Encoder):
     ]
 
     def encode(self, event: Event) -> EncodeResult:
-        missing = [f for f in self._required if f not in event.attributes]
+        missing = [f for f in self.required_fields if f not in event.attributes]
         if missing:
             return self._fail(f"missing required fields: {', '.join(missing)}")
 

@@ -59,6 +59,15 @@ def test_pack_validate_security(registry: PackRegistry) -> None:
     assert not errors
 
 
+def test_pack_security_encoder_metadata(registry: PackRegistry) -> None:
+    pack = registry.load_metadata("security")
+    names = {meta.name for meta in pack.encoders}
+    assert "fortinet-fortigate" in names
+    assert "nsfocus-ips" in names
+    suricata = next(meta for meta in pack.encoders if meta.name == "suricata-eve")
+    assert "alert.triggered" in suricata.supported_event_types
+
+
 def test_pack_validate_examples_compile(registry: PackRegistry) -> None:
     # validate_pack already compiles examples; just assert no errors.
     issues = registry.validate_pack("ecommerce")

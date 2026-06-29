@@ -55,4 +55,4 @@ def test_windows_event_json_basic() -> None:
 def test_windows_event_json_missing_event_id() -> None:
     result = WindowsEventJsonEncoder().encode(make_event())
     assert not result.success
-    assert "missing required field: EventID" in result.error_reason
+    assert "missing required fields: EventID" in result.error_reason

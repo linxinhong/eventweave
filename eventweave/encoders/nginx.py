@@ -13,10 +13,13 @@ class NginxAccessEncoder(Encoder):
 
     name = "nginx-access"
     content_type = "text/plain"
+    description = "nginx combined log format."
+    required_fields = ["remote_addr", "request", "status", "body_bytes_sent"]
+    optional_fields = ["remote_user", "http_referer", "http_user_agent"]
+    supported_event_types = ["http.request"]
 
     def encode(self, event: Event) -> EncodeResult:
-        required = ["remote_addr", "request", "status", "body_bytes_sent"]
-        missing = [f for f in required if f not in event.attributes]
+        missing = [f for f in self.required_fields if f not in event.attributes]
         if missing:
             return self._fail(f"missing required fields: {', '.join(missing)}")
 

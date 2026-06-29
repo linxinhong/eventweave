@@ -13,8 +13,10 @@ class H3CSecPathEncoder(Encoder):
 
     name = "h3c-secpath"
     content_type = "text/plain"
-
-    _required = ["devname", "srcip", "dstip", "action"]
+    description = "H3C SecPath firewall key-value traffic log format."
+    required_fields = ["devname", "srcip", "dstip", "action"]
+    optional_fields = ["time", "srcport", "dstport", "proto", "policy", "app"]
+    supported_event_types = ["firewall.traffic"]
     _fields: list[tuple[str, str]] = [
         ("h3c_time", "time"),
         ("h3c_devName", "devname"),
@@ -29,7 +31,7 @@ class H3CSecPathEncoder(Encoder):
     ]
 
     def encode(self, event: Event) -> EncodeResult:
-        missing = [f for f in self._required if f not in event.attributes]
+        missing = [f for f in self.required_fields if f not in event.attributes]
         if missing:
             return self._fail(f"missing required fields: {', '.join(missing)}")
 

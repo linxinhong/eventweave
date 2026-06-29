@@ -13,11 +13,13 @@ class NSFOCUSIPSEncoder(Encoder):
 
     name = "nsfocus-ips"
     content_type = "application/x-ndjson"
-
-    _required = ["devname", "srcip", "dstip", "attack_name"]
+    description = "NSFOCUS IPS/WAF JSON alert log format."
+    required_fields = ["devname", "srcip", "dstip", "attack_name"]
+    optional_fields = ["sport", "dport", "proto", "severity", "category", "rule_id"]
+    supported_event_types = ["ids.alert", "waf.attack"]
 
     def encode(self, event: Event) -> EncodeResult:
-        missing = [f for f in self._required if f not in event.attributes]
+        missing = [f for f in self.required_fields if f not in event.attributes]
         if missing:
             return self._fail(f"missing required fields: {', '.join(missing)}")
 
