@@ -1,0 +1,174 @@
+id: security_demo_multi_source
+name: Multi-source security demo
+domain: security
+for_each: host
+duration: 10m
+seed: 20260628
+
+entities:
+  host:
+    count: 5
+    type: host
+
+  user:
+    count: 5
+    type: user
+
+  ip:
+    count: 10
+    type: ip
+
+  domain:
+    count: 5
+    type: domain
+
+  alert:
+    count: 2
+    type: alert
+
+sources:
+  - id: firewall-001
+    type: security_device
+    role: firewall
+    rate:
+      base_qps: 500
+      burst_qps: 3000
+      jitter: 0.2
+    outputs:
+      - type: syslog
+        protocol: udp
+        address: 127.0.0.1:5514
+
+  - id: edr-001
+    type: security_device
+    role: edr
+    rate:
+      base_qps: 100
+      burst_qps: 1000
+      jitter: 0.15
+    outputs:
+      - type: syslog
+        protocol: tcp
+        address: 127.0.0.1:5515
+
+  - id: waf-001
+    type: security_device
+    role: waf
+    rate:
+      base_qps: 200
+      burst_qps: 1500
+      jitter: 0.1
+    outputs:
+      - type: http
+        url: http://127.0.0.1:8081/events
+
+  - id: dns-001
+    type: security_device
+    role: dns_server
+    rate:
+      base_qps: 1000
+      burst_qps: 8000
+      jitter: 0.25
+    outputs:
+      - type: http
+        url: http://127.0.0.1:8082/events
+
+timeline:
+  - id: failed_login
+    at: "00:00:00"
+    event: user.login.failed
+    source: edr-001
+    entity_refs:
+      user: "$entity.user"
+      host: "$flow"
+    attributes:
+      reason: Invalid credentials
+
+  - id: suspicious_process
+    after: failed_login
+    delay: "30s..2m"
+    event: process.suspicious_started
+    source: edr-001
+    entity_refs:
+      host: "$ref.failed_login.host"
+    attributes:
+      process_name: powershell.exe
+      command_line: encoded command
+
+  - id: firewall_deny
+    after: failed_login
+    delay: "10s..1m"
+    event: firewall.connection_denied
+    source: firewall-001
+    entity_refs:
+      source_host: "$ref.failed_login.host"
+      source_ip: "$entity.ip"
+      target_ip: "$entity.ip"
+    attributes:
+      port: 445
+      protocol: tcp
+
+  - id: waf_block
+    after: suspicious_process
+    delay: "1m..3m"
+    event: waf.request_blocked
+    source: waf-001
+    entity_refs:
+      source_ip: "$entity.ip"
+      host: "$ref.suspicious_process.host"
+    attributes:
+      rule: suspicious_user_agent
+
+  - id: dns_query
+    after: waf_block
+    delay: "30s..2m"
+    event: dns.query
+    source: dns-001
+    entity_refs:
+      host: "$ref.suspicious_process.host"
+      domain: "$entity.domain"
+      source_ip: "$entity.ip"
+    attributes:
+      query_type: TXT
+
+  - id: alert_triggered
+    after: dns_query
+    delay: "30s..2m"
+    event: alert.triggered
+    source: edr-001
+    entity_refs:
+      host: "$ref.dns_query.host"
+      alert: "$new.alert"
+    attributes:
+      severity: high
+      description: Multi-source attack pattern detected
+
+ground_truth:
+  scenario_id: security_demo_multi_source
+  expected_findings:
+    - type: suspicious_login
+      stage: initial_access
+    - type: suspicious_process
+      stage: execution
+    - type: waf_block
+      stage: command_and_control
+    - type: dns_query
+      stage: exfiltration
+    - type: alert_triggered
+      stage: detection
+  expected_summary: >-
+    Failed login, suspicious PowerShell, firewall deny, WAF block, DNS query,
+    and EDR alert across four simulated sources.
+  key_event_ids: []
+
+rules:
+  - id: process_after_failed_login
+    type: event_after
+    event: process.suspicious_started
+    after: user.login.failed
+    scope: host
+
+  - id: alert_must_reference_existing_host
+    type: required_entity_ref
+    event: alert.triggered
+    ref: host

@@ -70,7 +70,25 @@ High-cardinality values such as `event_id`, `flow_id`, dynamic `source_id`, enti
 curl -s http://127.0.0.1:9090/metrics | grep eventweave_runtime
 ```
 
+## Demo stack
+
+The fastest way to see these metrics in action is the local demo stack:
+
+```bash
+make demo-stack
+```
+
+See [docs/demo-stack.md](demo-stack.md) for details.
+
+## Grafana dashboard
+
+A starter dashboard is included in the demo stack:
+
+- `examples/demo-stack/grafana/dashboards/eventweave-runtime.json`
+
+Import it into Grafana or let the demo stack provision it automatically.
+
 ## Limitations
 
 - Metrics are available in the Go runtime only; the Python compiler and evaluator do not expose Prometheus metrics.
-- No built-in Grafana dashboards or alerting rules are provided.
+- Built-in dashboards are minimal; extend them for production use.

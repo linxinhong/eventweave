@@ -169,6 +169,9 @@ eventweave benchmark run \
   --agent-outputs agents/claude-sonnet/ \
   --output scorecards/security.json
 
+# Start the local observability demo stack
+make demo-stack
+
 # Export events as JSONL
 eventweave export dist/ecommerce_refund_flow --format jsonl --output out/events.jsonl
 ```
@@ -324,7 +327,7 @@ The matching event in `event_plan.jsonl` now references the concrete asset id:
 
 ## Project status
 
-Current version: **v0.7.3** — Benchmark Scenarios Expansion / Dataset Quality Gate
+Current version: **v0.7.4** — Demo Stack / Observability Examples
 
 What works:
 
@@ -368,6 +371,8 @@ What works:
 - v0.7.2: Kafka batching and worker pool for high-throughput kafka/http sinks
 - v0.7.3: Expanded benchmark suites with 3 new security and 2 new e-commerce
   scenarios, plus `eventweave benchmark validate` dataset quality gate
+- v0.7.4: Local observability demo stack with Redpanda, Prometheus, Grafana,
+  multi-source runtime receivers, and a starter dashboard
 
 What is planned:
 

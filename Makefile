@@ -1,4 +1,4 @@
-.PHONY: help install test lint typecheck check clean
+.PHONY: help install test lint typecheck check clean demo-stack
 
 help:
 	@echo "Available commands:"
@@ -7,7 +7,11 @@ help:
 	@echo "  make lint       Run ruff check"
 	@echo "  make typecheck  Run mypy"
 	@echo "  make check      Run lint + typecheck + test"
+	@echo "  make demo-stack Start the local observability demo stack"
 	@echo "  make clean      Remove build artifacts and cache files"
+
+demo-stack:
+	examples/demo-stack/run_demo.sh
 
 install:
 	uv pip install -e ".[dev]"

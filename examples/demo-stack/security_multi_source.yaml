@@ -1,0 +1,33 @@
+# Multi-source runtime server configuration for the local demo stack.
+# Endpoints bind to 0.0.0.0 so Docker containers and Prometheus can reach the
+# host runtime via host.docker.internal.
+servers:
+  - id: firewall_syslog_udp
+    protocol: syslog_udp
+    bind: 0.0.0.0
+    port: 5514
+    source_filter:
+      source_id: firewall-001
+
+  - id: edr_syslog_tcp
+    protocol: syslog_tcp
+    bind: 0.0.0.0
+    port: 5515
+    source_filter:
+      source_id: edr-001
+
+  - id: waf_http
+    protocol: http
+    bind: 0.0.0.0
+    port: 8081
+    path: /events
+    source_filter:
+      source_id: waf-001
+
+  - id: dns_http
+    protocol: http
+    bind: 0.0.0.0
+    port: 8082
+    path: /events
+    source_filter:
+      source_id: dns-001

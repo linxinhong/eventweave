@@ -109,6 +109,18 @@ Endpoints active: 3
   edr_http: emitted=400 failed=0
 ```
 
+## Demo stack
+
+A runnable multi-source example is included in the demo stack:
+
+```bash
+make demo-stack
+```
+
+It uses `examples/demo-stack/security_multi_source.yaml` to expose firewall,
+edr, waf, and dns sources over Syslog and HTTP, with receiver containers and
+Grafana dashboards. See [docs/demo-stack.md](demo-stack.md).
+
 ## Limitations
 
 v0.6.2 does not support:
