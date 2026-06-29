@@ -97,6 +97,56 @@ var (
 		},
 		[]string{"server_id", "protocol"},
 	)
+
+	// queueDepth exposes the current worker queue depth.
+	queueDepth = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Namespace: namespace,
+			Name:      "runtime_queue_depth",
+			Help:      "Current number of events waiting in the worker queue.",
+		},
+		[]string{"mode", "sink"},
+	)
+
+	// batchesTotal counts batches written.
+	batchesTotal = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Namespace: namespace,
+			Name:      "runtime_batches_total",
+			Help:      "Total number of batches written.",
+		},
+		[]string{"mode", "sink", "status"},
+	)
+
+	// batchSize exposes the configured or observed batch size.
+	batchSize = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Namespace: namespace,
+			Name:      "runtime_batch_size",
+			Help:      "Configured or observed batch size.",
+		},
+		[]string{"mode", "sink"},
+	)
+
+	// workerEventsTotal counts events processed by each worker.
+	workerEventsTotal = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Namespace: namespace,
+			Name:      "runtime_worker_events_total",
+			Help:      "Total number of events processed by a worker.",
+		},
+		[]string{"mode", "sink", "worker_id", "status"},
+	)
+
+	// workerFailuresTotal counts failures per worker.
+	workerFailuresTotal = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Namespace: namespace,
+			Name:      "runtime_worker_failures_total",
+			Help:      "Total number of failures encountered by a worker.",
+		},
+		[]string{"mode", "sink", "worker_id"},
+	)
 )
 
 func init() {
@@ -110,6 +160,11 @@ func init() {
 		serverUp,
 		endpointEventsTotal,
 		endpointFailuresTotal,
+		queueDepth,
+		batchesTotal,
+		batchSize,
+		workerEventsTotal,
+		workerFailuresTotal,
 	)
 }
 
@@ -185,5 +240,35 @@ func RecordEndpointFailure(serverID, protocol string) {
 	endpointFailuresTotal.WithLabelValues(
 		LabelValue(serverID),
 		LabelValue(protocol),
+	).Inc()
+}
+
+// SetQueueDepth sets the worker queue depth gauge.
+func SetQueueDepth(mode, sink string, depth float64) {
+	queueDepth.WithLabelValues(LabelValue(mode), LabelValue(sink)).Set(depth)
+}
+
+// RecordBatch increments the batches counter.
+func RecordBatch(mode, sink, status string, size int) {
+	batchesTotal.WithLabelValues(LabelValue(mode), LabelValue(sink), LabelValue(status)).Inc()
+	batchSize.WithLabelValues(LabelValue(mode), LabelValue(sink)).Set(float64(size))
+}
+
+// RecordWorkerEvent increments per-worker event counter.
+func RecordWorkerEvent(mode, sink, workerID, status string) {
+	workerEventsTotal.WithLabelValues(
+		LabelValue(mode),
+		LabelValue(sink),
+		LabelValue(workerID),
+		LabelValue(status),
+	).Inc()
+}
+
+// RecordWorkerFailure increments per-worker failure counter.
+func RecordWorkerFailure(mode, sink, workerID string) {
+	workerFailuresTotal.WithLabelValues(
+		LabelValue(mode),
+		LabelValue(sink),
+		LabelValue(workerID),
 	).Inc()
 }

@@ -41,7 +41,7 @@ func eventWithID(id string) event.Event {
 
 func TestKafkaSinkWritesEvent(t *testing.T) {
 	fw := &fakeWriter{}
-	sink := newSink(fw, keyFunc(""), 5*time.Second, 0)
+	sink := newSink(fw, KeyFunc(""), 5*time.Second, 0)
 	ev := eventWithID("e1")
 	if err := sink.Write(ev); err != nil {
 		t.Fatalf("write: %v", err)
@@ -63,7 +63,7 @@ func TestKafkaSinkWritesEvent(t *testing.T) {
 
 func TestKafkaSinkCountsFailure(t *testing.T) {
 	fw := &fakeWriter{fail: true}
-	sink := newSink(fw, keyFunc(""), 5*time.Second, 0)
+	sink := newSink(fw, KeyFunc(""), 5*time.Second, 0)
 	if err := sink.Write(eventWithID("e1")); err == nil {
 		t.Fatal("expected error")
 	}
@@ -74,7 +74,7 @@ func TestKafkaSinkCountsFailure(t *testing.T) {
 
 func TestKafkaKeyEventID(t *testing.T) {
 	fw := &fakeWriter{}
-	sink := newSink(fw, keyFunc("event_id"), 5*time.Second, 0)
+	sink := newSink(fw, KeyFunc("event_id"), 5*time.Second, 0)
 	if err := sink.Write(eventWithID("e1")); err != nil {
 		t.Fatalf("write: %v", err)
 	}
@@ -85,7 +85,7 @@ func TestKafkaKeyEventID(t *testing.T) {
 
 func TestKafkaKeyFlowID(t *testing.T) {
 	fw := &fakeWriter{}
-	sink := newSink(fw, keyFunc("flow_id"), 5*time.Second, 0)
+	sink := newSink(fw, KeyFunc("flow_id"), 5*time.Second, 0)
 	if err := sink.Write(eventWithID("e1")); err != nil {
 		t.Fatalf("write: %v", err)
 	}

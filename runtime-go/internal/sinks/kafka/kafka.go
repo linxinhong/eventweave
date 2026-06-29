@@ -36,7 +36,7 @@ func New(brokers string, topic string, keyField string, timeout time.Duration, r
 			Topic:   topic,
 			Async:   false,
 		}),
-		keyFunc(keyField),
+		KeyFunc(keyField),
 		timeout,
 		retries,
 	)
@@ -99,7 +99,7 @@ func (s *Sink) Count() int { return s.count }
 // Failed returns failed writes.
 func (s *Sink) Failed() int { return s.failed }
 
-func keyFunc(field string) func(event.Event) []byte {
+func KeyFunc(field string) func(event.Event) []byte {
 	switch field {
 	case "event_id":
 		return func(ev event.Event) []byte { return []byte(ev.EventID) }

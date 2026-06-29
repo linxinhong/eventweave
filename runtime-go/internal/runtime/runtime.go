@@ -6,6 +6,8 @@ import (
 	"strings"
 	"time"
 
+	segmentio "github.com/segmentio/kafka-go"
+
 	"github.com/linxinhong/eventweave/runtime-go/internal/clock"
 	"github.com/linxinhong/eventweave/runtime-go/internal/config"
 	"github.com/linxinhong/eventweave/runtime-go/internal/event"
@@ -20,6 +22,7 @@ import (
 	stdoutSink "github.com/linxinhong/eventweave/runtime-go/internal/sinks/stdout"
 	syslogSink "github.com/linxinhong/eventweave/runtime-go/internal/sinks/syslog"
 	"github.com/linxinhong/eventweave/runtime-go/internal/stats"
+	"github.com/linxinhong/eventweave/runtime-go/internal/worker"
 )
 
 // LocalRuntime replays an event plan through a sink.
@@ -29,8 +32,13 @@ type LocalRuntime struct {
 	target string
 }
 
-// New creates a runtime from config.
+// New creates a runtime from config in run mode.
 func New(cfg config.RuntimeConfig) (*LocalRuntime, error) {
+	return NewWithMode(cfg, "run")
+}
+
+// NewWithMode creates a runtime from config with the given mode label.
+func NewWithMode(cfg config.RuntimeConfig, mode string) (*LocalRuntime, error) {
 	if err := cfg.Validate(); err != nil {
 		return nil, err
 	}
@@ -49,11 +57,33 @@ func New(cfg config.RuntimeConfig) (*LocalRuntime, error) {
 		s = httpSink.New(cfg.URL, cfg.Timeout, cfg.Retries)
 		target = cfg.URL
 	case "kafka":
-		s = kafkaSink.New(cfg.Brokers, cfg.Topic, cfg.KeyField, cfg.Timeout, cfg.Retries)
+		if cfg.BatchSize > 1 {
+			writer := segmentio.NewWriter(segmentio.WriterConfig{
+				Brokers: strings.Split(cfg.Brokers, ","),
+				Topic:   cfg.Topic,
+				Async:   false,
+			})
+			s = kafkaSink.NewBatchWithMode(
+				writer,
+				kafkaSink.KeyFunc(cfg.KeyField),
+				cfg.BatchSize,
+				cfg.BatchTimeout,
+				cfg.Timeout,
+				cfg.Retries,
+				mode,
+			)
+		} else {
+			s = kafkaSink.New(cfg.Brokers, cfg.Topic, cfg.KeyField, cfg.Timeout, cfg.Retries)
+		}
 		target = fmt.Sprintf("%s/%s", cfg.Brokers, cfg.Topic)
 	case "syslog":
 		s = syslogSink.New(cfg.SyslogAddr, cfg.SyslogProto, cfg.Facility, cfg.Severity, cfg.Tag)
 		target = fmt.Sprintf("%s://%s", cfg.SyslogProto, cfg.SyslogAddr)
+	}
+
+	// Wrap kafka and http sinks in a worker pool when workers > 1.
+	if cfg.Workers > 1 && (cfg.Sink == "kafka" || cfg.Sink == "http") {
+		s = worker.NewWithMode(mode, cfg.Sink, cfg.Workers, cfg.QueueSize, cfg.OnQueueFull, s)
 	}
 
 	return &LocalRuntime{cfg: cfg, sink: s, target: target}, nil

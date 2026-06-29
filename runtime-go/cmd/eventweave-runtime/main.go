@@ -161,7 +161,7 @@ func benchCmd() *cobra.Command {
 			metrics.SetServerUp("bench", true)
 			defer metrics.SetServerUp("bench", false)
 
-			rt, err := runtime.New(cfg)
+			rt, err := runtime.NewWithMode(cfg, "bench")
 			if err != nil {
 				return err
 			}
@@ -227,4 +227,9 @@ func addRuntimeFlags(cmd *cobra.Command, cfg *config.RuntimeConfig) {
 	cmd.Flags().IntVar(&cfg.Facility, "syslog-facility", 16, "Syslog facility (default 16 = local0)")
 	cmd.Flags().IntVar(&cfg.Severity, "syslog-severity", 6, "Syslog severity (default 6 = info)")
 	cmd.Flags().StringVar(&cfg.Tag, "syslog-tag", "eventweave", "Syslog tag")
+	cmd.Flags().IntVar(&cfg.BatchSize, "batch-size", 1, "Kafka batch size (1 = no batching)")
+	cmd.Flags().DurationVar(&cfg.BatchTimeout, "batch-timeout", 100*time.Millisecond, "Max wait before sending a partial Kafka batch")
+	cmd.Flags().IntVar(&cfg.Workers, "workers", 1, "Concurrent workers for kafka/http sinks (1 preserves order)")
+	cmd.Flags().IntVar(&cfg.QueueSize, "queue-size", 1000, "Worker queue size")
+	cmd.Flags().StringVar(&cfg.OnQueueFull, "on-queue-full", "block", "Behavior when worker queue is full: block or fail")
 }
