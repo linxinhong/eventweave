@@ -17,6 +17,8 @@ packs/<domain>/
 │   └── refund.yaml
 ├── rules.yaml
 ├── semantic/          # optional
+├── realism/           # optional
+│   └── profiles.yaml
 └── examples/          # optional but recommended
     └── refund.yaml
 ```
@@ -43,6 +45,7 @@ depends_on:
 | `events_path` | string | no | Path to event schemas (default `events`). |
 | `rules_path` | string | no | Path to rules file (default `rules.yaml`). |
 | `semantic_path` | string | no | Path to semantic templates (default `semantic`). Use `""` to disable. |
+| `realism_path` | string | no | Path to realism profiles (default `realism`). Use `""` to disable. |
 | `examples_path` | string | no | Path to examples (default `examples`). Use `""` to disable. |
 
 ## Entity schemas
@@ -155,6 +158,64 @@ rules:
 - `field_required` — event must contain a field.
 - `field_enum` — field value must be in allowed set.
 
+## Realism profiles
+
+Packs may define reusable background-noise and time-jitter templates in
+`realism/profiles.yaml`:
+
+```text
+packs/<domain>/
+├── realism/
+│   └── profiles.yaml
+```
+
+```yaml
+profiles:
+  endpoint_background:
+    description: Background endpoint noise for security scenarios.
+    noise:
+      enabled: true
+      ratio: 5
+      events:
+        - event: dns.query
+          weight: 10
+        - event: user.login.success
+          weight: 5
+    jitter:
+      enabled: true
+      max_offset: 10s
+      preserve_order: true
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | string | Profile identifier unique within the pack. |
+| `description` | string | Human-readable description. |
+| `noise` | object | Background noise configuration. |
+| `jitter` | object | Timestamp jitter configuration. |
+
+Scenarios reference a profile with:
+
+```yaml
+realism_profile: security.endpoint_background
+```
+
+or the explicit block form:
+
+```yaml
+realism:
+  profile: security.endpoint_background
+  noise:
+    ratio: 8
+  jitter:
+    max_offset: 15s
+```
+
+Profile refs use `[<pack>.]<profile_id>`. Without a pack prefix the compiler
+looks in the scenario's own domain pack, then its declared dependencies.
+Scenario-level `noise:` / `jitter:` still take precedence for backward
+compatibility.
+
 ## Pack dependencies
 
 A pack can declare dependencies in `pack.yaml`:
@@ -195,6 +256,7 @@ Validation checks:
 - `entities/` directory exists.
 - `events/` directory exists (warning if missing).
 - `rules.yaml` exists and has a top-level `rules` list (warning if missing).
+- `realism/profiles.yaml` parses if present.
 - Each entity and event schema has a `type` matching its key.
 - Every example scenario compiles successfully.
 

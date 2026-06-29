@@ -119,6 +119,7 @@ def scaffold_pack(pack_id: str, packs_dir: Path, force: bool = False) -> Path:
     (pack_path / "entities").mkdir(parents=True, exist_ok=True)
     (pack_path / "events").mkdir(parents=True, exist_ok=True)
     (pack_path / "semantic").mkdir(parents=True, exist_ok=True)
+    (pack_path / "realism").mkdir(parents=True, exist_ok=True)
     (pack_path / "examples").mkdir(parents=True, exist_ok=True)
 
     (pack_path / "pack.yaml").write_text(_pack_yaml(pack_id, name), encoding="utf-8")

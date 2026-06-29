@@ -8,6 +8,8 @@ from typing import Any
 import yaml
 from pydantic import BaseModel, Field
 
+from eventweave.core.realism_profile import RealismProfile, RealismProfileBundle
+
 
 class PackLoadError(Exception):
     """Raised when a pack cannot be loaded or parsed."""
@@ -69,12 +71,14 @@ class Pack(BaseModel):
     entities: dict[str, EntitySchema] = Field(default_factory=dict)
     events: dict[str, EventSchema] = Field(default_factory=dict)
     rules: list[PackRule] = Field(default_factory=list)
+    realism_profiles: dict[str, RealismProfile] = Field(default_factory=dict)
     # Paths are populated by the registry; not part of pack.yaml directly.
     entities_path: Path = Field(default=Path("entities"))
     events_path: Path = Field(default=Path("events"))
     rules_path: Path = Field(default=Path("rules.yaml"))
     semantic_path: Path | None = Field(default=Path("semantic"))
     examples_path: Path | None = Field(default=Path("examples"))
+    realism_path: Path | None = Field(default=Path("realism"))
 
 
 class PackRegistry:
@@ -134,6 +138,7 @@ class PackRegistry:
             rules_path=Path(meta.get("rules_path", "rules.yaml")),
             semantic_path=_optional_path(meta.get("semantic_path", "semantic")),
             examples_path=_optional_path(meta.get("examples_path", "examples")),
+            realism_path=_optional_path(meta.get("realism_path", "realism")),
         )
 
     def load(self, domain: str) -> Pack:
@@ -147,6 +152,10 @@ class PackRegistry:
         pack.entities = self._load_entities(pack_path / pack.entities_path)
         pack.events = self._load_events(pack_path / pack.events_path)
         pack.rules = self._load_rules(pack_path / pack.rules_path)
+        if pack.realism_path is not None:
+            pack.realism_profiles = self._load_realism_profiles(
+                pack_path / pack.realism_path
+            )
 
         self._packs[domain] = pack
         return pack
@@ -225,12 +234,23 @@ class PackRegistry:
             except Exception as exc:  # noqa: BLE001
                 issues.append(f"ERROR: Failed to parse rules.yaml: {exc}")
 
-        # Load full pack to inspect schema keys.
+        # Load full pack to inspect schema keys and realism profiles.
         try:
             full_pack = self.load(domain)
         except Exception as exc:  # noqa: BLE001
             issues.append(f"ERROR: Failed to load pack contents: {exc}")
             return issues
+
+        realism_path = full_pack.realism_path
+        if realism_path is not None:
+            realism_dir = pack_path / realism_path
+            profiles_file = realism_dir / "profiles.yaml"
+            if profiles_file.exists():
+                try:
+                    with profiles_file.open("r", encoding="utf-8") as f:
+                        RealismProfileBundle.model_validate(yaml.safe_load(f) or {})
+                except Exception as exc:  # noqa: BLE001
+                    issues.append(f"ERROR: Invalid realism profiles: {exc}")
 
         for entity_type, entity_schema in full_pack.entities.items():
             if entity_schema.type != entity_type:
@@ -302,3 +322,24 @@ class PackRegistry:
 
         rules_data = data.get("rules", [])
         return [PackRule.model_validate(rule) for rule in rules_data]
+
+    def _load_realism_profiles(
+        self, realism_dir: Path | None
+    ) -> dict[str, RealismProfile]:
+        """Load realism profiles from <realism_dir>/profiles.yaml if it exists."""
+        if realism_dir is None:
+            return {}
+
+        profiles_file = realism_dir / "profiles.yaml"
+        if not profiles_file.exists():
+            return {}
+
+        with profiles_file.open("r", encoding="utf-8") as f:
+            data = yaml.safe_load(f) or {}
+
+        bundle = RealismProfileBundle.model_validate(data)
+        profiles = bundle.profiles
+        for profile_id, profile in profiles.items():
+            if profile.id is None:
+                profile.id = profile_id
+        return profiles

@@ -295,6 +295,7 @@ def pack_inspect(
     table.add_row("Entities", str(len(pack.entities)))
     table.add_row("Events", str(len(pack.events)))
     table.add_row("Rules", str(len(pack.rules)))
+    table.add_row("Realism profiles", str(len(pack.realism_profiles)))
 
     examples_count = 0
     if pack.examples_path:

@@ -101,6 +101,11 @@ eventweave pack scaffold mydomain
 eventweave pack validate mydomain
 eventweave compile packs/mydomain/examples/basic.yaml -o dist
 
+# Reference a pack realism profile in a scenario
+# (configure in packs/<domain>/realism/profiles.yaml)
+eventweave validate examples/security/lateral_movement.yaml
+eventweave compile examples/security/lateral_movement.yaml -o dist
+
 # Or use the high-performance Go runtime
 cd runtime-go
 go run ./cmd/eventweave-runtime run ../dist/ecommerce_refund_flow_semantic \
@@ -339,7 +344,7 @@ The matching event in `event_plan.jsonl` now references the concrete asset id:
 
 ## Project status
 
-Current version: **v0.8.1** — Benchmark Realism Gates
+Current version: **v0.8.2** — Pack Realism Profiles
 
 What works:
 
@@ -390,6 +395,9 @@ What works:
 - v0.8.1: Benchmark realism gates — optional `--min-noise-ratio`,
   `--min-event-types`, `--min-sources`, `--max-burstiness`, and
   `--require-jitter` thresholds on `eventweave benchmark validate`
+- v0.8.2: Pack realism profiles — reusable `noise:` / `jitter:` templates in
+  `packs/<domain>/realism/profiles.yaml`, referenced by scenarios via
+  `realism_profile: <pack>.<profile>`
 
 What is planned:
 

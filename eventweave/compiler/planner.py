@@ -8,19 +8,17 @@ from pathlib import Path
 
 from eventweave.compiler.duration import DurationParseError as _DurationParseError
 from eventweave.compiler.duration import parse_duration
+from eventweave.compiler.errors import CompileError
 from eventweave.compiler.jitter import JitterApplier
 from eventweave.compiler.noise_generator import NoiseGenerator
 from eventweave.compiler.pack_loader import PackRegistry
+from eventweave.compiler.realism_resolver import RealismProfileResolver
 from eventweave.core.entity import Entity
 from eventweave.core.event import Event
 from eventweave.core.relation import Relation
 from eventweave.core.runtime_plan import RuntimePlan
 from eventweave.core.scenario import Scenario
 from eventweave.core.timeline import TimelineItem
-
-
-class CompileError(Exception):
-    """Raised when a scenario cannot be compiled into a runtime plan."""
 
 
 class EntityGenerator:
@@ -306,6 +304,11 @@ class ScenarioPlanner:
     ) -> tuple[RuntimePlan, list[str]]:
         # Load packs for validation context (raises if packs are missing).
         self.pack_registry.load_with_dependencies(scenario.domain)
+
+        # Resolve pack realism profiles into effective noise/jitter config.
+        noise, jitter = RealismProfileResolver(self.pack_registry).resolve(scenario)
+        scenario.noise = noise
+        scenario.jitter = jitter
 
         # Generate entities.
         entity_gen = EntityGenerator(scenario, seed=seed)

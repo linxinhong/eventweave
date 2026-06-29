@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 from eventweave.core.ground_truth import GroundTruth
 from eventweave.core.jitter import JitterConfig
@@ -21,6 +21,23 @@ class EntityTemplate(BaseModel):
     type: str | None = None
     attributes: dict[str, Any] = Field(default_factory=dict)
     tags: list[str] = Field(default_factory=list)
+
+
+class RealismOverride(BaseModel):
+    """Scenario-level realism configuration, optionally referencing a pack profile."""
+
+    profile: str | None = Field(
+        default=None,
+        description="Profile reference: [<pack>.]<profile_id>.",
+    )
+    noise: NoiseConfig | None = Field(
+        default=None,
+        description="Override the profile's noise configuration.",
+    )
+    jitter: JitterConfig | None = Field(
+        default=None,
+        description="Override the profile's jitter configuration.",
+    )
 
 
 class Scenario(BaseModel):
@@ -45,3 +62,31 @@ class Scenario(BaseModel):
     ground_truth: GroundTruth | None = None
     noise: NoiseConfig | None = None
     jitter: JitterConfig | None = None
+    realism_profile: str | None = Field(
+        default=None,
+        description="Shorthand for realism.profile.",
+    )
+    realism: RealismOverride | None = Field(
+        default=None,
+        description="Realism profile reference and overrides.",
+    )
+
+    @model_validator(mode="before")
+    @classmethod
+    def _normalize_realism(cls, data: Any) -> Any:
+        """Move realism_profile shorthand into the realism block."""
+        if not isinstance(data, dict):
+            return data
+
+        if "realism_profile" in data:
+            realism = data.get("realism") or {}
+            if isinstance(realism, RealismOverride):
+                realism = realism.model_dump()
+            if realism.get("profile") is not None:
+                raise ValueError(
+                    "Cannot specify both 'realism_profile' and 'realism.profile'"
+                )
+            realism["profile"] = data.pop("realism_profile")
+            data["realism"] = realism
+
+        return data

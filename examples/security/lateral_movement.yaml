@@ -105,36 +105,7 @@ timeline:
       severity: high
       description: Lateral movement detected
 
-noise:
-  enabled: true
-  ratio: 1.0
-  events:
-    - event: user.login.success
-      weight: 3
-      source: edr-001
-      entity_refs:
-        user: "$entity.user"
-        host: "$entity.host"
-    - event: firewall.allow
-      weight: 5
-      source: firewall-001
-      entity_refs:
-        host: "$entity.host"
-    - event: edr.heartbeat
-      weight: 5
-      source: edr-001
-      entity_refs:
-        host: "$entity.host"
-    - event: dns.query
-      weight: 2
-      source: firewall-001
-      entity_refs:
-        host: "$entity.host"
-
-jitter:
-  enabled: true
-  max_offset: 5s
-  preserve_order: true
+realism_profile: security.endpoint_background
 
 ground_truth:
   scenario_id: security_lateral_movement

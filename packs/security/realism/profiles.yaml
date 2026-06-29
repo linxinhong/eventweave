@@ -1,0 +1,41 @@
+profiles:
+  endpoint_background:
+    description: >-
+      Generic endpoint, DNS, auth, and firewall background noise for security
+      investigation scenarios.
+    noise:
+      enabled: true
+      ratio: 1.0
+      events:
+        - event: user.login.success
+          weight: 3
+          source: edr-001
+          entity_refs:
+            user: "$entity.user"
+            host: "$entity.host"
+        - event: firewall.allow
+          weight: 3
+          source: firewall-001
+          entity_refs:
+            host: "$entity.host"
+        - event: edr.heartbeat
+          weight: 5
+          source: edr-001
+          entity_refs:
+            host: "$entity.host"
+        - event: dns.query
+          weight: 3
+          source: dns-001
+          entity_refs:
+            host: "$entity.host"
+            domain: "$entity.domain"
+        - event: dns.response
+          weight: 2
+          source: dns-001
+          entity_refs:
+            host: "$entity.host"
+            domain: "$entity.domain"
+    jitter:
+      enabled: true
+      max_offset: 5s
+      preserve_order: true

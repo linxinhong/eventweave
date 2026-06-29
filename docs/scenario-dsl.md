@@ -252,6 +252,31 @@ timeline:
     jitter: 2s
 ```
 
+## Realism profiles
+
+Reference a reusable noise / jitter profile from a domain pack:
+
+```yaml
+realism_profile: security.endpoint_background
+```
+
+Or use the explicit block form to override parts of the profile:
+
+```yaml
+realism:
+  profile: security.endpoint_background
+  noise:
+    ratio: 8
+  jitter:
+    max_offset: 15s
+```
+
+The profile reference format is `[<pack>.]<profile_id>`. Without a pack prefix,
+the compiler searches the scenario's domain pack and its dependencies.
+
+Scenario-level `noise:` / `jitter:` take precedence over profile values for
+backward compatibility.
+
 ## Time formats
 
 - `1h30m10s`

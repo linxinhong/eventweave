@@ -92,6 +92,15 @@ Scenarios in benchmark suites can use `noise:` and `jitter:` to generate more
 realistic datasets. After compiling, run `eventweave quality realism <plan-dir>`
 to inspect noise ratio, burstiness, and other realism metrics.
 
+Benchmark scenarios can also reference reusable realism profiles from their
+domain pack:
+
+```yaml
+realism_profile: security.endpoint_background
+```
+
+See `packs/<domain>/realism/profiles.yaml` for the available profiles.
+
 You can also enforce realism gates during validation:
 
 ```bash
