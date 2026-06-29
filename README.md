@@ -152,6 +152,14 @@ eventweave benchmark run \
   --suite benchmarks/security.yaml \
   --agent-outputs examples/evaluation/ \
   --output scorecards/security.json
+# Validate a benchmark suite and its sample data before running it
+eventweave benchmark validate --suite benchmarks/security.yaml
+
+# Generate a validation report JSON
+eventweave benchmark validate \
+  --suite benchmarks/security.yaml \
+  --output validation/security.json
+
 eventweave benchmark leaderboard scorecards/security.json
 
 # Compare multiple agents on the same suite
@@ -316,7 +324,7 @@ The matching event in `event_plan.jsonl` now references the concrete asset id:
 
 ## Project status
 
-Current version: **v0.7.2** — Kafka Batching / Worker Pool
+Current version: **v0.7.3** — Benchmark Scenarios Expansion / Dataset Quality Gate
 
 What works:
 
@@ -358,6 +366,8 @@ What works:
   via `eventweave benchmark list / run / leaderboard`
 - v0.7.1: Go runtime observability with Prometheus metrics and `/healthz`
 - v0.7.2: Kafka batching and worker pool for high-throughput kafka/http sinks
+- v0.7.3: Expanded benchmark suites with 3 new security and 2 new e-commerce
+  scenarios, plus `eventweave benchmark validate` dataset quality gate
 
 What is planned:
 

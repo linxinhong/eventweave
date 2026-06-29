@@ -1,0 +1,33 @@
+{
+  "scenario_id": "ecommerce_payment_failure_spike",
+  "findings": [
+    {
+      "type": "payment_failure",
+      "stage": "payment",
+      "entities": [],
+      "evidence_event_ids": [],
+      "confidence": 0.94,
+      "attributes": {}
+    },
+    {
+      "type": "checkout_abandonment",
+      "stage": "checkout",
+      "entities": [],
+      "evidence_event_ids": [],
+      "confidence": 0.9,
+      "attributes": {}
+    }
+  ],
+  "key_event_ids": [],
+  "timeline_stages": [
+    {
+      "stage": "payment",
+      "event_ids": []
+    },
+    {
+      "stage": "checkout",
+      "event_ids": []
+    }
+  ],
+  "summary": "Orders experience repeated payment failures and are eventually abandoned."
+}

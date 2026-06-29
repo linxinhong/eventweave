@@ -4,3 +4,9 @@ description: Core detection scenarios for security operations agents.
 scenarios:
   - id: lateral_movement
     scenario_path: examples/security/lateral_movement.yaml
+  - id: brute_force_login
+    scenario_path: examples/security/brute_force_login.yaml
+  - id: dns_exfiltration
+    scenario_path: examples/security/dns_exfiltration.yaml
+  - id: malware_callback
+    scenario_path: examples/security/malware_callback.yaml

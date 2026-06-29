@@ -4,3 +4,7 @@ description: Core business-flow detection scenarios for e-commerce operations ag
 scenarios:
   - id: refund_flow
     scenario_path: examples/ecommerce/refund.yaml
+  - id: payment_failure_spike
+    scenario_path: examples/ecommerce/payment_failure_spike.yaml
+  - id: refund_fraud_pattern
+    scenario_path: examples/ecommerce/refund_fraud_pattern.yaml

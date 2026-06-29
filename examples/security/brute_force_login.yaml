@@ -1,0 +1,140 @@
+id: security_brute_force_login
+name: Brute-force login detection
+domain: security
+for_each: user
+duration: 15m
+seed: 20260628
+
+entities:
+  user:
+    count: 10
+    type: user
+
+  host:
+    count: 10
+    type: host
+
+  ip:
+    count: 20
+    type: ip
+
+  alert:
+    count: 3
+    type: alert
+
+sources:
+  - id: auth-service
+    type: security_device
+    role: authentication_service
+    rate:
+      base_qps: 50
+      burst_qps: 500
+      jitter: 0.1
+    outputs:
+      - type: kafka
+        topic: mock.security.auth
+
+  - id: siem-001
+    type: security_device
+    role: siem
+    rate:
+      base_qps: 10
+      burst_qps: 100
+      jitter: 0.05
+    outputs:
+      - type: syslog
+        protocol: udp
+        address: 127.0.0.1:514
+
+timeline:
+  - id: fail_1
+    at: "00:00:00"
+    event: user.login.failed
+    source: auth-service
+    entity_refs:
+      user: "$flow"
+      host: "$entity.host"
+    attributes:
+      reason: Invalid password
+
+  - id: fail_2
+    after: fail_1
+    delay: "1s..5s"
+    event: user.login.failed
+    source: auth-service
+    entity_refs:
+      user: "$ref.fail_1.user"
+      host: "$ref.fail_1.host"
+    attributes:
+      reason: Invalid password
+
+  - id: fail_3
+    after: fail_2
+    delay: "1s..5s"
+    event: user.login.failed
+    source: auth-service
+    entity_refs:
+      user: "$ref.fail_2.user"
+      host: "$ref.fail_2.host"
+    attributes:
+      reason: Invalid password
+
+  - id: fail_4
+    after: fail_3
+    delay: "1s..5s"
+    event: user.login.failed
+    source: auth-service
+    entity_refs:
+      user: "$ref.fail_3.user"
+      host: "$ref.fail_3.host"
+    attributes:
+      reason: Invalid password
+
+  - id: success
+    after: fail_4
+    delay: "1s..10s"
+    event: user.login.success
+    source: auth-service
+    entity_refs:
+      user: "$ref.fail_4.user"
+      host: "$ref.fail_4.host"
+    attributes:
+      method: password
+
+  - id: alert_triggered
+    after: success
+    delay: "5s..30s"
+    event: alert.triggered
+    source: siem-001
+    entity_refs:
+      host: "$ref.success.host"
+      alert: "$new.alert"
+    attributes:
+      severity: high
+      description: Brute-force login detected
+
+ground_truth:
+  scenario_id: security_brute_force_login
+  expected_findings:
+    - type: brute_force_attempt
+      stage: credential_access
+    - type: successful_login
+      stage: initial_access
+    - type: alert_triggered
+      stage: detection
+  expected_summary: >-
+    Repeated failed login attempts followed by a successful login and a SIEM
+    alert for brute-force activity.
+  key_event_ids: []
+
+rules:
+  - id: success_after_multiple_failures
+    type: event_after
+    event: user.login.success
+    after: user.login.failed
+    scope: flow
+
+  - id: alert_must_reference_existing_host
+    type: required_entity_ref
+    event: alert.triggered
+    ref: host

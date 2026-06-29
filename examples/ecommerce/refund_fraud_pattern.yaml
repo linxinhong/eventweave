@@ -1,0 +1,131 @@
+id: ecommerce_refund_fraud_pattern
+name: Refund fraud pattern
+domain: ecommerce
+for_each: order
+duration: 30m
+seed: 20260628
+
+entities:
+  customer:
+    count: 10
+    type: customer
+
+  product:
+    count: 5
+    type: product
+
+  order:
+    count: 30
+    type: order
+
+  payment:
+    count: 30
+    type: payment
+
+  refund:
+    count: 10
+    type: refund
+
+  ticket:
+    count: 10
+    type: ticket
+
+sources:
+  - id: order-service
+    type: service
+    role: order_service
+    rate:
+      base_qps: 100
+      burst_qps: 800
+      jitter: 0.1
+    outputs:
+      - type: jsonl
+        path: ./out/orders.jsonl
+
+  - id: ticket-service
+    type: service
+    role: ticket_service
+    rate:
+      base_qps: 20
+      burst_qps: 100
+      jitter: 0.2
+    outputs:
+      - type: jsonl
+        path: ./out/tickets.jsonl
+
+timeline:
+  - id: create_order
+    at: "00:00:00"
+    event: order.created
+    source: order-service
+    entity_refs:
+      order: "$flow"
+      customer: "$entity.customer"
+    attributes:
+      amount: 999.0
+      currency: CNY
+
+  - id: pay_order
+    after: create_order
+    delay: "1m..5m"
+    event: order.paid
+    source: order-service
+    entity_refs:
+      order: "$ref.create_order.order"
+      customer: "$ref.create_order.customer"
+      payment: "$new.payment"
+    attributes:
+      amount: 999.0
+      method: alipay
+
+  - id: request_refund
+    after: pay_order
+    delay: "10m..20m"
+    probability: 0.4
+    event: refund.requested
+    source: order-service
+    entity_refs:
+      order: "$ref.create_order.order"
+      customer: "$ref.create_order.customer"
+      refund: "$new.refund"
+    attributes:
+      amount: 999.0
+      reason: Empty box - item never arrived
+
+  - id: create_ticket
+    after: request_refund
+    delay: "10s..1m"
+    probability: 0.8
+    event: ticket.created
+    source: ticket-service
+    entity_refs:
+      order: "$ref.create_order.order"
+      customer: "$ref.create_order.customer"
+      ticket: "$new.ticket"
+    attributes:
+      subject: Refund dispute - empty box
+      priority: high
+
+ground_truth:
+  scenario_id: ecommerce_refund_fraud_pattern
+  expected_findings:
+    - type: refund_fraud
+      stage: dispute
+    - type: ticket_created
+      stage: support
+  expected_summary: >-
+    High-value orders are paid, then quickly disputed as empty-box refunds,
+    often escalating to high-priority support tickets.
+  key_event_ids: []
+
+rules:
+  - id: refund_must_follow_payment
+    type: event_after
+    event: refund.requested
+    after: order.paid
+    scope: order
+
+  - id: ticket_must_reference_existing_order
+    type: required_entity_ref
+    event: ticket.created
+    ref: order

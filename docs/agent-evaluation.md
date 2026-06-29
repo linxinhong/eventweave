@@ -197,6 +197,16 @@ List available suites:
 eventweave benchmark list
 ```
 
+Validate a suite before running it:
+
+```bash
+eventweave benchmark validate --suite benchmarks/security.yaml
+```
+
+The validator checks that every scenario compiles, expected findings are unique,
+evidence event IDs reference real events, and sample agent outputs in
+`examples/evaluation/` achieve the configured minimum score (default `1.0`).
+
 Run a suite:
 
 ```bash

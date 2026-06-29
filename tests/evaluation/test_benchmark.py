@@ -78,7 +78,7 @@ def test_run_benchmark_perfect_sample_outputs(tmp_path: Path) -> None:
         "examples/evaluation/security_lateral_movement_agent_output.json"
     ).read_text(encoding="utf-8")
     ecommerce_output = Path(
-        "examples/evaluation/ecommerce_refund_agent_output.json"
+        "examples/evaluation/ecommerce_refund_flow_agent_output.json"
     ).read_text(encoding="utf-8")
     (agent_dir / "security_lateral_movement.json").write_text(security_output, encoding="utf-8")
     (agent_dir / "ecommerce_refund_flow.json").write_text(ecommerce_output, encoding="utf-8")
@@ -105,7 +105,7 @@ def test_run_benchmark_leaderboard_order(tmp_path: Path) -> None:
     good_agent_dir = tmp_path / "good_agent"
     good_agent_dir.mkdir()
     good_output = json.loads(
-        Path("examples/evaluation/ecommerce_refund_agent_output.json").read_text(encoding="utf-8")
+        Path("examples/evaluation/ecommerce_refund_flow_agent_output.json").read_text(encoding="utf-8")
     )
     (good_agent_dir / "ecommerce_refund_flow.json").write_text(
         json.dumps(good_output), encoding="utf-8"
@@ -146,7 +146,7 @@ scenarios:
 
     agent_dir = tmp_path / "agent"
     agent_dir.mkdir()
-    good_output = Path("examples/evaluation/ecommerce_refund_agent_output.json").read_text(
+    good_output = Path("examples/evaluation/ecommerce_refund_flow_agent_output.json").read_text(
         encoding="utf-8"
     )
     (agent_dir / "ecommerce_refund_flow.json").write_text(good_output, encoding="utf-8")

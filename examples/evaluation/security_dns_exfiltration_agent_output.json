@@ -1,0 +1,45 @@
+{
+  "scenario_id": "security_dns_exfiltration",
+  "findings": [
+    {
+      "type": "malware_execution",
+      "stage": "execution",
+      "entities": [],
+      "evidence_event_ids": [],
+      "confidence": 0.93,
+      "attributes": {}
+    },
+    {
+      "type": "dns_tunneling",
+      "stage": "exfiltration",
+      "entities": [],
+      "evidence_event_ids": [],
+      "confidence": 0.9,
+      "attributes": {}
+    },
+    {
+      "type": "alert_triggered",
+      "stage": "detection",
+      "entities": [],
+      "evidence_event_ids": [],
+      "confidence": 0.88,
+      "attributes": {}
+    }
+  ],
+  "key_event_ids": [],
+  "timeline_stages": [
+    {
+      "stage": "execution",
+      "event_ids": []
+    },
+    {
+      "stage": "exfiltration",
+      "event_ids": []
+    },
+    {
+      "stage": "detection",
+      "event_ids": []
+    }
+  ],
+  "summary": "Suspicious process runs DNS tunneling queries followed by oversized DNS responses and a high-severity SIEM alert."
+}

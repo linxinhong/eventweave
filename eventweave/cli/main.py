@@ -27,6 +27,7 @@ from eventweave.evaluation.agent_output import AgentOutput
 from eventweave.evaluation.benchmark import Scorecard
 from eventweave.evaluation.evaluator import Evaluator
 from eventweave.evaluation.runner import BenchmarkRunError, load_suite, run_benchmark
+from eventweave.evaluation.validator import SuiteValidator
 from eventweave.pack.scaffold import ScaffoldError, scaffold_pack
 from eventweave.runtime.local import LocalRuntime
 from eventweave.runtime.sink import Sink
@@ -693,6 +694,48 @@ def eval_validate_output(
         raise typer.Exit(code=1) from exc
 
     console.print(f"[green]Valid agent output: {path}[/green]")
+
+
+@benchmark_app.command("validate")
+def benchmark_validate(
+    suite: Annotated[
+        Path, typer.Option("--suite", help="Path to benchmark suite YAML file.")
+    ],
+    min_score: Annotated[
+        float,
+        typer.Option("--min-score", help="Minimum required sample overall_score."),
+    ] = 1.0,
+    output: Annotated[
+        Path | None,
+        typer.Option("--output", "-o", help="Optional JSON path for validation report."),
+    ] = None,
+) -> None:
+    """Validate a benchmark suite and its sample data."""
+    if not suite.exists():
+        console.print(f"[red]Suite not found: {suite}[/red]")
+        raise typer.Exit(code=1)
+
+    report = SuiteValidator(min_score=min_score).validate(suite)
+
+    status = "[green]passed[/green]" if report.passed else "[red]failed[/red]"
+    console.print(f"Validation for [cyan]{report.suite_id}[/cyan]: {status}")
+
+    table = Table(title=f"Validation Checks: {report.suite_id}")
+    table.add_column("Check", style="cyan")
+    table.add_column("Status", style="green")
+    table.add_column("Message", style="dim")
+    for check in report.checks:
+        status_text = "[green]PASS[/green]" if check.passed else "[red]FAIL[/red]"
+        table.add_row(check.name, status_text, check.message)
+    console.print(table)
+
+    if output:
+        output.parent.mkdir(parents=True, exist_ok=True)
+        output.write_text(json.dumps(report.to_dict(), indent=2), encoding="utf-8")
+        console.print(f"[green]Report written to {output}[/green]")
+
+    if not report.passed:
+        raise typer.Exit(code=1)
 
 
 @benchmark_app.command("list")

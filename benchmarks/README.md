@@ -13,11 +13,47 @@ description: Core detection scenarios for security operations agents.
 scenarios:
   - id: lateral_movement
     scenario_path: examples/security/lateral_movement.yaml
+  - id: brute_force_login
+    scenario_path: examples/security/brute_force_login.yaml
 ```
 
 - `id` — unique suite identifier.
 - `name` / `description` — human-readable metadata.
 - `scenarios` — list of scenarios to evaluate. Each scenario must declare `ground_truth`.
+
+## Available suites
+
+- `security.yaml` — `security_baseline` with lateral movement, brute-force login,
+  DNS exfiltration, and malware C2 callback scenarios.
+- `ecommerce.yaml` — `ecommerce_baseline` with refund flow, payment-failure spike,
+  and refund-fraud pattern scenarios.
+
+## Validating a suite
+
+Before running a suite, validate it and its sample data:
+
+```bash
+eventweave benchmark validate --suite benchmarks/security.yaml
+```
+
+The validator checks:
+
+- suite YAML loads successfully
+- scenario ids are unique
+- every scenario file exists and compiles
+- every scenario declares `ground_truth`
+- expected findings are unique by `(type, stage)`
+- `evidence_event_ids` reference real events in the compiled plan
+- sample agent outputs in `examples/evaluation/` are valid and meet the minimum score
+
+You can set a custom minimum sample score and write a JSON report:
+
+```bash
+eventweave benchmark validate \
+  --suite benchmarks/security.yaml \
+  --min-score 0.9 \
+  --output validation/security.json
+```
 
 ## Running a benchmark
 
@@ -55,4 +91,4 @@ eventweave benchmark leaderboard scorecards/security.json
 1. Ensure each referenced scenario declares `ground_truth`.
 2. Add the scenario to a new or existing YAML file in this directory.
 3. Provide sample agent outputs under `examples/evaluation/` or an agent directory.
-4. Add tests in `tests/evaluation/test_benchmark.py`.
+4. Add tests in `tests/evaluation/`.

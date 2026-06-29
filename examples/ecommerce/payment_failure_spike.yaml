@@ -1,0 +1,124 @@
+id: ecommerce_payment_failure_spike
+name: Payment failure spike
+domain: ecommerce
+for_each: order
+duration: 20m
+seed: 20260628
+
+entities:
+  customer:
+    count: 10
+    type: customer
+
+  order:
+    count: 50
+    type: order
+
+  payment:
+    count: 50
+    type: payment
+
+sources:
+  - id: order-service
+    type: service
+    role: order_service
+    rate:
+      base_qps: 100
+      burst_qps: 800
+      jitter: 0.1
+    outputs:
+      - type: jsonl
+        path: ./out/orders.jsonl
+
+  - id: payment-service
+    type: service
+    role: payment_service
+    rate:
+      base_qps: 80
+      burst_qps: 600
+      jitter: 0.15
+    outputs:
+      - type: jsonl
+        path: ./out/payments.jsonl
+
+timeline:
+  - id: create_order
+    at: "00:00:00"
+    event: order.created
+    source: order-service
+    entity_refs:
+      order: "$flow"
+      customer: "$entity.customer"
+    attributes:
+      amount: 299.0
+      currency: CNY
+
+  - id: create_payment
+    after: create_order
+    delay: "1s..10s"
+    event: payment.created
+    source: payment-service
+    entity_refs:
+      order: "$ref.create_order.order"
+      customer: "$ref.create_order.customer"
+      payment: "$new.payment"
+    attributes:
+      amount: 299.0
+      method: credit_card
+
+  - id: payment_failed_1
+    after: create_payment
+    delay: "0.5s..2s"
+    event: payment.failed
+    source: payment-service
+    entity_refs:
+      order: "$ref.create_payment.order"
+      payment: "$ref.create_payment.payment"
+    attributes:
+      reason: Insufficient funds
+
+  - id: payment_failed_2
+    after: payment_failed_1
+    delay: "1m..3m"
+    event: payment.failed
+    source: payment-service
+    entity_refs:
+      order: "$ref.payment_failed_1.order"
+      payment: "$ref.payment_failed_1.payment"
+    attributes:
+      reason: Bank timeout
+
+  - id: order_abandoned
+    after: payment_failed_2
+    delay: "2m..5m"
+    event: order.abandoned
+    source: order-service
+    entity_refs:
+      order: "$ref.payment_failed_2.order"
+      customer: "$ref.create_order.customer"
+    attributes:
+      reason: Payment failures exceeded retry limit
+
+ground_truth:
+  scenario_id: ecommerce_payment_failure_spike
+  expected_findings:
+    - type: payment_failure
+      stage: payment
+    - type: checkout_abandonment
+      stage: checkout
+  expected_summary: >-
+    Orders experience repeated payment failures and are eventually abandoned.
+  key_event_ids: []
+
+rules:
+  - id: payment_failure_after_order_created
+    type: event_after
+    event: payment.failed
+    after: order.created
+    scope: order
+
+  - id: abandonment_after_payment_failure
+    type: event_after
+    event: order.abandoned
+    after: payment.failed
+    scope: order

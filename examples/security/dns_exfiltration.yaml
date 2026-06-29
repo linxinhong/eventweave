@@ -1,0 +1,132 @@
+id: security_dns_exfiltration
+name: DNS tunneling / exfiltration
+domain: security
+for_each: host
+duration: 30m
+seed: 20260628
+
+entities:
+  host:
+    count: 8
+    type: host
+
+  ip:
+    count: 16
+    type: ip
+
+  domain:
+    count: 10
+    type: domain
+
+  alert:
+    count: 3
+    type: alert
+
+sources:
+  - id: edr-001
+    type: security_device
+    role: edr
+    rate:
+      base_qps: 100
+      burst_qps: 1000
+      jitter: 0.15
+    outputs:
+      - type: kafka
+        topic: mock.security.edr
+
+  - id: dns-001
+    type: security_device
+    role: dns_server
+    rate:
+      base_qps: 200
+      burst_qps: 2000
+      jitter: 0.2
+    outputs:
+      - type: syslog
+        protocol: udp
+        address: 127.0.0.1:514
+
+  - id: siem-001
+    type: security_device
+    role: siem
+    rate:
+      base_qps: 10
+      burst_qps: 100
+      jitter: 0.05
+    outputs:
+      - type: kafka
+        topic: mock.security.siem
+
+timeline:
+  - id: malware_exec
+    at: "00:00:00"
+    event: process.suspicious_started
+    source: edr-001
+    entity_refs:
+      host: "$flow"
+    attributes:
+      process_name: dns_tunnel.exe
+      command_line: "--mode tunnel"
+
+  - id: dns_query
+    after: malware_exec
+    delay: "1m..3m"
+    event: dns.query
+    source: dns-001
+    entity_refs:
+      host: "$ref.malware_exec.host"
+      domain: "$entity.domain"
+      source_ip: "$entity.ip"
+    attributes:
+      query_type: TXT
+      record_count: 50
+
+  - id: dns_response
+    after: dns_query
+    delay: "0.1s..0.5s"
+    event: dns.response
+    source: dns-001
+    entity_refs:
+      host: "$ref.dns_query.host"
+      domain: "$ref.dns_query.domain"
+      source_ip: "$ref.dns_query.source_ip"
+    attributes:
+      response_size_bytes: 4096
+
+  - id: alert_triggered
+    after: dns_response
+    delay: "30s..2m"
+    event: alert.triggered
+    source: siem-001
+    entity_refs:
+      host: "$ref.dns_response.host"
+      alert: "$new.alert"
+    attributes:
+      severity: high
+      description: DNS tunneling detected
+
+ground_truth:
+  scenario_id: security_dns_exfiltration
+  expected_findings:
+    - type: malware_execution
+      stage: execution
+    - type: dns_tunneling
+      stage: exfiltration
+    - type: alert_triggered
+      stage: detection
+  expected_summary: >-
+    Suspicious process runs DNS tunneling queries followed by oversized DNS
+    responses and a high-severity SIEM alert.
+  key_event_ids: []
+
+rules:
+  - id: dns_response_after_query
+    type: event_after
+    event: dns.response
+    after: dns.query
+    scope: host
+
+  - id: alert_must_reference_existing_host
+    type: required_entity_ref
+    event: alert.triggered
+    ref: host

@@ -1,0 +1,33 @@
+{
+  "scenario_id": "ecommerce_refund_fraud_pattern",
+  "findings": [
+    {
+      "type": "refund_fraud",
+      "stage": "dispute",
+      "entities": [],
+      "evidence_event_ids": [],
+      "confidence": 0.91,
+      "attributes": {}
+    },
+    {
+      "type": "ticket_created",
+      "stage": "support",
+      "entities": [],
+      "evidence_event_ids": [],
+      "confidence": 0.88,
+      "attributes": {}
+    }
+  ],
+  "key_event_ids": [],
+  "timeline_stages": [
+    {
+      "stage": "dispute",
+      "event_ids": []
+    },
+    {
+      "stage": "support",
+      "event_ids": []
+    }
+  ],
+  "summary": "High-value orders are paid, then quickly disputed as empty-box refunds, often escalating to high-priority support tickets."
+}

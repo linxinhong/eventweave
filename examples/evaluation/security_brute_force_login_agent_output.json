@@ -1,0 +1,45 @@
+{
+  "scenario_id": "security_brute_force_login",
+  "findings": [
+    {
+      "type": "brute_force_attempt",
+      "stage": "credential_access",
+      "entities": [],
+      "evidence_event_ids": [],
+      "confidence": 0.94,
+      "attributes": {}
+    },
+    {
+      "type": "successful_login",
+      "stage": "initial_access",
+      "entities": [],
+      "evidence_event_ids": [],
+      "confidence": 0.91,
+      "attributes": {}
+    },
+    {
+      "type": "alert_triggered",
+      "stage": "detection",
+      "entities": [],
+      "evidence_event_ids": [],
+      "confidence": 0.89,
+      "attributes": {}
+    }
+  ],
+  "key_event_ids": [],
+  "timeline_stages": [
+    {
+      "stage": "credential_access",
+      "event_ids": []
+    },
+    {
+      "stage": "initial_access",
+      "event_ids": []
+    },
+    {
+      "stage": "detection",
+      "event_ids": []
+    }
+  ],
+  "summary": "Repeated failed login attempts followed by a successful login and a SIEM alert for brute-force activity."
+}
