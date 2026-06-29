@@ -33,6 +33,7 @@ type Pool struct {
 	wg     sync.WaitGroup
 	ctx    context.Context
 	cancel context.CancelFunc
+	closed int32
 
 	stats PoolStats
 }
@@ -73,8 +74,8 @@ func (p *Pool) Open() error {
 
 // Close stops the pool, drains remaining jobs, flushes and closes the sink.
 func (p *Pool) Close() error {
+	atomic.StoreInt32(&p.closed, 1)
 	p.cancel()
-	close(p.jobs)
 	p.wg.Wait()
 	_ = p.sink.Flush()
 	return p.sink.Close()
@@ -85,6 +86,11 @@ func (p *Pool) Close() error {
 func (p *Pool) Submit(ev event.Event) error {
 	atomic.AddInt64(&p.stats.Submitted, 1)
 	metrics.SetQueueDepth(p.mode, p.sinkName, float64(len(p.jobs)))
+
+	if atomic.LoadInt32(&p.closed) == 1 {
+		atomic.AddInt64(&p.stats.Failed, 1)
+		return fmt.Errorf("pool closed")
+	}
 
 	if p.onFull == "fail" {
 		select {
@@ -152,11 +158,19 @@ func (p *Pool) runWorker(id int) {
 			}
 			p.processEvent(ev, workerID)
 		case <-p.ctx.Done():
-			// Drain remaining jobs before exiting.
-			for ev := range p.jobs {
-				p.processEvent(ev, workerID)
+			// Drain remaining jobs before exiting without relying on a closed
+			// channel, so Submit never panics on send-after-close.
+			for {
+				select {
+				case ev, ok := <-p.jobs:
+					if !ok {
+						return
+					}
+					p.processEvent(ev, workerID)
+				default:
+					return
+				}
 			}
-			return
 		}
 	}
 }

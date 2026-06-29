@@ -229,6 +229,8 @@ func addRuntimeFlags(cmd *cobra.Command, cfg *config.RuntimeConfig) {
 	cmd.Flags().IntVar(&cfg.MaxFailures, "max-failures", 0, "Stop after this many failed writes (0 = unlimited)")
 	cmd.Flags().DurationVar(&cfg.Timeout, "timeout", 5*time.Second, "Request timeout for network sinks")
 	cmd.Flags().IntVar(&cfg.Retries, "retries", 0, "Retry attempts for transient network failures")
+	cmd.Flags().DurationVar(&cfg.MaxRetryDuration, "max-retry-duration", 30*time.Second, "Maximum total time to spend retrying a request")
+	cmd.Flags().Float64Var(&cfg.BackoffFactor, "backoff-factor", 1.0, "Base multiplier for exponential retry backoff")
 	cmd.Flags().StringVar(&cfg.Brokers, "brokers", "", "Kafka broker list (comma-separated)")
 	cmd.Flags().StringVar(&cfg.Topic, "topic", "", "Kafka topic")
 	cmd.Flags().StringVar(&cfg.KeyField, "key-field", "event_id", "Kafka message key field: event_id, flow_id, source_id, or empty")

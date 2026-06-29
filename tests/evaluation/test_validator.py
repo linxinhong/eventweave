@@ -70,16 +70,32 @@ timeline:
     event: user.login.failed
     entity_refs:
       user: "$flow"
-ground_truth:
-  scenario_id: bad_evidence
-  expected_findings:
-    - type: bad_login
-      stage: initial_access
-      evidence_event_ids:
-        - nonexistent_event
 """,
         encoding="utf-8",
     )
+
+    plan_dir = tmp_path / "bad_evidence"
+    plan_dir.mkdir()
+    (plan_dir / "ground_truth.json").write_text(
+        json.dumps(
+            {
+                "scenario_id": "bad_evidence",
+                "expected_findings": [
+                    {
+                        "type": "bad_login",
+                        "stage": "initial_access",
+                        "evidence_event_ids": ["nonexistent_event"],
+                    }
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+    (plan_dir / "event_plan.jsonl").write_text("", encoding="utf-8")
+    (plan_dir / "scenario.json").write_text(
+        json.dumps({"id": "bad_evidence", "domain": "security"}), encoding="utf-8"
+    )
+
     suite_path = tmp_path / "suite.yaml"
     suite_path.write_text(
         f"""
@@ -87,6 +103,7 @@ id: bad_evidence_suite
 scenarios:
   - id: bad_evidence
     scenario_path: {scenario_path}
+    ground_truth_path: {plan_dir / "ground_truth.json"}
 """,
         encoding="utf-8",
     )
@@ -139,14 +156,28 @@ timeline:
     event: user.login.failed
     entity_refs:
       user: "$flow"
-ground_truth:
-  scenario_id: low_score
-  expected_findings:
-    - type: missing_finding
-      stage: initial_access
 """,
         encoding="utf-8",
     )
+
+    plan_dir = tmp_path / "low_score"
+    plan_dir.mkdir()
+    (plan_dir / "ground_truth.json").write_text(
+        json.dumps(
+            {
+                "scenario_id": "low_score",
+                "expected_findings": [
+                    {"type": "missing_finding", "stage": "initial_access"}
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+    (plan_dir / "event_plan.jsonl").write_text("", encoding="utf-8")
+    (plan_dir / "scenario.json").write_text(
+        json.dumps({"id": "low_score", "domain": "security"}), encoding="utf-8"
+    )
+
     suite_path = tmp_path / "suite.yaml"
     suite_path.write_text(
         f"""
@@ -154,6 +185,7 @@ id: low_score_suite
 scenarios:
   - id: low_score
     scenario_path: {scenario_path}
+    ground_truth_path: {plan_dir / "ground_truth.json"}
 """,
         encoding="utf-8",
     )
@@ -258,14 +290,41 @@ timeline:
     source: svc
     entity_refs:
       order: "$flow"
-ground_truth:
-  scenario_id: one_event_type
-  expected_findings:
-    - type: order_created
-      stage: checkout
 """,
         encoding="utf-8",
     )
+
+    plan_dir = tmp_path / "one_event_type"
+    plan_dir.mkdir()
+    (plan_dir / "ground_truth.json").write_text(
+        json.dumps(
+            {
+                "scenario_id": "one_event_type",
+                "expected_findings": [
+                    {"type": "order_created", "stage": "checkout"}
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+    (plan_dir / "scenario.json").write_text(
+        json.dumps({"id": "one_event_type", "domain": "ecommerce"}), encoding="utf-8"
+    )
+    (plan_dir / "event_plan.jsonl").write_text(
+        json.dumps(
+            {
+                "event_id": "evt-001",
+                "scenario_id": "one_event_type",
+                "source_id": "svc",
+                "event_type": "order.created",
+                "event_time": "2026-01-01T00:00:00Z",
+                "entity_refs": {"order": "order_001"},
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
     suite_path = tmp_path / "suite.yaml"
     suite_path.write_text(
         f"""
@@ -273,6 +332,7 @@ id: one_event_type_suite
 scenarios:
   - id: one_event_type
     scenario_path: {scenario_path}
+    ground_truth_path: {plan_dir / "ground_truth.json"}
 """,
         encoding="utf-8",
     )
@@ -329,14 +389,41 @@ timeline:
     source: svc
     entity_refs:
       order: "$flow"
-ground_truth:
-  scenario_id: one_source
-  expected_findings:
-    - type: order_created
-      stage: checkout
 """,
         encoding="utf-8",
     )
+
+    plan_dir = tmp_path / "one_source"
+    plan_dir.mkdir()
+    (plan_dir / "ground_truth.json").write_text(
+        json.dumps(
+            {
+                "scenario_id": "one_source",
+                "expected_findings": [
+                    {"type": "order_created", "stage": "checkout"}
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+    (plan_dir / "scenario.json").write_text(
+        json.dumps({"id": "one_source", "domain": "ecommerce"}), encoding="utf-8"
+    )
+    (plan_dir / "event_plan.jsonl").write_text(
+        json.dumps(
+            {
+                "event_id": "evt-001",
+                "scenario_id": "one_source",
+                "source_id": "svc",
+                "event_type": "order.created",
+                "event_time": "2026-01-01T00:00:00Z",
+                "entity_refs": {"order": "order_001"},
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
     suite_path = tmp_path / "suite.yaml"
     suite_path.write_text(
         f"""
@@ -344,6 +431,7 @@ id: one_source_suite
 scenarios:
   - id: one_source
     scenario_path: {scenario_path}
+    ground_truth_path: {plan_dir / "ground_truth.json"}
 """,
         encoding="utf-8",
     )

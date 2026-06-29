@@ -24,3 +24,15 @@ def test_cache_has_and_clear(tmp_path):
     assert cache.has("k1")
     cache.clear()
     assert not cache.has("k1")
+def test_cache_uses_sha256_file_names(tmp_path):
+    cache = SemanticCache(tmp_path)
+    cache.set("a+b", SemanticAsset(id="a", type="greeting", text="hello"))
+    cache.set("a-b", SemanticAsset(id="b", type="greeting", text="world"))
+
+    assert cache.has("a+b")
+    assert cache.has("a-b")
+    assert cache.get("a+b").id == "a"
+    assert cache.get("a-b").id == "b"
+
+    # The two keys should not map to the same file.
+    assert len(list(tmp_path.glob("*.json"))) == 2

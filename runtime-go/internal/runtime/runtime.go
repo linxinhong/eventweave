@@ -61,7 +61,7 @@ func NewWithMode(cfg config.RuntimeConfig, mode string) (*LocalRuntime, error) {
 		if err := httpSink.IsSafeURL(cfg.URL, cfg.AllowInternalURL); err != nil {
 			return nil, err
 		}
-		hs, err := httpSink.New(cfg.URL, cfg.Timeout, cfg.Retries, cfg.AllowInternalURL)
+		hs, err := httpSink.New(cfg.URL, cfg.Timeout, cfg.MaxRetryDuration, cfg.Retries, cfg.BackoffFactor, cfg.AllowInternalURL)
 		if err != nil {
 			return nil, err
 		}

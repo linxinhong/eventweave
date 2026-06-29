@@ -46,6 +46,8 @@ func (m *MetricsServer) Start() error {
 		return nil
 	}
 
+	Register(nil)
+
 	mux := http.NewServeMux()
 	mux.HandleFunc("/metrics", promhttp.Handler().ServeHTTP)
 	mux.HandleFunc("/healthz", m.handleHealthz)

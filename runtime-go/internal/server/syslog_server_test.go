@@ -87,4 +87,73 @@ func TestSyslogUDPServerEmitsFilteredEvents(t *testing.T) {
 	}
 }
 
+func TestSyslogUDPServerRejectsUnallowedClient(t *testing.T) {
+	addr := "127.0.0.1:18084"
+	srv := NewSyslogServer("syslog_udp_allowlist", addr, "udp", 16, 6, "eventweave", "10.0.0.0/8")
+	if err := srv.Open(); err != nil {
+		t.Fatalf("open: %v", err)
+	}
+	defer srv.Close()
 
+	time.Sleep(50 * time.Millisecond)
+
+	clientAddr, _ := net.ResolveUDPAddr("udp", addr)
+	clientConn, err := net.DialUDP("udp", nil, clientAddr)
+	if err != nil {
+		t.Fatalf("dial udp: %v", err)
+	}
+	defer clientConn.Close()
+
+	_, _ = clientConn.Write([]byte("register"))
+	time.Sleep(100 * time.Millisecond)
+
+	_ = srv.Write(event.Event{EventID: "3", SourceID: "firewall-001", EventType: "firewall.allow"})
+
+	clientConn.SetReadDeadline(time.Now().Add(200 * time.Millisecond))
+	buf := make([]byte, 4096)
+	_, _, err = clientConn.ReadFromUDP(buf)
+	if err == nil {
+		t.Fatal("expected timeout for unallowed client")
+	}
+
+	stats := srv.Stats()
+	if stats.Emitted != 0 {
+		t.Fatalf("expected 0 emitted, got %d", stats.Emitted)
+	}
+}
+
+func TestSyslogUDPCleanupRemovesStaleClients(t *testing.T) {
+	addr := "127.0.0.1:18085"
+	srv := NewSyslogServer("syslog_udp_cleanup", addr, "udp", 16, 6, "eventweave")
+	if err := srv.Open(); err != nil {
+		t.Fatalf("open: %v", err)
+	}
+	defer srv.Close()
+
+	time.Sleep(50 * time.Millisecond)
+
+	clientAddr, _ := net.ResolveUDPAddr("udp", addr)
+	clientConn, err := net.DialUDP("udp", nil, clientAddr)
+	if err != nil {
+		t.Fatalf("dial udp: %v", err)
+	}
+	defer clientConn.Close()
+
+	_, _ = clientConn.Write([]byte("register"))
+	time.Sleep(100 * time.Millisecond)
+
+	srv.clientsMu.Lock()
+	for a := range srv.udpClients {
+		srv.udpClients[a] = time.Now().Add(-10 * time.Minute)
+	}
+	srv.clientsMu.Unlock()
+
+	srv.cleanupClients()
+
+	srv.clientsMu.Lock()
+	count := len(srv.udpClients)
+	srv.clientsMu.Unlock()
+	if count != 0 {
+		t.Fatalf("expected stale clients to be cleaned up, got %d", count)
+	}
+}

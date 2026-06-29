@@ -13,14 +13,41 @@ from eventweave.core.semantic import SemanticTask
 class PlanWriter:
     """Write a runtime plan to the standard dist layout."""
 
-    def __init__(self, output_dir: str | Path) -> None:
+    def __init__(
+        self,
+        output_dir: str | Path,
+        *,
+        force: bool = False,
+        allowed_root: str | Path | None = None,
+    ) -> None:
         self.output_dir = Path(output_dir)
+        self.force = force
+        self.allowed_root = Path(allowed_root) if allowed_root is not None else None
+
+    def _validate_output_dir(self) -> None:
+        """Ensure the output directory is safe and writable."""
+        output = self.output_dir.expanduser().resolve()
+
+        if self.allowed_root is not None:
+            root = self.allowed_root.expanduser().resolve()
+            try:
+                output.relative_to(root)
+            except ValueError as exc:
+                raise ValueError(
+                    f"Output directory {output} is outside allowed root {root}"
+                ) from exc
+
+        if output.exists() and any(output.iterdir()) and not self.force:
+            raise ValueError(
+                f"Output directory {output} is not empty. Use --force to overwrite."
+            )
 
     def write(
         self,
         plan: RuntimePlan,
         semantic_tasks: list[SemanticTask] | None = None,
     ) -> dict[str, Path]:
+        self._validate_output_dir()
         self.output_dir.mkdir(parents=True, exist_ok=True)
         written: dict[str, Path] = {}
 

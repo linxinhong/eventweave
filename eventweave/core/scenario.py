@@ -78,7 +78,7 @@ class Scenario(BaseModel):
         if not isinstance(data, dict):
             return data
 
-        if "realism_profile" in data:
+        if data.get("realism_profile") is not None:
             realism = data.get("realism") or {}
             if isinstance(realism, RealismOverride):
                 realism = realism.model_dump()

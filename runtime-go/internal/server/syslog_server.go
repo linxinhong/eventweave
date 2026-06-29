@@ -12,6 +12,11 @@ import (
 )
 
 const (
+	udpClientTTL   = 5 * time.Minute
+	udpCleanupFreq = 1 * time.Minute
+)
+
+const (
 	syslogChannelBuffer = 1000
 	syslogWriteTimeout  = 100 * time.Millisecond
 )
@@ -31,29 +36,39 @@ type SyslogServer struct {
 
 	udpConn      *net.UDPConn
 	clientsMu    sync.RWMutex
-	udpClients   map[string]struct{}
+	udpClients   map[string]time.Time
+	allowed      []*net.IPNet
 
 	stats   EndpointStats
 	statsMu sync.RWMutex
 
 	ctx    context.Context
 	cancel context.CancelFunc
+	wg     sync.WaitGroup
 }
 
 // NewSyslogServer creates a syslog server endpoint.
-func NewSyslogServer(id, addr, protocol string, facility, severity int, tag string) *SyslogServer {
+// Optional allowedCIDRs restrict which UDP sources may register as clients.
+func NewSyslogServer(id, addr, protocol string, facility, severity int, tag string, allowedCIDRs ...string) *SyslogServer {
 	ctx, cancel := context.WithCancel(context.Background())
-	return &SyslogServer{
+	s := &SyslogServer{
 		id:         id,
 		addr:       addr,
 		protocol:   protocol,
 		facility:   facility,
 		severity:   severity,
 		tag:        tag,
-		udpClients: make(map[string]struct{}),
+		udpClients: make(map[string]time.Time),
 		ctx:        ctx,
 		cancel:     cancel,
 	}
+	for _, cidr := range allowedCIDRs {
+		_, network, err := net.ParseCIDR(cidr)
+		if err == nil {
+			s.allowed = append(s.allowed, network)
+		}
+	}
+	return s
 }
 
 // ID returns the endpoint identifier.
@@ -82,7 +97,10 @@ func (s *SyslogServer) openUDP() error {
 	}
 	s.udpConn = conn
 
+	s.wg.Add(1)
 	go s.udpRegisterLoop()
+	s.wg.Add(1)
+	go s.udpCleanupLoop()
 	return nil
 }
 
@@ -93,7 +111,9 @@ func (s *SyslogServer) openTCP() error {
 	}
 	s.listener = ln
 
+	s.wg.Add(1)
 	go func() {
+		defer s.wg.Done()
 		for {
 			conn, err := ln.Accept()
 			if err != nil {
@@ -121,6 +141,7 @@ func (s *SyslogServer) Close() error {
 	if s.udpConn != nil {
 		_ = s.udpConn.Close()
 	}
+	s.wg.Wait()
 	s.connMu.Lock()
 	for _, conn := range s.conns {
 		_ = conn.Close()
@@ -220,7 +241,22 @@ func (s *SyslogServer) writeUDP(msg string) error {
 	return nil
 }
 
+// isAllowed reports whether the given IP is in the allowlist.
+// An empty allowlist permits all sources for backwards compatibility.
+func (s *SyslogServer) isAllowed(ip net.IP) bool {
+	if len(s.allowed) == 0 {
+		return true
+	}
+	for _, network := range s.allowed {
+		if network.Contains(ip) {
+			return true
+		}
+	}
+	return false
+}
+
 func (s *SyslogServer) udpRegisterLoop() {
+	defer s.wg.Done()
 	buf := make([]byte, 1024)
 	for {
 		select {
@@ -237,9 +273,37 @@ func (s *SyslogServer) udpRegisterLoop() {
 		if addr == nil {
 			continue
 		}
+		if !s.isAllowed(addr.IP) {
+			continue
+		}
 		s.clientsMu.Lock()
-		s.udpClients[addr.String()] = struct{}{}
+		s.udpClients[addr.String()] = time.Now()
 		s.clientsMu.Unlock()
+	}
+}
+
+func (s *SyslogServer) cleanupClients() {
+	s.clientsMu.Lock()
+	defer s.clientsMu.Unlock()
+	cutoff := time.Now().Add(-udpClientTTL)
+	for addr, lastSeen := range s.udpClients {
+		if lastSeen.Before(cutoff) {
+			delete(s.udpClients, addr)
+		}
+	}
+}
+
+func (s *SyslogServer) udpCleanupLoop() {
+	defer s.wg.Done()
+	ticker := time.NewTicker(udpCleanupFreq)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-s.ctx.Done():
+			return
+		case <-ticker.C:
+			s.cleanupClients()
+		}
 	}
 }
 

@@ -314,3 +314,53 @@ def test_ai_provider_omits_authorization_when_key_empty(
     )
     provider.generate(task, context)
     assert _FakeAIHandler.auth_headers[-1] is None
+
+
+def test_ai_provider_marks_asset_pending_when_template_render_fails(
+    fake_server: str, context: GenerationContext
+) -> None:
+    os.environ["EVENTWEAVE_AI_API_KEY"] = "test-key"
+    task = SemanticTask(
+        id="missing_var",
+        type="refund.reason",
+        prompt="Reason for {user.name",
+        valid_for=["refund.requested"],
+    )
+    provider = AIChatProvider(
+        ProviderConfig(
+            "ai",
+            base_url=fake_server,
+            model="moonshot-v1-8k",
+            api_key_env="EVENTWEAVE_AI_API_KEY",
+        )
+    )
+
+    asset = provider.generate(task, context)
+
+    assert asset.meta.review_status == "pending"
+    assert "{user.name" in _FakeAIHandler.requests[-1]["messages"][-1]["content"]
+
+
+def test_ai_provider_marks_asset_approved_when_template_render_succeeds(
+    fake_server: str, context: GenerationContext
+) -> None:
+    os.environ["EVENTWEAVE_AI_API_KEY"] = "test-key"
+    task = SemanticTask(
+        id="ok_var",
+        type="refund.reason",
+        prompt="Reason for scenario {scenario_id}",
+        valid_for=["refund.requested"],
+    )
+    provider = AIChatProvider(
+        ProviderConfig(
+            "ai",
+            base_url=fake_server,
+            model="moonshot-v1-8k",
+            api_key_env="EVENTWEAVE_AI_API_KEY",
+        )
+    )
+
+    asset = provider.generate(task, context)
+
+    assert asset.meta.review_status == "approved"
+    assert "ecommerce_refund_flow" in _FakeAIHandler.requests[-1]["messages"][-1]["content"]

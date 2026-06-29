@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"net"
 	"net/http"
 	"net/url"
@@ -105,16 +106,18 @@ func IsSafeURL(rawURL string, allowInternal bool) error {
 
 // Sink posts events as JSON to a URL.
 type Sink struct {
-	url            string
-	client         *http.Client
-	retries        int
-	count          int
-	failed         int
-	allowInternal  bool
+	url              string
+	client           *http.Client
+	retries          int
+	maxRetryDuration time.Duration
+	backoffFactor    float64
+	count            int
+	failed           int
+	allowInternal    bool
 }
 
 // New creates an HTTP sink.
-func New(url string, timeout time.Duration, retries int, allowInternal bool) (*Sink, error) {
+func New(url string, timeout, maxRetryDuration time.Duration, retries int, backoffFactor float64, allowInternal bool) (*Sink, error) {
 	if err := IsSafeURL(url, allowInternal); err != nil {
 		return nil, err
 	}
@@ -126,8 +129,10 @@ func New(url string, timeout time.Duration, retries int, allowInternal bool) (*S
 				return errors.New("http sink redirects are disabled")
 			},
 		},
-		retries:       retries,
-		allowInternal: allowInternal,
+		retries:          retries,
+		maxRetryDuration: maxRetryDuration,
+		backoffFactor:    backoffFactor,
+		allowInternal:    allowInternal,
 	}, nil
 }
 
@@ -142,6 +147,7 @@ func (s *Sink) Write(ev event.Event) error {
 		return err
 	}
 
+	start := time.Now()
 	attempt := 0
 	for {
 		req, err := http.NewRequest(http.MethodPost, s.url, bytes.NewReader(body))
@@ -153,7 +159,8 @@ func (s *Sink) Write(ev event.Event) error {
 
 		resp, err := s.client.Do(req)
 		if err != nil {
-			if attempt < s.retries {
+			if s.shouldRetry(attempt, start) {
+				s.sleep(attempt)
 				attempt++
 				continue
 			}
@@ -166,14 +173,33 @@ func (s *Sink) Write(ev event.Event) error {
 			s.count++
 			return nil
 		}
-		// Retry only on 5xx server errors.
-		if resp.StatusCode >= 500 && resp.StatusCode < 600 && attempt < s.retries {
+		// Retry on 429 and 5xx server errors.
+		if (resp.StatusCode == 429 || (resp.StatusCode >= 500 && resp.StatusCode < 600)) && s.shouldRetry(attempt, start) {
+			s.sleep(attempt)
 			attempt++
 			continue
 		}
 		s.failed++
 		return fmt.Errorf("http sink received status %d", resp.StatusCode)
 	}
+}
+
+func (s *Sink) shouldRetry(attempt int, start time.Time) bool {
+	if attempt >= s.retries {
+		return false
+	}
+	if s.maxRetryDuration > 0 && time.Since(start) >= s.maxRetryDuration {
+		return false
+	}
+	return true
+}
+
+func (s *Sink) sleep(attempt int) {
+	delay := s.backoffFactor * math.Pow(2, float64(attempt))
+	if delay > 30 {
+		delay = 30
+	}
+	time.Sleep(time.Duration(delay) * time.Second)
 }
 
 // Flush is a no-op.

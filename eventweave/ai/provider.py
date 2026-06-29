@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import string
 from abc import ABC, abstractmethod
 from collections.abc import Mapping
@@ -10,6 +11,8 @@ from typing import Any
 from eventweave.core.event import Event
 from eventweave.core.scenario import Scenario
 from eventweave.core.semantic import SemanticAsset, SemanticTask
+
+logger = logging.getLogger("eventweave.ai")
 
 
 class ProviderConfig:
@@ -71,10 +74,15 @@ class Provider(ABC):
         self,
         template: str | None,
         context: GenerationContext,
-    ) -> str:
-        """Simple template rendering using {variable} placeholders."""
+    ) -> tuple[str, bool]:
+        """Simple template rendering using {variable} placeholders.
+
+        Returns the rendered text and a boolean indicating whether rendering
+        succeeded. On failure the original template is returned and a warning
+        is logged so callers can mark the asset for review.
+        """
         if not template:
-            return ""
+            return "", True
 
         variables: dict[str, Any] = {
             "scenario_id": context.scenario.id,
@@ -98,7 +106,11 @@ class Provider(ABC):
                 variables[f"event.{key}"] = value
 
         try:
-            return _DotFormatter().format(template, **variables)
-        except (KeyError, ValueError):
-            # If variables are missing, return the template as-is.
-            return template
+            return _DotFormatter().format(template, **variables), True
+        except (KeyError, ValueError) as exc:
+            logger.warning(
+                "Template render failed for task %s: %s. Returning raw template for review.",
+                context.task.id if context.task else "unknown",
+                exc,
+            )
+            return template, False

@@ -77,7 +77,7 @@ def test_realism_report_json_written(tmp_path: Path) -> None:
     report_path = tmp_path / "plan"
     from eventweave.compiler.writer import PlanWriter
 
-    PlanWriter(report_path).write(result.plan)
+    PlanWriter(report_path, force=True).write(result.plan)
 
     result_cli = runner.invoke(
         app,
@@ -101,7 +101,7 @@ def test_quality_realism_cli() -> None:
     report_path = Path("dist/realism_test_plan")
     from eventweave.compiler.writer import PlanWriter
 
-    PlanWriter(report_path).write(result.plan)
+    PlanWriter(report_path, force=True).write(result.plan)
 
     result_cli = runner.invoke(app, ["quality", "realism", str(report_path)])
     assert result_cli.exit_code == 0, result_cli.output

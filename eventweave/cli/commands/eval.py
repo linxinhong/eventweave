@@ -10,7 +10,10 @@ import typer
 from pydantic import ValidationError
 from rich.table import Table
 
-from eventweave.cli.helpers import console
+from eventweave.cli.helpers import console, find_packs_dir
+from eventweave.compiler import compile_scenario_file
+from eventweave.compiler.loader import ScenarioLoadError
+from eventweave.compiler.writer import PlanWriter
 from eventweave.core.ground_truth import GroundTruth
 from eventweave.evaluation.agent_output import AgentOutput
 from eventweave.evaluation.evaluator import Evaluator
@@ -19,6 +22,46 @@ from eventweave.evaluation.evaluator import Evaluator
 def get_app() -> typer.Typer:
     """Build the eval subcommand app."""
     app = typer.Typer(name="eval", help="Agent evaluation harness.")
+
+    @app.command("prepare")
+    def eval_prepare(
+        scenario: Annotated[Path, typer.Argument(help="Path to scenario YAML/JSON file.")],
+        output: Annotated[
+            Path, typer.Option("-o", "--output", help="Output directory for compiled plan.")
+        ] = Path("dist"),
+        packs: Annotated[
+            Path | None, typer.Option(help="Path to packs directory.")
+        ] = None,
+        seed: Annotated[
+            int | None, typer.Option(help="Random seed for deterministic output.")
+        ] = None,
+        force: Annotated[
+            bool, typer.Option(help="Overwrite a non-empty output directory.")
+        ] = False,
+    ) -> None:
+        """Compile a scenario so that eval/benchmark can use the artifacts."""
+        packs_dir = packs or find_packs_dir()
+        try:
+            result = compile_scenario_file(scenario, packs_dir=packs_dir, seed=seed)
+        except ScenarioLoadError as exc:
+            console.print(f"[red]Load error:[/red] {exc}")
+            raise typer.Exit(code=1) from exc
+
+        if result.errors:
+            console.print(f"[red]Scenario {result.plan.scenario.id!r} has errors.[/red]")
+            for error in result.errors:
+                console.print(f"  - {error}")
+            raise typer.Exit(code=1)
+
+        output_dir = output / result.plan.scenario.id
+        allowed_root = output.resolve().parent if output.is_absolute() else Path.cwd()
+        writer = PlanWriter(output_dir, force=force, allowed_root=allowed_root)
+        writer.write(result.plan, semantic_tasks=result.semantic_tasks)
+
+        console.print(
+            f"[green]Prepared evaluation artifacts for {result.plan.scenario.id!r}[/green]"
+        )
+        console.print(f"Ground truth: {output_dir / 'ground_truth.json'}")
 
     @app.command("task")
     def eval_task(

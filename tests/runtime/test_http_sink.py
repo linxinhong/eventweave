@@ -139,3 +139,69 @@ def test_http_sink_no_retry_on_4xx():
     finally:
         server.shutdown()
         server.server_close()
+
+
+def test_http_sink_retry_on_429():
+    class _RateLimitHandler(BaseHTTPRequestHandler):
+        requests = 0
+
+        def do_POST(self) -> None:  # noqa: N802
+            _RateLimitHandler.requests += 1
+            if _RateLimitHandler.requests == 1:
+                self.send_response(429)
+            else:
+                self.send_response(200)
+            self.end_headers()
+
+        def log_message(self, format: str, *args: object) -> None:
+            pass
+
+    server = _start_server(_RateLimitHandler)
+    try:
+        url = f"http://127.0.0.1:{server.server_port}/events"
+        sink = HTTPSink(url, retries=2, backoff_factor=0.01, allow_internal=True)
+        sink.open()
+        sink.write(_event())
+        sink.close()
+
+        assert sink.count() == 1
+        assert sink.failed() == 0
+        assert _RateLimitHandler.requests == 2
+    finally:
+        server.shutdown()
+        server.server_close()
+
+
+def test_http_sink_respects_max_retry_duration():
+    class _SlowFailHandler(BaseHTTPRequestHandler):
+        requests = 0
+
+        def do_POST(self) -> None:  # noqa: N802
+            _SlowFailHandler.requests += 1
+            self.send_response(503)
+            self.end_headers()
+
+        def log_message(self, format: str, *args: object) -> None:
+            pass
+
+    server = _start_server(_SlowFailHandler)
+    try:
+        url = f"http://127.0.0.1:{server.server_port}/events"
+        sink = HTTPSink(
+            url,
+            retries=100,
+            max_retry_duration=0.05,
+            backoff_factor=0.01,
+            allow_internal=True,
+        )
+        sink.open()
+        sink.write(_event())
+        sink.close()
+
+        assert sink.count() == 0
+        assert sink.failed() == 1
+        # Should give up well before exhausting all retries.
+        assert _SlowFailHandler.requests < 100
+    finally:
+        server.shutdown()
+        server.server_close()

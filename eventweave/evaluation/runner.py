@@ -6,15 +6,21 @@ from pathlib import Path
 
 import yaml
 
-from eventweave.compiler import compile_scenario_file
 from eventweave.core.ground_truth import GroundTruth
 from eventweave.evaluation.agent_output import AgentOutput
 from eventweave.evaluation.benchmark import (
     BenchmarkAgentResult,
+    BenchmarkScenario,
     BenchmarkSuite,
     Scorecard,
 )
 from eventweave.evaluation.evaluator import Evaluator
+from eventweave.evaluation.io import (
+    default_plan_dir_root,
+    load_agent_output,
+    load_ground_truth,
+    resolve_ground_truth_path,
+)
 from eventweave.evaluation.report import EvaluationReport
 
 
@@ -41,24 +47,25 @@ def _discover_agent_output(agent_dir: Path, scenario_id: str) -> Path | None:
     return None
 
 
-def _load_ground_truth(scenario_path: str | Path) -> GroundTruth:
-    """Compile a scenario file and return its ground truth."""
-    result = compile_scenario_file(scenario_path)
-    if result.errors:
-        errors = "; ".join(result.errors)
-        raise BenchmarkRunError(f"Failed to compile {scenario_path}: {errors}")
-    if result.plan.scenario.ground_truth is None:
-        raise BenchmarkRunError(f"Scenario {scenario_path} has no ground_truth")
-    return result.plan.scenario.ground_truth
+def _load_ground_truth(scenario: BenchmarkScenario, plan_dir_root: Path) -> GroundTruth:
+    """Load the compiled ground truth for a benchmark scenario."""
+    gt_path = resolve_ground_truth_path(
+        scenario.scenario_path,
+        ground_truth_path=scenario.ground_truth_path,
+        plan_dir_root=plan_dir_root,
+    )
+    try:
+        return load_ground_truth(gt_path)
+    except Exception as exc:
+        raise BenchmarkRunError(str(exc)) from exc
 
 
 def _load_agent_output(path: Path) -> AgentOutput:
     """Load an agent output JSON file."""
-    import json
-
-    with path.open("r", encoding="utf-8") as f:
-        data = json.load(f)
-    return AgentOutput.model_validate(data)
+    try:
+        return load_agent_output(path)
+    except Exception as exc:
+        raise BenchmarkRunError(str(exc)) from exc
 
 
 def _aggregate_metrics(reports: dict[str, EvaluationReport]) -> dict[str, float]:
@@ -93,8 +100,10 @@ class BenchmarkRunError(Exception):
 def run_benchmark(
     suite: BenchmarkSuite,
     agent_dirs: list[Path],
+    plan_dir_root: Path | None = None,
 ) -> Scorecard:
     """Run a benchmark suite against one or more agent output directories."""
+    root = plan_dir_root or default_plan_dir_root()
     agent_results: list[BenchmarkAgentResult] = []
 
     for agent_dir in agent_dirs:
@@ -102,7 +111,7 @@ def run_benchmark(
         per_scenario: dict[str, EvaluationReport] = {}
 
         for scenario in suite.scenarios:
-            ground_truth = _load_ground_truth(scenario.scenario_path)
+            ground_truth = _load_ground_truth(scenario, root)
             output_path = _discover_agent_output(agent_dir, ground_truth.scenario_id)
             if output_path is None:
                 expected = agent_dir / f"{ground_truth.scenario_id}.json"

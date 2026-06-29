@@ -2,11 +2,11 @@
 
 from __future__ import annotations
 
-import json
 from pathlib import Path
 
 from eventweave.core.event import Event
 from eventweave.runtime.clock import RuntimeClock
+from eventweave.runtime.loader import iter_event_plan
 from eventweave.runtime.scheduler import sort_events
 from eventweave.runtime.sink import Sink
 from eventweave.runtime.sinks.stdout import StdoutSink
@@ -33,15 +33,7 @@ class LocalRuntime:
 
     def _load_events(self) -> list[Event]:
         path = self.plan_dir / "event_plan.jsonl"
-        if not path.exists():
-            raise FileNotFoundError(f"Event plan not found: {path}")
-        events: list[Event] = []
-        with path.open("r", encoding="utf-8") as f:
-            for line in f:
-                line = line.strip()
-                if line:
-                    events.append(Event.model_validate(json.loads(line)))
-        return events
+        return list(iter_event_plan(path))
 
     def _count_unresolved_refs(self, events: list[Event]) -> int:
         count = 0

@@ -42,9 +42,13 @@ The script:
 
 | Service | URL | Credentials |
 |---------|-----|-------------|
-| Grafana | http://127.0.0.1:3000 | admin / admin |
+| Grafana | http://127.0.0.1:3000 | admin / auto-generated password |
 | Prometheus | http://127.0.0.1:9090 | — |
 | Redpanda Admin | http://127.0.0.1:19644 | — |
+
+The Grafana password is generated on first run and saved to
+`examples/demo-stack/.env`. The file is ignored by Git, so each developer gets
+a fresh credential.
 
 ## Architecture
 

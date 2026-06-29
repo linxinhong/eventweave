@@ -56,6 +56,13 @@ def register_commands(app: typer.Typer) -> None:
         retries: Annotated[
             int, typer.Option("--retries", help="HTTP retry attempts for transient failures.")
         ] = 0,
+        max_retry_duration: Annotated[
+            float,
+            typer.Option("--max-retry-duration", help="Maximum total retry duration in seconds."),
+        ] = 30.0,
+        backoff_factor: Annotated[
+            float, typer.Option("--backoff-factor", help="Base multiplier for exponential backoff.")
+        ] = 1.0,
         limit: Annotated[
             int | None,
             typer.Option("--limit", help="Maximum number of events to emit.")
@@ -73,7 +80,12 @@ def register_commands(app: typer.Typer) -> None:
                 raise typer.Exit(code=1)
             try:
                 effective_sink = HTTPSink(
-                    url, timeout=timeout, retries=retries, allow_internal=allow_internal_url
+                    url,
+                    timeout=timeout,
+                    retries=retries,
+                    max_retry_duration=max_retry_duration,
+                    backoff_factor=backoff_factor,
+                    allow_internal=allow_internal_url,
                 )
             except ValueError as exc:
                 console.print(f"[red]Invalid http sink URL: {exc}[/red]")

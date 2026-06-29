@@ -17,12 +17,13 @@ type ServerConfig struct {
 
 // EndpointConfig describes one listener endpoint.
 type EndpointConfig struct {
-	ID           string       `yaml:"id"`
-	Protocol     string       `yaml:"protocol"`
-	Bind         string       `yaml:"bind"`
-	Port         int          `yaml:"port"`
-	Path         string       `yaml:"path"`
-	SourceFilter SourceFilter `yaml:"source_filter"`
+	ID             string       `yaml:"id"`
+	Protocol       string       `yaml:"protocol"`
+	Bind           string       `yaml:"bind"`
+	Port           int          `yaml:"port"`
+	Path           string       `yaml:"path"`
+	SourceFilter   SourceFilter `yaml:"source_filter"`
+	AllowedClients []string     `yaml:"allowed_clients,omitempty"`
 }
 
 // SourceFilter selects events for an endpoint.

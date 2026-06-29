@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 from pathlib import Path
 
@@ -15,21 +16,32 @@ class SemanticCache:
         self.cache_dir = Path(cache_dir)
         self.cache_dir.mkdir(parents=True, exist_ok=True)
 
+    @staticmethod
+    def _file_name(key: str) -> str:
+        """Return a deterministic, collision-resistant file name for a key."""
+        digest = hashlib.sha256(key.encode("utf-8")).hexdigest()
+        return f"{digest}.json"
+
     def _key_path(self, key: str) -> Path:
-        # Sanitize key for filesystem safety.
-        safe = "".join(c if c.isalnum() or c in "-_" else "_" for c in key)
-        return self.cache_dir / f"{safe}.json"
+        return self.cache_dir / self._file_name(key)
 
     def get(self, key: str) -> SemanticAsset | None:
         path = self._key_path(key)
         if not path.exists():
             return None
-        data = json.loads(path.read_text(encoding="utf-8"))
+        wrapper = json.loads(path.read_text(encoding="utf-8"))
+        data = wrapper.get("asset") if isinstance(wrapper, dict) else wrapper
         return SemanticAsset.model_validate(data)
 
     def set(self, key: str, asset: SemanticAsset) -> None:
         path = self._key_path(key)
-        path.write_text(asset.model_dump_json(), encoding="utf-8")
+        wrapper = {
+            "key": key,
+            "asset": asset.model_dump(),
+        }
+        path.write_text(
+            json.dumps(wrapper, ensure_ascii=False, default=str), encoding="utf-8"
+        )
 
     def has(self, key: str) -> bool:
         return self._key_path(key).exists()

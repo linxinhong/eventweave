@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 from typing import Annotated
 
@@ -68,9 +69,11 @@ def get_app() -> typer.Typer:
             max_burstiness=max_burstiness,
             require_jitter=require_jitter,
         )
+        plan_dir_root = Path(os.environ.get("EVENTWEAVE_PLAN_DIR", "dist"))
         report = SuiteValidator(
             min_score=min_score,
             realism_gates=realism_gates,
+            plan_dir_root=plan_dir_root,
         ).validate(suite)
 
         status = "[green]passed[/green]" if report.passed else "[red]failed[/red]"
@@ -152,8 +155,9 @@ def get_app() -> typer.Typer:
             raise typer.Exit(code=1)
 
         benchmark_suite = load_suite(suite)
+        plan_dir_root = Path(os.environ.get("EVENTWEAVE_PLAN_DIR", "dist"))
         try:
-            scorecard = run_benchmark(benchmark_suite, agent_outputs)
+            scorecard = run_benchmark(benchmark_suite, agent_outputs, plan_dir_root=plan_dir_root)
         except BenchmarkRunError as exc:
             console.print(f"[red]Benchmark run failed:[/red] {exc}")
             raise typer.Exit(code=1) from exc

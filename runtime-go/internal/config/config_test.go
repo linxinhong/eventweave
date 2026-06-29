@@ -1,6 +1,7 @@
 package config
 
 import (
+	"strings"
 	"testing"
 	"time"
 )
@@ -144,5 +145,38 @@ func TestValidateMaxFailuresMustBeNonNegative(t *testing.T) {
 	cfg.MaxFailures = 5
 	if err := cfg.Validate(); err != nil {
 		t.Fatalf("unexpected error: %v", err)
+	}
+}
+func TestValidateUpperBounds(t *testing.T) {
+	cases := []struct {
+		name   string
+		apply  func(*RuntimeConfig)
+		errMsg string
+	}{
+		{"rate", func(c *RuntimeConfig) { c.Rate = 2_000_000 }, "rate"},
+		{"speed", func(c *RuntimeConfig) { c.Speed = 20_000 }, "speed"},
+		{"workers", func(c *RuntimeConfig) { c.Workers = 2048 }, "workers"},
+		{"queue-size", func(c *RuntimeConfig) { c.QueueSize = 2_000_000 }, "queue-size"},
+		{"batch-size", func(c *RuntimeConfig) { c.BatchSize = 200_000 }, "batch-size"},
+		{"batch-timeout", func(c *RuntimeConfig) { c.BatchTimeout = 10 * time.Minute }, "batch-timeout"},
+		{"retries", func(c *RuntimeConfig) { c.Retries = 200 }, "retries"},
+		{"max-retry-duration", func(c *RuntimeConfig) { c.MaxRetryDuration = 10 * time.Minute }, "max-retry-duration"},
+		{"backoff-factor", func(c *RuntimeConfig) { c.BackoffFactor = 100 }, "backoff-factor"},
+		{"timeout", func(c *RuntimeConfig) { c.Timeout = 10 * time.Minute }, "timeout"},
+		{"limit", func(c *RuntimeConfig) { c.Limit = 200_000_000 }, "limit"},
+		{"syslog-facility", func(c *RuntimeConfig) { c.Facility = 30 }, "syslog-facility"},
+		{"syslog-severity", func(c *RuntimeConfig) { c.Severity = 10 }, "syslog-severity"},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			cfg := validConfig()
+			tc.apply(&cfg)
+			if err := cfg.Validate(); err == nil {
+				t.Fatalf("expected error for %s upper bound", tc.name)
+			} else if !strings.Contains(err.Error(), tc.errMsg) {
+				t.Fatalf("expected error to mention %q, got %v", tc.errMsg, err)
+			}
+		})
 	}
 }

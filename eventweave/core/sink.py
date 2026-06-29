@@ -10,6 +10,6 @@ from pydantic import BaseModel, Field
 class Sink(BaseModel):
     """Output destination for event streams."""
 
-    type: Literal["stdout", "jsonl", "csv", "http"] = Field(default="jsonl")
+    type: Literal["stdout", "jsonl", "http"] = Field(default="jsonl")
     path: str | None = None
     url: str | None = None

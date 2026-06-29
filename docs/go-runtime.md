@@ -84,6 +84,8 @@ eventweave-runtime run dist/ecommerce_refund_flow_semantic \
 | `--max-failures`    | Stop after N failed writes (0 = unlimited)                |
 | `--timeout`         | Network request timeout for `http` and `kafka` (default 5s) |
 | `--retries`         | Retry attempts for transient network failures             |
+| `--max-retry-duration` | Total time budget for retries (default 30s, max 5m)    |
+| `--backoff-factor`  | Exponential backoff multiplier (default 1.0, max 60)      |
 | `--stats-json`      | Write runtime stats to a JSON file                        |
 
 ## Output
@@ -168,8 +170,11 @@ v0.4.2 ships with six sinks:
 
 Retry behavior for `http` and `kafka`:
 
-- 5xx responses and connection errors are retried up to `--retries` times.
-- 4xx responses are not retried.
+- 5xx responses, 429 Too Many Requests, and connection errors are retried.
+- Retries stop when either `--retries` attempts have been made or the total
+  time since the first attempt exceeds `--max-retry-duration`.
+- The backoff delay between attempts is multiplied by `--backoff-factor`.
+- 4xx responses other than 429 are not retried.
 
 Kafka message keys are controlled by `--key-field`:
 

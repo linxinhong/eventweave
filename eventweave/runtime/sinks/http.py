@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import ipaddress
 import json
+import time
 import urllib.error
 import urllib.request
 from urllib.parse import urlparse
@@ -125,18 +126,37 @@ class HTTPSink(Sink):
         url: str,
         timeout: float = 5.0,
         retries: int = 0,
+        max_retry_duration: float = 30.0,
+        backoff_factor: float = 1.0,
         allow_internal: bool = False,
     ) -> None:
         _validate_http_url(url, allow_internal=allow_internal)
         self.url = url
         self.timeout = timeout
         self.retries = retries
+        self.max_retry_duration = max_retry_duration
+        self.backoff_factor = backoff_factor
         self._success = 0
         self._failed = 0
         self._opener = urllib.request.build_opener(_NoRedirectHandler())
 
     def open(self) -> None:
         pass
+
+    @staticmethod
+    def _backoff(attempt: int, backoff_factor: float) -> float:
+        """Exponential backoff capped at 30 seconds."""
+        return float(min(backoff_factor * (2**attempt), 30.0))
+
+    def _should_retry(self, attempt: int, start_time: float) -> bool:
+        """Check whether another retry is allowed by count and total duration."""
+        if attempt >= self.retries:
+            return False
+        if self.max_retry_duration is not None:
+            elapsed = time.monotonic() - start_time
+            if elapsed >= self.max_retry_duration:
+                return False
+        return True
 
     def write(self, event: Event) -> None:
         payload = json.dumps(event.model_dump(), default=str, ensure_ascii=False).encode("utf-8")
@@ -148,6 +168,7 @@ class HTTPSink(Sink):
             method="POST",
         )
 
+        start_time = time.monotonic()
         attempt = 0
         while True:
             try:
@@ -156,18 +177,27 @@ class HTTPSink(Sink):
                     if 200 <= status < 300:
                         self._success += 1
                         return
-                    # Non-2xx response: treat as failure.
+                    # Retry on 429 and 5xx server errors.
+                    if (status == 429 or 500 <= status < 600) and self._should_retry(
+                        attempt, start_time
+                    ):
+                        time.sleep(self._backoff(attempt, self.backoff_factor))
+                        attempt += 1
+                        continue
                     self._failed += 1
                     return
             except urllib.error.HTTPError as exc:
-                # Retry only on 5xx server errors.
-                if 500 <= exc.code < 600 and attempt < self.retries:
+                if (exc.code == 429 or 500 <= exc.code < 600) and self._should_retry(
+                    attempt, start_time
+                ):
+                    time.sleep(self._backoff(attempt, self.backoff_factor))
                     attempt += 1
                     continue
                 self._failed += 1
                 return
             except (urllib.error.URLError, TimeoutError, OSError):
-                if attempt < self.retries:
+                if self._should_retry(attempt, start_time):
+                    time.sleep(self._backoff(attempt, self.backoff_factor))
                     attempt += 1
                     continue
                 self._failed += 1

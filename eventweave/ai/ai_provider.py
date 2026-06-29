@@ -56,10 +56,11 @@ class AIChatProvider(Provider):
             max_tokens=self.config.options.get("max_tokens"),
             temperature=self.config.options.get("temperature"),
         )
-        messages = self._build_messages(task, context)
+        messages, render_ok = self._build_messages(task, context)
         response = self._chat_completion(config, messages)
         text = self._extract_text(response)
 
+        review_status = "approved" if render_ok else "pending"
         return SemanticAsset(
             id=f"{task.id}-ai",
             type=task.type,
@@ -69,6 +70,7 @@ class AIChatProvider(Provider):
                 provider=self.provider_type,
                 source_task=task.id,
                 source_event=context.event.event_id if context.event else None,
+                review_status=review_status,
             ),
         )
 
@@ -76,19 +78,19 @@ class AIChatProvider(Provider):
         self,
         task: SemanticTask,
         context: GenerationContext,
-    ) -> list[dict[str, str]]:
+    ) -> tuple[list[dict[str, str]], bool]:
         system = (
             "You are generating synthetic event content for a scenario simulation. "
             "Produce a short, realistic text asset. "
             "Do not include explanations or markdown formatting."
         )
-        user_prompt = self._render_template(task.prompt or task.template, context)
+        user_prompt, render_ok = self._render_template(task.prompt or task.template, context)
         if not user_prompt:
             user_prompt = f"Generate a {task.type} asset for task {task.id}."
         return [
             {"role": "system", "content": system},
             {"role": "user", "content": user_prompt},
-        ]
+        ], render_ok
 
     def _chat_completion(
         self,

@@ -24,7 +24,7 @@ func TestHTTPSinkPostsEvents(t *testing.T) {
 	}))
 	defer server.Close()
 
-	sink, err := New(server.URL, 5*time.Second, 0, true)
+	sink, err := New(server.URL, 5*time.Second, 30*time.Second, 0, 1.0, true)
 	if err != nil {
 		t.Fatalf("new: %v", err)
 	}
@@ -45,7 +45,7 @@ func TestHTTPSinkCountsFailures(t *testing.T) {
 	}))
 	defer server.Close()
 
-	sink, err := New(server.URL, 5*time.Second, 0, true)
+	sink, err := New(server.URL, 5*time.Second, 30*time.Second, 0, 1.0, true)
 	if err != nil {
 		t.Fatalf("new: %v", err)
 	}
@@ -72,7 +72,34 @@ func TestHTTPSinkRetriesOn5xx(t *testing.T) {
 	}))
 	defer server.Close()
 
-	sink, err := New(server.URL, 5*time.Second, 1, true)
+	sink, err := New(server.URL, 5*time.Second, 30*time.Second, 1, 0.01, true)
+	if err != nil {
+		t.Fatalf("new: %v", err)
+	}
+	if err := sink.Open(); err != nil {
+		t.Fatalf("open: %v", err)
+	}
+	if err := sink.Write(event.Event{EventID: "e1"}); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+	if sink.Count() != 1 || sink.Failed() != 0 || requests != 2 {
+		t.Fatalf("unexpected counts: count=%d failed=%d requests=%d", sink.Count(), sink.Failed(), requests)
+	}
+}
+
+func TestHTTPSinkRetriesOn429(t *testing.T) {
+	requests := 0
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requests++
+		if requests == 1 {
+			w.WriteHeader(http.StatusTooManyRequests)
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
+
+	sink, err := New(server.URL, 5*time.Second, 30*time.Second, 1, 0.01, true)
 	if err != nil {
 		t.Fatalf("new: %v", err)
 	}
@@ -95,7 +122,7 @@ func TestHTTPSinkNoRetryOn4xx(t *testing.T) {
 	}))
 	defer server.Close()
 
-	sink, err := New(server.URL, 5*time.Second, 2, true)
+	sink, err := New(server.URL, 5*time.Second, 30*time.Second, 2, 1.0, true)
 	if err != nil {
 		t.Fatalf("new: %v", err)
 	}
@@ -107,6 +134,32 @@ func TestHTTPSinkNoRetryOn4xx(t *testing.T) {
 	}
 	if requests != 1 {
 		t.Fatalf("expected 1 request, got %d", requests)
+	}
+}
+
+func TestHTTPSinkRespectsMaxRetryDuration(t *testing.T) {
+	requests := 0
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requests++
+		w.WriteHeader(http.StatusServiceUnavailable)
+	}))
+	defer server.Close()
+
+	sink, err := New(server.URL, 5*time.Second, 50*time.Millisecond, 100, 0.01, true)
+	if err != nil {
+		t.Fatalf("new: %v", err)
+	}
+	if err := sink.Open(); err != nil {
+		t.Fatalf("open: %v", err)
+	}
+	if err := sink.Write(event.Event{EventID: "e1"}); err == nil {
+		t.Fatal("expected error after max retry duration")
+	}
+	if sink.Count() != 0 || sink.Failed() != 1 {
+		t.Fatalf("unexpected counts: count=%d failed=%d", sink.Count(), sink.Failed())
+	}
+	if requests >= 100 {
+		t.Fatalf("expected to stop before exhausting retries, got %d requests", requests)
 	}
 }
 
@@ -140,7 +193,7 @@ func TestIsSafeURLAcceptsWhenAllowed(t *testing.T) {
 }
 
 func TestHTTPSinkNewRejectsInternal(t *testing.T) {
-	if _, err := New("http://127.0.0.1/events", 5*time.Second, 0, false); err == nil {
+	if _, err := New("http://127.0.0.1/events", 5*time.Second, 30*time.Second, 0, 1.0, false); err == nil {
 		t.Fatal("expected error for internal URL")
 	}
 }

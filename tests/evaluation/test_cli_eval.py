@@ -93,3 +93,20 @@ def test_eval_run_produces_report(tmp_path: Path) -> None:
     assert report["scenario_id"] == "s"
     assert report["metrics"]["finding_type_recall"] == 1.0
     assert "Evaluation Report" in result.output
+def test_eval_prepare_creates_ground_truth(tmp_path: Path) -> None:
+    output_dir = tmp_path / "dist"
+    result = runner.invoke(
+        app,
+        [
+            "eval",
+            "prepare",
+            "examples/ecommerce/refund.yaml",
+            "-o",
+            str(output_dir),
+        ],
+    )
+    assert result.exit_code == 0, result.output
+    gt_path = output_dir / "ecommerce_refund_flow" / "ground_truth.json"
+    assert gt_path.exists(), f"Ground truth not written: {gt_path}"
+    ground_truth = GroundTruth.model_validate_json(gt_path.read_text(encoding="utf-8"))
+    assert ground_truth.scenario_id == "ecommerce_refund_flow"

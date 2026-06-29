@@ -2,10 +2,43 @@
 package metrics
 
 import (
+	"sync"
+
 	"github.com/prometheus/client_golang/prometheus"
 )
 
 const namespace = "eventweave"
+
+var registerOnce sync.Once
+
+// Register adds all EventWeave metrics to the provided Prometheus registerer.
+// If reg is nil, the default Prometheus registry is used. Duplicate
+// registrations are ignored so the function is safe to call multiple times.
+func Register(reg prometheus.Registerer) {
+	registerOnce.Do(func() {
+		if reg == nil {
+			reg = prometheus.DefaultRegisterer
+		}
+		for _, c := range []prometheus.Collector{
+			eventsLoadedTotal,
+			eventsEmittedTotal,
+			eventsFailedTotal,
+			unresolvedRefsTotal,
+			throughputEPS,
+			durationSeconds,
+			serverUp,
+			endpointEventsTotal,
+			endpointFailuresTotal,
+			queueDepth,
+			batchesTotal,
+			batchSize,
+			workerEventsTotal,
+			workerFailuresTotal,
+		} {
+			_ = reg.Register(c)
+		}
+	})
+}
 
 var (
 	// eventsLoadedTotal counts events loaded from the event plan.
@@ -148,25 +181,6 @@ var (
 		[]string{"mode", "sink", "worker_id"},
 	)
 )
-
-func init() {
-	prometheus.MustRegister(
-		eventsLoadedTotal,
-		eventsEmittedTotal,
-		eventsFailedTotal,
-		unresolvedRefsTotal,
-		throughputEPS,
-		durationSeconds,
-		serverUp,
-		endpointEventsTotal,
-		endpointFailuresTotal,
-		queueDepth,
-		batchesTotal,
-		batchSize,
-		workerEventsTotal,
-		workerFailuresTotal,
-	)
-}
 
 // LabelValue returns the value if non-empty, otherwise "none".
 func LabelValue(v string) string {

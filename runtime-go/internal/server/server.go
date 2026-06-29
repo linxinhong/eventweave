@@ -144,9 +144,9 @@ func (rs *RuntimeServer) buildEndpoints(cfg *ServerConfig) ([]Endpoint, error) {
 		case "http":
 			endpoints = append(endpoints, NewHTTPServer(srv.ID, addr, srv.Path))
 		case "syslog_udp":
-			endpoints = append(endpoints, NewSyslogServer(srv.ID, addr, "udp", 16, 6, "eventweave"))
+			endpoints = append(endpoints, NewSyslogServer(srv.ID, addr, "udp", 16, 6, "eventweave", srv.AllowedClients...))
 		case "syslog_tcp":
-			endpoints = append(endpoints, NewSyslogServer(srv.ID, addr, "tcp", 16, 6, "eventweave"))
+			endpoints = append(endpoints, NewSyslogServer(srv.ID, addr, "tcp", 16, 6, "eventweave", srv.AllowedClients...))
 		default:
 			return nil, fmt.Errorf("unknown protocol for endpoint %s: %s", srv.ID, srv.Protocol)
 		}

@@ -27,6 +27,9 @@ def register_commands(app: typer.Typer) -> None:
             int | None, typer.Option(help="Random seed for deterministic output.")
         ] = None,
         strict: Annotated[bool, typer.Option(help="Treat rule violations as errors.")] = False,
+        force: Annotated[
+            bool, typer.Option(help="Overwrite a non-empty output directory.")
+        ] = False,
     ) -> None:
         """Compile a scenario into a runtime plan."""
         packs_dir = packs or find_packs_dir()
@@ -47,7 +50,8 @@ def register_commands(app: typer.Typer) -> None:
 
         # Use scenario id as output subdirectory.
         output_dir = output / result.plan.scenario.id
-        writer = PlanWriter(output_dir)
+        allowed_root = output.resolve().parent if output.is_absolute() else Path.cwd()
+        writer = PlanWriter(output_dir, force=force, allowed_root=allowed_root)
         written = writer.write(result.plan, semantic_tasks=result.semantic_tasks)
 
         console.print(f"[green]Compiled {result.plan.scenario.id!r}[/green]")

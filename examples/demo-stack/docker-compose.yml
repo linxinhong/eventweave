@@ -9,7 +9,7 @@
 #     --server-config examples/demo-stack/security_multi_source.yaml \
 #     --metrics-addr 0.0.0.0:9090
 #
-# Open Grafana at http://127.0.0.1:3000 (admin/admin).
+# Grafana credentials are loaded from the .env file created by run_demo.sh.
 
 services:
   redpanda:
@@ -61,7 +61,7 @@ services:
     container_name: eventweave-grafana
     environment:
       - GF_SECURITY_ADMIN_USER=admin
-      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-admin}
       - GF_USERS_ALLOW_SIGN_UP=false
     volumes:
       - ./grafana/datasources:/etc/grafana/provisioning/datasources:ro

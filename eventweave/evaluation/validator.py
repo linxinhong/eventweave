@@ -6,13 +6,20 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from eventweave.compiler import compile_scenario_file
 from eventweave.core.ground_truth import ExpectedFinding
 from eventweave.evaluation.benchmark import BenchmarkSuite
 from eventweave.evaluation.evaluator import Evaluator
+from eventweave.evaluation.io import (
+    EvaluationIOError,
+    default_plan_dir_root,
+    load_agent_output,
+    load_event_plan,
+    load_ground_truth,
+    load_runtime_plan,
+    resolve_plan_dir,
+)
 from eventweave.evaluation.runner import (
     _discover_agent_output,
-    _load_agent_output,
     load_suite,
 )
 from eventweave.quality.realism import RealismAnalyzer
@@ -71,10 +78,14 @@ class SuiteValidator:
         min_score: float = 1.0,
         agent_dir: str | Path | None = None,
         realism_gates: RealismGate | None = None,
+        plan_dir_root: str | Path | None = None,
     ) -> None:
         self.min_score = min_score
         self.agent_dir = Path(agent_dir) if agent_dir is not None else Path("examples/evaluation")
         self.realism_gates = realism_gates or RealismGate()
+        self.plan_dir_root = (
+            Path(plan_dir_root) if plan_dir_root is not None else default_plan_dir_root()
+        )
 
     def validate(self, suite_path: str | Path) -> ValidationReport:
         """Run all validation checks against a suite file."""
@@ -143,42 +154,46 @@ class SuiteValidator:
             return
         report.add(f"{scenario_id}_exists", True, "Scenario file exists")
 
-        result = compile_scenario_file(scenario_path)
-        if result.errors or result.plan is None:
+        try:
+            if scenario.ground_truth_path is not None:
+                gt_path = Path(scenario.ground_truth_path)
+                plan_dir = gt_path.parent
+            else:
+                plan_dir = resolve_plan_dir(
+                    scenario_path, plan_dir_root=self.plan_dir_root
+                )
+                gt_path = plan_dir / "ground_truth.json"
+            ground_truth = load_ground_truth(gt_path)
+        except EvaluationIOError as exc:
             report.add(
                 f"{scenario_id}_compile",
                 False,
-                "Cannot validate scenario: compilation failed",
+                str(exc),
             )
             return
 
-        plan = result.plan
         report.add(
             f"{scenario_id}_compile",
             True,
-            "Scenario compiled successfully",
+            "Loaded compiled runtime plan",
         )
-
-        if plan.scenario.ground_truth is None:
-            report.add(
-                f"{scenario_id}_ground_truth",
-                False,
-                "Scenario has no ground_truth",
-            )
-            return
-
-        ground_truth = plan.scenario.ground_truth
         report.add(
             f"{scenario_id}_ground_truth",
             True,
             f"Ground truth has {len(ground_truth.expected_findings)} expected findings",
         )
 
+        event_plan_path = plan_dir / "event_plan.jsonl"
+        events = load_event_plan(event_plan_path) if event_plan_path.exists() else []
+
+        plan = load_runtime_plan(plan_dir)
+
         self._check_scenario_id_match(scenario_id, ground_truth, plan, report)
-        self._check_evidence_event_ids(ground_truth, plan, report)
+        self._check_evidence_event_ids(ground_truth, events, report)
         self._check_duplicate_findings(scenario_id, ground_truth.expected_findings, report)
         self._check_sample_output(ground_truth, report)
-        self._check_realism(scenario_id, plan, ground_truth, report)
+        if self._realism_gates_active():
+            self._check_realism(scenario_id, plan, ground_truth, report)
 
     def _check_scenario_id_match(
         self,
@@ -204,11 +219,11 @@ class SuiteValidator:
     def _check_evidence_event_ids(
         self,
         ground_truth: Any,
-        plan: Any,
+        events: list[Any],
         report: ValidationReport,
     ) -> None:
         scenario_id = ground_truth.scenario_id
-        event_ids = {ev.event_id for ev in plan.events}
+        event_ids = {ev.event_id for ev in events}
         invalid: set[str] = set()
         for finding in ground_truth.expected_findings:
             for event_id in finding.evidence_event_ids or []:
@@ -271,7 +286,7 @@ class SuiteValidator:
             return
 
         try:
-            agent_output = _load_agent_output(output_path)
+            agent_output = load_agent_output(output_path)
         except Exception as exc:  # noqa: BLE001
             report.add(
                 f"{scenario_id}_sample_output",
@@ -301,6 +316,17 @@ class SuiteValidator:
                 f"Sample overall_score = {score:.2f}, required >= {self.min_score:.2f}",
             )
 
+    def _realism_gates_active(self) -> bool:
+        """Return whether any realism gate threshold is configured."""
+        gate = self.realism_gates
+        return (
+            gate.min_noise_ratio is not None
+            or gate.min_event_types is not None
+            or gate.min_sources is not None
+            or gate.max_burstiness is not None
+            or gate.require_jitter
+        )
+
     def _check_realism(
         self,
         scenario_id: str,
@@ -310,15 +336,6 @@ class SuiteValidator:
     ) -> None:
         """Run optional realism gate checks for a compiled scenario."""
         gate = self.realism_gates
-        if (
-            gate.min_noise_ratio is None
-            and gate.min_event_types is None
-            and gate.min_sources is None
-            and gate.max_burstiness is None
-            and not gate.require_jitter
-        ):
-            return
-
         analysis = RealismAnalyzer(plan, ground_truth).analyze()
         metrics: dict[str, Any] = analysis.to_dict()
         key_events = metrics.get("ground_truth_events", 0)

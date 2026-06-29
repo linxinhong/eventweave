@@ -21,6 +21,8 @@ type RuntimeConfig struct {
 	Limit            int
 	Timeout          time.Duration
 	Retries          int
+	MaxRetryDuration time.Duration
+	BackoffFactor    float64
 	Brokers          string
 	Topic            string
 	KeyField         string
@@ -83,6 +85,12 @@ func (c *RuntimeConfig) Validate() error {
 	if c.MaxFailures < 0 {
 		return errors.New("--max-failures must be non-negative")
 	}
+	if c.MaxRetryDuration < 0 {
+		return errors.New("--max-retry-duration must be non-negative")
+	}
+	if c.BackoffFactor < 0 {
+		return errors.New("--backoff-factor must be non-negative")
+	}
 
 	// Apply defaults for optional batch/worker fields when not set.
 	if c.BatchSize == 0 {
@@ -90,6 +98,12 @@ func (c *RuntimeConfig) Validate() error {
 	}
 	if c.BatchTimeout == 0 {
 		c.BatchTimeout = 100 * time.Millisecond
+	}
+	if c.MaxRetryDuration == 0 {
+		c.MaxRetryDuration = 30 * time.Second
+	}
+	if c.BackoffFactor == 0 {
+		c.BackoffFactor = 1.0
 	}
 	if c.Workers == 0 {
 		c.Workers = 1
@@ -104,14 +118,56 @@ func (c *RuntimeConfig) Validate() error {
 	if c.BatchSize < 1 {
 		return errors.New("--batch-size must be at least 1")
 	}
+	if c.BatchSize > 100_000 {
+		return errors.New("--batch-size must not exceed 100000")
+	}
 	if c.BatchTimeout <= 0 {
 		return errors.New("--batch-timeout must be positive")
+	}
+	if c.BatchTimeout > 5*time.Minute {
+		return errors.New("--batch-timeout must not exceed 5m")
 	}
 	if c.Workers < 1 {
 		return errors.New("--workers must be at least 1")
 	}
+	if c.Workers > 1024 {
+		return errors.New("--workers must not exceed 1024")
+	}
 	if c.QueueSize < 1 {
 		return errors.New("--queue-size must be at least 1")
+	}
+	if c.QueueSize > 1_000_000 {
+		return errors.New("--queue-size must not exceed 1000000")
+	}
+	if c.Timeout > 5*time.Minute {
+		return errors.New("--timeout must not exceed 5m")
+	}
+	if c.Retries < 0 {
+		return errors.New("--retries must be non-negative")
+	}
+	if c.Retries > 100 {
+		return errors.New("--retries must not exceed 100")
+	}
+	if c.MaxRetryDuration > 5*time.Minute {
+		return errors.New("--max-retry-duration must not exceed 5m")
+	}
+	if c.BackoffFactor > 60 {
+		return errors.New("--backoff-factor must not exceed 60")
+	}
+	if c.Limit < 0 {
+		return errors.New("--limit must be non-negative")
+	}
+	if c.Limit > 100_000_000 {
+		return errors.New("--limit must not exceed 100000000")
+	}
+	if c.MaxFailures > 1_000_000_000 {
+		return errors.New("--max-failures must not exceed 1000000000")
+	}
+	if c.Facility < 0 || c.Facility > 23 {
+		return errors.New("--syslog-facility must be between 0 and 23")
+	}
+	if c.Severity < 0 || c.Severity > 7 {
+		return errors.New("--syslog-severity must be between 0 and 7")
 	}
 	switch c.OnQueueFull {
 	case "block", "fail":
@@ -144,6 +200,12 @@ func (c *RuntimeConfig) validateTiming() error {
 	}
 	if c.Rate < 0 {
 		return errors.New("--rate must be non-negative")
+	}
+	if c.Rate > 1_000_000 {
+		return errors.New("--rate must not exceed 1000000")
+	}
+	if c.Speed > 10_000 {
+		return errors.New("--speed must not exceed 10000")
 	}
 	if !hasNoWait && !hasRate && c.Speed <= 0 {
 		return errors.New("--speed must be positive unless --no-wait or --rate is set")

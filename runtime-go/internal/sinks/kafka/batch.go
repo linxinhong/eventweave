@@ -3,6 +3,7 @@ package kafka
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"sync"
 	"time"
 
@@ -26,6 +27,7 @@ type BatchSink struct {
 	buffer []segmentio.Message
 	count  int
 	failed int
+	closed bool
 	done   chan struct{}
 	timer  *time.Timer
 }
@@ -64,6 +66,10 @@ func (s *BatchSink) Write(ev event.Event) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
+	if s.closed {
+		return errors.New("kafka batch sink is closed")
+	}
+
 	s.buffer = append(s.buffer, segmentio.Message{
 		Key:   s.keyFunc(ev),
 		Value: body,
@@ -78,6 +84,9 @@ func (s *BatchSink) Write(ev event.Event) error {
 		s.timer = time.AfterFunc(s.batchTimeout, func() {
 			s.mu.Lock()
 			defer s.mu.Unlock()
+			if s.closed {
+				return
+			}
 			_ = s.flushLocked()
 		})
 	}
@@ -96,9 +105,11 @@ func (s *BatchSink) Close() error {
 	s.mu.Lock()
 	if s.timer != nil {
 		s.timer.Stop()
+		s.timer = nil
 	}
+	s.closed = true
+	_ = s.flushLocked()
 	s.mu.Unlock()
-	_ = s.Flush()
 	close(s.done)
 	return s.writer.Close()
 }

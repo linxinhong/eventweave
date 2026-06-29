@@ -19,7 +19,7 @@ class TemplateProvider(Provider):
         task: SemanticTask,
         context: GenerationContext,
     ) -> SemanticAsset:
-        text = self._render_template(task.template, context)
+        text, render_ok = self._render_template(task.template, context)
         if not text:
             text = f"[{task.type}] Template-rendered content for task {task.id}."
 
@@ -32,5 +32,6 @@ class TemplateProvider(Provider):
                 provider=self.provider_type,
                 source_task=task.id,
                 source_event=context.event.event_id if context.event else None,
+                review_status="approved" if render_ok else "pending",
             ),
         )

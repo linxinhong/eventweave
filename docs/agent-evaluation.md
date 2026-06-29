@@ -9,12 +9,27 @@ The evaluation harness is **fully deterministic** and does not use any LLM calls
 ```text
 1. Declare ground_truth in a scenario YAML file.
 2. eventweave compile scenario.yaml -o dist
-3. eventweave eval task dist/<scenario> -o dist/<scenario>/eval/task.json
-4. Agent reads task.json + event_plan.jsonl and produces agent_output.json
-5. eventweave eval run \
+3. eventweave eval prepare scenario.yaml        # generate ground_truth.json
+4. eventweave eval task dist/<scenario> -o dist/<scenario>/eval/task.json
+5. Agent reads task.json + event_plan.jsonl and produces agent_output.json
+6. eventweave eval run \
      --ground-truth dist/<scenario>/ground_truth.json \
      --agent-output agent_output.json \
      --output report.json
+```
+
+`eventweave eval prepare` compiles the scenario and writes the ground-truth,
+runtime-plan, and event-plan artifacts that `eval task` / `eval run` and
+`eventweave benchmark` expect. It keeps evaluation decoupled from runtime
+execution: once prepared, you can run and rerun evaluation without
+recompiling.
+
+Use `EVENTWEAVE_PLAN_DIR` to override the default `dist/` root when resolving
+compiled artifacts:
+
+```bash
+export EVENTWEAVE_PLAN_DIR=/path/to/plans
+eventweave eval prepare scenario.yaml -o "$EVENTWEAVE_PLAN_DIR"
 ```
 
 ## Ground truth schema
@@ -142,6 +157,21 @@ Recall measures漏报； precision measures误报. A finding matches when its no
 
 ## CLI reference
 
+### `eventweave eval prepare`
+
+Compile a scenario and write the evaluation artifacts (`ground_truth.json`,
+`runtime_plan.json`, `event_plan.jsonl`) that downstream evaluation commands
+consume.
+
+```bash
+eventweave eval prepare scenario.yaml [-o dist] [--force]
+```
+
+- `scenario` — path to the scenario YAML/JSON file.
+- `-o, --output` — output directory root (default `dist`). The compiled plan is
+  written to `dist/<scenario_id>/`.
+- `--force` — overwrite a non-empty output directory.
+
 ### `eventweave eval task`
 
 Generate an agent-facing evaluation task from a compiled runtime plan.
@@ -179,6 +209,7 @@ Use the built-in sample agent output to see a perfect score:
 
 ```bash
 eventweave compile examples/security/lateral_movement.yaml -o dist
+eventweave eval prepare examples/security/lateral_movement.yaml
 eventweave eval run \
   --ground-truth dist/security_lateral_movement/ground_truth.json \
   --agent-output examples/evaluation/security_lateral_movement_agent_output.json \

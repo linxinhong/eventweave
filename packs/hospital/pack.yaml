@@ -1,0 +1,5 @@
+id: hospital
+name: Healthcare Operations
+version: "1.0"
+depends_on:
+  - common

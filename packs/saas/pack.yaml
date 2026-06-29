@@ -1,0 +1,5 @@
+id: saas
+name: SaaS Multi-Tenant
+version: "1.0"
+depends_on:
+  - common
