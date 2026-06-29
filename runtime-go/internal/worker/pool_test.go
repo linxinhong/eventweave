@@ -1,6 +1,7 @@
 package worker
 
 import (
+	"context"
 	"sync"
 	"testing"
 	"time"
@@ -158,5 +159,76 @@ func TestPoolBlockPolicy(t *testing.T) {
 		}
 	case <-time.After(200 * time.Millisecond):
 		t.Fatal("expected blocking submit to complete after worker drains")
+	}
+}
+
+func TestPoolDrainsJobsOnClose(t *testing.T) {
+	s := &collectingSink{}
+	p := New(1, 100, "block", s)
+	if err := p.Open(); err != nil {
+		t.Fatal(err)
+	}
+
+	for i := 0; i < 50; i++ {
+		_ = p.Submit(event.Event{EventID: string(rune('a' + i))})
+	}
+	if err := p.Close(); err != nil {
+		t.Fatalf("close: %v", err)
+	}
+
+	if s.Count() != 50 {
+		t.Fatalf("expected 50 drained events, got %d", s.Count())
+	}
+}
+
+func TestPoolSubmitFailsAfterClose(t *testing.T) {
+	s := &collectingSink{}
+	p := New(1, 10, "block", s)
+	if err := p.Open(); err != nil {
+		t.Fatal(err)
+	}
+	_ = p.Close()
+
+	if err := p.Submit(event.Event{EventID: "late"}); err == nil {
+		t.Fatal("expected error after pool closed")
+	}
+}
+
+func TestPoolContextCancelsBlockedSubmit(t *testing.T) {
+	blocker := make(chan struct{})
+	s := &blockingSink{block: blocker}
+	p := New(1, 0, "block", s)
+	if err := p.Open(); err != nil {
+		t.Fatal(err)
+	}
+	defer p.Close()
+	defer close(blocker)
+
+	// Block the worker so the queue fills.
+	_ = p.Submit(event.Event{EventID: "blocker"})
+	time.Sleep(20 * time.Millisecond)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan error, 1)
+	go func() {
+		// This submit will block until the context is cancelled.
+		// Submit does not accept a context, so simulate via pool closure.
+		done <- p.Submit(event.Event{EventID: "waiter"})
+	}()
+
+	go func() {
+		time.Sleep(30 * time.Millisecond)
+		cancel()
+		_ = ctx.Err()
+		p.cancel()
+	}()
+
+	select {
+	case err := <-done:
+		if err == nil {
+			t.Fatal("expected error after cancellation")
+		}
+	case <-time.After(500 * time.Millisecond):
+		t.Fatal("expected blocked submit to return after cancellation")
 	}
 }

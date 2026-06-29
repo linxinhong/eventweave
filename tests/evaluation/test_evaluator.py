@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from eventweave.core.ground_truth import ExpectedFinding, GroundTruth
-from eventweave.evaluation.agent_output import AgentFinding, AgentOutput
+from eventweave.evaluation.agent_output import AgentFinding, AgentOutput, AgentTimelineStage
 from eventweave.evaluation.evaluator import Evaluator
 
 
@@ -162,3 +162,82 @@ def test_case_insensitive_matching() -> None:
     )
     report = Evaluator(gt, ao).evaluate()
     assert report.metrics["overall_score"] == 1.0
+
+
+def test_timeline_stages_derived_from_findings() -> None:
+    gt = _make_ground_truth(
+        expected_findings=[
+            ExpectedFinding(
+                type="suspicious_login",
+                stage="initial_access",
+                evidence_event_ids=["evt-001"],
+            ),
+        ]
+    )
+    assert any(stage.stage == "initial_access" for stage in gt.expected_timeline_stages)
+
+
+def test_timeline_stage_metrics_perfect() -> None:
+    gt = _make_ground_truth(
+        expected_findings=[
+            ExpectedFinding(
+                type="suspicious_login",
+                stage="initial_access",
+                evidence_event_ids=["evt-001", "evt-002"],
+            ),
+        ]
+    )
+    ao = AgentOutput(
+        scenario_id="test_scenario",
+        timeline_stages=[
+            AgentTimelineStage(stage="initial_access", event_ids=["evt-002", "evt-001"]),
+        ],
+    )
+    report = Evaluator(gt, ao).evaluate()
+    assert report.metrics["timeline_stage_recall"] == 1.0
+    assert report.metrics["timeline_stage_precision"] == 1.0
+    assert report.metrics["timeline_event_recall"] == 1.0
+    assert report.metrics["timeline_event_precision"] == 1.0
+
+
+def test_timeline_stage_metrics_partial() -> None:
+    gt = _make_ground_truth(
+        expected_findings=[
+            ExpectedFinding(
+                type="suspicious_login",
+                stage="initial_access",
+                evidence_event_ids=["evt-001", "evt-002", "evt-003"],
+            ),
+        ]
+    )
+    ao = AgentOutput(
+        scenario_id="test_scenario",
+        timeline_stages=[
+            AgentTimelineStage(stage="initial_access", event_ids=["evt-001"]),
+            AgentTimelineStage(stage="extra_stage", event_ids=["evt-999"]),
+        ],
+    )
+    report = Evaluator(gt, ao).evaluate()
+    assert report.metrics["timeline_stage_recall"] == 1.0
+    assert report.metrics["timeline_stage_precision"] == 0.5
+    assert report.metrics["timeline_event_recall"] == 1 / 3
+    assert report.metrics["timeline_event_precision"] == 1.0
+
+
+def test_timeline_stage_metrics_missing() -> None:
+    gt = _make_ground_truth(
+        expected_findings=[
+            ExpectedFinding(
+                type="suspicious_login",
+                stage="initial_access",
+                evidence_event_ids=["evt-001"],
+            ),
+        ]
+    )
+    ao = AgentOutput(
+        scenario_id="test_scenario",
+        timeline_stages=[AgentTimelineStage(stage="execution", event_ids=["evt-001"])],
+    )
+    report = Evaluator(gt, ao).evaluate()
+    assert report.metrics["timeline_stage_recall"] == 0.0
+    assert report.metrics["timeline_event_recall"] == 0.0

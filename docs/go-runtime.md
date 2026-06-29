@@ -193,15 +193,20 @@ runtimes produce identical output.
 - The `file` sink refuses paths that escape `--output-dir`.
 - Use `--allow-internal-url` only in trusted local/test environments.
 
+## Graceful shutdown
+
+`eventweave-runtime run` and `bench` listen for `SIGINT`/`SIGTERM`. When a
+signal is received, the runtime stops accepting new events, drains queued events
+through the sink, flushes, and prints final stats. Use Ctrl-C during long
+replays without losing already-queued events.
+
 ## Limitations
 
 v0.4.2 is an MVP. It does not include:
 
 - ClickHouse, Elasticsearch, or other database sinks
-- Multi-worker concurrency
 - Advanced backpressure handling
 - Long-running daemon mode
 - Pause/resume API
-- Prometheus metrics
 
 These are planned for v0.4.3 and later.

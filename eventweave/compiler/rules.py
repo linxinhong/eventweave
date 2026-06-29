@@ -29,6 +29,13 @@ class Rule(ABC):
         raise RuleViolationError(f"Rule {self.rule_id!r}: {message}")
 
 
+def _scope_key(event: Event, scope: str | None) -> str:
+    """Return the scope key for an event."""
+    if scope and scope != "global":
+        return event.entity_refs.get(str(scope)) or event.flow_id or "global"
+    return event.flow_id or "global"
+
+
 class RequiredEntityRefRule(Rule):
     """Ensure an event references required entities."""
 
@@ -54,12 +61,11 @@ class EventAfterRule(Rule):
     def validate(self, scenario: Scenario, plan: RuntimePlan) -> None:
         event_type = self.attributes.get("event")
         after_type = self.attributes.get("after")
+        scope = self.attributes.get("scope")
 
-        # Index events by flow (scope).
         events_by_scope: dict[str, list[Event]] = {}
         for event in plan.events:
-            key = event.flow_id or "global"
-            events_by_scope.setdefault(key, []).append(event)
+            events_by_scope.setdefault(_scope_key(event, scope), []).append(event)
 
         for flow_id, events in events_by_scope.items():
             for idx, event in enumerate(events):
@@ -69,8 +75,32 @@ class EventAfterRule(Rule):
                 predecessors = [e for e in events[:idx] if e.event_type == after_type]
                 if not predecessors:
                     self._error(
-                        f"Event {event.event_id} ({event.event_type}) in flow {flow_id} "
+                        f"Event {event.event_id} ({event.event_type}) in scope {flow_id} "
                         f"has no preceding {after_type!r} event"
+                    )
+
+
+class EventBeforeRule(Rule):
+    """Ensure an event occurs before another event within the same scope."""
+
+    def validate(self, scenario: Scenario, plan: RuntimePlan) -> None:
+        event_type = self.attributes.get("event")
+        before_type = self.attributes.get("before")
+        scope = self.attributes.get("scope")
+
+        events_by_scope: dict[str, list[Event]] = {}
+        for event in plan.events:
+            events_by_scope.setdefault(_scope_key(event, scope), []).append(event)
+
+        for flow_id, events in events_by_scope.items():
+            for idx, event in enumerate(events):
+                if event.event_type != event_type:
+                    continue
+                successors = [e for e in events[idx + 1 :] if e.event_type == before_type]
+                if not successors:
+                    self._error(
+                        f"Event {event.event_id} ({event.event_type}) in scope {flow_id} "
+                        f"has no following {before_type!r} event"
                     )
 
 
@@ -112,6 +142,64 @@ class FieldEnumRule(Rule):
                 )
 
 
+class FieldLteRefRule(Rule):
+    """Ensure a numeric field on an event is <= the same field on a reference event."""
+
+    def validate(self, scenario: Scenario, plan: RuntimePlan) -> None:
+        event_type = self.attributes.get("event")
+        field = self.attributes.get("field")
+        ref_event_type = self.attributes.get("ref_event")
+        ref_field = self.attributes.get("ref_field", field)
+        scope = self.attributes.get("scope")
+
+        events_by_scope: dict[str, list[Event]] = {}
+        for event in plan.events:
+            events_by_scope.setdefault(_scope_key(event, scope), []).append(event)
+
+        for flow_id, events in events_by_scope.items():
+            for idx, event in enumerate(events):
+                if event.event_type != event_type:
+                    continue
+                ref_events = [e for e in events[:idx] if e.event_type == ref_event_type]
+                if not ref_events:
+                    self._error(
+                        f"Event {event.event_id} ({event.event_type}) in scope {flow_id} "
+                        f"has no preceding {ref_event_type!r} event for comparison"
+                    )
+                    continue
+
+                ref_event = ref_events[-1]
+                value = self._as_number(event.attributes.get(str(field)))
+                ref_value = self._as_number(ref_event.attributes.get(str(ref_field)))
+
+                if value is None:
+                    self._error(
+                        f"Event {event.event_id} ({event.event_type}) "
+                        f"field {field!r} is not numeric"
+                    )
+                    continue
+                if ref_value is None:
+                    self._error(
+                        f"Reference event {ref_event.event_id} ({ref_event_type}) "
+                        f"field {ref_field!r} is not numeric"
+                    )
+                    continue
+                if value > ref_value:
+                    self._error(
+                        f"Event {event.event_id} ({event.event_type}) {field}={value} "
+                        f"exceeds reference {ref_field}={ref_value}"
+                    )
+
+    @staticmethod
+    def _as_number(value: Any) -> float | None:
+        if isinstance(value, (int, float)):
+            return float(value)
+        try:
+            return float(value)
+        except (TypeError, ValueError):
+            return None
+
+
 class NotImplementedRule(Rule):
     """Placeholder rule that emits a warning instead of failing."""
 
@@ -126,23 +214,28 @@ class RuleRegistry:
     _RULES: dict[str, type[Rule]] = {
         "required_entity_ref": RequiredEntityRefRule,
         "event_after": EventAfterRule,
-        "event_before": NotImplementedRule,
+        "event_before": EventBeforeRule,
         "field_required": FieldRequiredRule,
         "field_enum": FieldEnumRule,
+        "field_lte_ref": FieldLteRefRule,
         "field_range": NotImplementedRule,
         "state_transition": NotImplementedRule,
         "probability_range": NotImplementedRule,
-        "field_lte_ref": NotImplementedRule,
     }
 
     def __init__(self) -> None:
         self._rules: list[Rule] = []
+        self._warnings: list[str] = []
 
     def register(self, rule_id: str, rule_type: str, attributes: dict[str, Any]) -> None:
         rule_cls = self._RULES.get(rule_type)
         if rule_cls is None:
             raise RuleViolationError(
                 f"Unknown rule type {rule_type!r} for rule {rule_id!r}"
+            )
+        if rule_cls is NotImplementedRule:
+            self._warnings.append(
+                f"Rule {rule_id!r} (type {rule_type!r}) is not implemented and was not enforced"
             )
         self._rules.append(rule_cls(rule_id, attributes))
 
@@ -164,7 +257,7 @@ class RuleRegistry:
             self.register(rule.id, rule.type, dict(rule.attributes))
 
     def validate(self, scenario: Scenario, plan: RuntimePlan) -> list[str]:
-        warnings: list[str] = []
+        warnings = list(self._warnings)
         for rule in self._rules:
             try:
                 rule.validate(scenario, plan)

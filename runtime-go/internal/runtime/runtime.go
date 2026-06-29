@@ -1,6 +1,7 @@
 package runtime
 
 import (
+	"context"
 	"fmt"
 	"path/filepath"
 	"strings"
@@ -104,6 +105,11 @@ func (r *LocalRuntime) Target() string { return r.target }
 
 // Run executes the event plan and returns stats.
 func (r *LocalRuntime) Run() (*stats.RuntimeStats, error) {
+	return r.RunWithContext(context.Background())
+}
+
+// RunWithContext executes the event plan with cancellation support.
+func (r *LocalRuntime) RunWithContext(ctx context.Context) (*stats.RuntimeStats, error) {
 	events, err := loader.LoadEventPlan(filepath.Join(r.cfg.PlanDir, "event_plan.jsonl"))
 	if err != nil {
 		return nil, err
@@ -138,7 +144,15 @@ func (r *LocalRuntime) Run() (*stats.RuntimeStats, error) {
 	defer r.sink.Close()
 
 	for _, ev := range sorted {
-		if err := r.wait(limiter, clk, ev.EventTime); err != nil {
+		if err := ctx.Err(); err != nil {
+			st.Finish(r.cfg.Sink, r.target)
+			return st, err
+		}
+		if err := r.wait(ctx, limiter, clk, ev.EventTime); err != nil {
+			if err == context.Canceled {
+				st.Finish(r.cfg.Sink, r.target)
+				return st, nil
+			}
 			return nil, err
 		}
 		if err := r.sink.Write(ev); err != nil {
@@ -175,12 +189,17 @@ func (r *LocalRuntime) buildLimiter(start time.Time) (ratelimit.Limiter, *clock.
 	return nil, clk, nil
 }
 
-func (r *LocalRuntime) wait(limiter ratelimit.Limiter, clk *clock.RuntimeClock, target time.Time) error {
+func (r *LocalRuntime) wait(
+	ctx context.Context,
+	limiter ratelimit.Limiter,
+	clk *clock.RuntimeClock,
+	target time.Time,
+) error {
 	if limiter != nil {
-		return limiter.Wait()
+		return limiter.Wait(ctx)
 	}
 	if clk != nil {
-		clk.WaitUntil(target)
+		return clk.WaitUntil(ctx, target)
 	}
 	return nil
 }

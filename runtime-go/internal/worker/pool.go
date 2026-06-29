@@ -7,7 +7,6 @@ import (
 	"strconv"
 	"sync"
 	"sync/atomic"
-	"time"
 
 	"github.com/linxinhong/eventweave/runtime-go/internal/event"
 	"github.com/linxinhong/eventweave/runtime-go/internal/metrics"
@@ -31,7 +30,6 @@ type Pool struct {
 	sink      sink.Sink
 
 	jobs   chan event.Event
-	stop   chan struct{}
 	wg     sync.WaitGroup
 	ctx    context.Context
 	cancel context.CancelFunc
@@ -55,7 +53,6 @@ func NewWithMode(mode, sinkName string, workers, queueSize int, onFull string, s
 		onFull:    onFull,
 		sink:      s,
 		jobs:      make(chan event.Event, queueSize),
-		stop:      make(chan struct{}),
 		ctx:       ctx,
 		cancel:    cancel,
 	}
@@ -76,8 +73,8 @@ func (p *Pool) Open() error {
 
 // Close stops the pool, drains remaining jobs, flushes and closes the sink.
 func (p *Pool) Close() error {
-	close(p.stop)
 	p.cancel()
+	close(p.jobs)
 	p.wg.Wait()
 	_ = p.sink.Flush()
 	return p.sink.Close()
@@ -149,23 +146,29 @@ func (p *Pool) runWorker(id int) {
 
 	for {
 		select {
-		case <-p.stop:
-			return
 		case ev, ok := <-p.jobs:
 			if !ok {
 				return
 			}
-			if err := p.sink.Write(ev); err != nil {
-				atomic.AddInt64(&p.stats.Failed, 1)
-				metrics.RecordWorkerFailure(p.mode, p.sinkName, workerID)
-				metrics.RecordWorkerEvent(p.mode, p.sinkName, workerID, "failed")
-			} else {
-				atomic.AddInt64(&p.stats.Processed, 1)
-				metrics.RecordWorkerEvent(p.mode, p.sinkName, workerID, "success")
+			p.processEvent(ev, workerID)
+		case <-p.ctx.Done():
+			// Drain remaining jobs before exiting.
+			for ev := range p.jobs {
+				p.processEvent(ev, workerID)
 			}
-			metrics.SetQueueDepth(p.mode, p.sinkName, float64(len(p.jobs)))
-		case <-time.After(100 * time.Millisecond):
-			// Periodically check stop signal.
+			return
 		}
 	}
+}
+
+func (p *Pool) processEvent(ev event.Event, workerID string) {
+	if err := p.sink.Write(ev); err != nil {
+		atomic.AddInt64(&p.stats.Failed, 1)
+		metrics.RecordWorkerFailure(p.mode, p.sinkName, workerID)
+		metrics.RecordWorkerEvent(p.mode, p.sinkName, workerID, "failed")
+	} else {
+		atomic.AddInt64(&p.stats.Processed, 1)
+		metrics.RecordWorkerEvent(p.mode, p.sinkName, workerID, "success")
+	}
+	metrics.SetQueueDepth(p.mode, p.sinkName, float64(len(p.jobs)))
 }

@@ -1,6 +1,7 @@
 package clock
 
 import (
+	"context"
 	"errors"
 	"time"
 )
@@ -27,15 +28,23 @@ func New(start time.Time, speed float64, noWait bool) (*RuntimeClock, error) {
 }
 
 // WaitUntil sleeps until the real time corresponding to target scenario time.
-func (c *RuntimeClock) WaitUntil(target time.Time) {
+// It returns ctx.Err() if the context is cancelled before the target time.
+func (c *RuntimeClock) WaitUntil(ctx context.Context, target time.Time) error {
 	if c.noWait {
-		return
+		return nil
 	}
 	delta := target.Sub(c.scenarioStart).Seconds()
 	realDelta := delta / c.speed
 	targetReal := c.realStart.Add(time.Duration(realDelta * float64(time.Second)))
 	sleep := time.Until(targetReal)
-	if sleep > 0 {
-		time.Sleep(sleep)
+	if sleep <= 0 {
+		return nil
+	}
+
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-time.After(sleep):
+		return nil
 	}
 }

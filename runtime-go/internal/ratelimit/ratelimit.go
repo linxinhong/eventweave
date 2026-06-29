@@ -2,20 +2,21 @@
 package ratelimit
 
 import (
+	"context"
 	"errors"
 	"time"
 )
 
 // Limiter controls the pace of event emission.
 type Limiter interface {
-	Wait() error
+	Wait(ctx context.Context) error
 }
 
 // NoWaitLimiter returns immediately.
 type NoWaitLimiter struct{}
 
 // Wait implements Limiter.
-func (n *NoWaitLimiter) Wait() error { return nil }
+func (n *NoWaitLimiter) Wait(ctx context.Context) error { return nil }
 
 // RateLimiter paces events at a fixed events-per-second rate.
 type RateLimiter struct {
@@ -36,11 +37,15 @@ func NewRateLimiter(rate float64) (*RateLimiter, error) {
 }
 
 // Wait sleeps until the next event slot.
-func (r *RateLimiter) Wait() error {
+func (r *RateLimiter) Wait(ctx context.Context) error {
 	next := r.last.Add(r.interval)
 	now := time.Now()
 	if next.After(now) {
-		time.Sleep(next.Sub(now))
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-time.After(next.Sub(now)):
+		}
 	}
 	r.last = next
 	return nil

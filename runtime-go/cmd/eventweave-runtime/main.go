@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -100,6 +102,9 @@ func runCmd() *cobra.Command {
 				return err
 			}
 
+			ctx, stop := signal.NotifyContext(cmd.Context(), os.Interrupt, syscall.SIGTERM)
+			defer stop()
+
 			ms := startMetrics(metricsAddr, "run")
 			defer stopMetrics(ms)
 			metrics.SetServerUp("run", true)
@@ -109,7 +114,7 @@ func runCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			stats, err := rt.Run()
+			stats, err := rt.RunWithContext(ctx)
 			if err != nil {
 				return err
 			}
@@ -156,6 +161,9 @@ func benchCmd() *cobra.Command {
 				return err
 			}
 
+			ctx, stop := signal.NotifyContext(cmd.Context(), os.Interrupt, syscall.SIGTERM)
+			defer stop()
+
 			ms := startMetrics(metricsAddr, "bench")
 			defer stopMetrics(ms)
 			metrics.SetServerUp("bench", true)
@@ -165,7 +173,7 @@ func benchCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			stats, err := rt.Run()
+			stats, err := rt.RunWithContext(ctx)
 			if err != nil {
 				return err
 			}

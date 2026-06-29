@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from eventweave.core.ground_truth import ExpectedFinding, GroundTruth
-from eventweave.evaluation.agent_output import AgentFinding, AgentOutput
+from eventweave.core.ground_truth import ExpectedFinding, ExpectedTimelineStage, GroundTruth
+from eventweave.evaluation.agent_output import AgentFinding, AgentOutput, AgentTimelineStage
 from eventweave.evaluation.report import (
     EntityEventResult,
     EvaluationReport,
@@ -67,6 +67,21 @@ def _stage_matches(expected: ExpectedFinding, matched: AgentFinding) -> bool:
     if matched.stage is None:
         return False
     return _normalize(matched.stage) == _normalize(expected.stage)
+
+
+def _match_timeline_stage(
+    expected: ExpectedTimelineStage,
+    candidates: list[AgentTimelineStage],
+    consumed: set[int],
+) -> tuple[AgentTimelineStage | None, int | None]:
+    """Find the first unconsumed agent timeline stage matching the expected stage name."""
+    expected_stage = _normalize(expected.stage)
+    for index, candidate in enumerate(candidates):
+        if index in consumed:
+            continue
+        if _normalize(candidate.stage) == expected_stage:
+            return candidate, index
+    return None, None
 
 
 class Evaluator:
@@ -155,6 +170,16 @@ class Evaluator:
             if index not in consumed
         ]
 
+        # Timeline-stage evaluation
+        (
+            timeline_stage_recall,
+            timeline_stage_precision,
+            timeline_event_recall,
+            timeline_event_precision,
+            missed_stages,
+            extra_stages,
+        ) = self._evaluate_timeline_stages()
+
         total_findings = len(self.ground_truth.expected_findings)
         total_agent_findings = len(self.agent_output.findings)
 
@@ -211,6 +236,10 @@ class Evaluator:
             "entity_recall": entity_recall,
             "event_id_recall": event_id_recall,
             "timeline_stage_accuracy": timeline_stage_accuracy,
+            "timeline_stage_recall": timeline_stage_recall,
+            "timeline_stage_precision": timeline_stage_precision,
+            "timeline_event_recall": timeline_event_recall,
+            "timeline_event_precision": timeline_event_precision,
             "finding_type_precision": finding_type_precision,
             "entity_precision": entity_precision,
             "event_id_precision": event_id_precision,
@@ -218,9 +247,12 @@ class Evaluator:
             "balanced_score": balanced_score,
         }
 
+        matched_stages = len(self.ground_truth.expected_timeline_stages) - len(missed_stages)
+        total_stages = len(self.ground_truth.expected_timeline_stages)
         summary = (
             f"Matched {len(matched_findings)}/{total_findings} expected findings; "
             f"extra={len(extra_findings)}; "
+            f"timeline_stages matched={matched_stages}/{total_stages}; "
             f"overall_score={overall_score:.2f}; "
             f"balanced_score={balanced_score:.2f}."
         )
@@ -233,4 +265,65 @@ class Evaluator:
             missed_findings=missed_findings,
             extra_findings=extra_findings,
             summary=summary,
+        )
+
+    def _evaluate_timeline_stages(
+        self,
+    ) -> tuple[float, float, float, float, list[str], list[str]]:
+        """Compare agent timeline stages against ground truth.
+
+        Returns (stage_recall, stage_precision, event_recall, event_precision,
+                 missed_stage_names, extra_stage_names).
+        """
+        expected_stages = self.ground_truth.expected_timeline_stages
+        actual_stages = self.agent_output.timeline_stages
+
+        if not expected_stages:
+            if not actual_stages:
+                return 1.0, 1.0, 1.0, 1.0, [], []
+            return 0.0, 0.0, 0.0, 0.0, [], [stage.stage for stage in actual_stages]
+
+        consumed: set[int] = set()
+        matched_event_recalls: list[float] = []
+        matched_event_precisions: list[float] = []
+        missed_stages: list[str] = []
+
+        for expected in expected_stages:
+            matched, index = _match_timeline_stage(expected, actual_stages, consumed)
+            if matched is not None and index is not None:
+                consumed.add(index)
+                matched_event_recalls.append(_recall(expected.event_ids, matched.event_ids))
+                matched_event_precisions.append(
+                    _precision(expected.event_ids, matched.event_ids)
+                )
+            else:
+                missed_stages.append(expected.stage)
+
+        extra_stages = [
+            stage.stage for index, stage in enumerate(actual_stages) if index not in consumed
+        ]
+
+        matched_stage_count = len(expected_stages) - len(missed_stages)
+        stage_recall = matched_stage_count / len(expected_stages)
+        stage_precision = (
+            matched_stage_count / len(actual_stages) if actual_stages else 0.0
+        )
+        event_recall = (
+            sum(matched_event_recalls) / len(expected_stages)
+            if expected_stages
+            else 1.0
+        )
+        event_precision = (
+            sum(matched_event_precisions) / len(matched_event_precisions)
+            if matched_event_precisions
+            else 0.0
+        )
+
+        return (
+            stage_recall,
+            stage_precision,
+            event_recall,
+            event_precision,
+            missed_stages,
+            extra_stages,
         )

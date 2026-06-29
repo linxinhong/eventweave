@@ -25,22 +25,38 @@ class _FakeAIHandler(BaseHTTPRequestHandler):
     """Handler that captures the request and returns a fake completion."""
 
     requests: list[dict[str, Any]] = []
+    auth_headers: list[str | None] = []
     status: int = 200
+    failure_count: int = 0
+    response_body: str | None = None
 
     def do_POST(self) -> None:  # noqa: N802
         content_length = int(self.headers.get("Content-Length", "0"))
         body = self.rfile.read(content_length).decode("utf-8")
         _FakeAIHandler.requests.append(json.loads(body))
+        _FakeAIHandler.auth_headers.append(self.headers.get("Authorization"))
 
-        self.send_response(self.status)
+        if _FakeAIHandler.failure_count > 0:
+            _FakeAIHandler.failure_count -= 1
+            self.send_response(503)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(b'{"error":"service unavailable"}')
+            return
+
+        self.send_response(_FakeAIHandler.status)
         self.send_header("Content-Type", "application/json")
         self.end_headers()
-        response = {
-            "choices": [
-                {"message": {"content": "Generated refund reason from fake AI."}}
-            ]
-        }
-        self.wfile.write(json.dumps(response).encode("utf-8"))
+        response = _FakeAIHandler.response_body
+        if response is None:
+            response = json.dumps(
+                {
+                    "choices": [
+                        {"message": {"content": "Generated refund reason from fake AI."}}
+                    ]
+                }
+            )
+        self.wfile.write(response.encode("utf-8"))
 
     def log_message(self, format: str, *args: Any) -> None:
         pass
@@ -50,7 +66,10 @@ class _FakeAIHandler(BaseHTTPRequestHandler):
 def fake_server() -> str:
     """Start a fake AI API server and return its base URL."""
     _FakeAIHandler.requests.clear()
+    _FakeAIHandler.auth_headers.clear()
     _FakeAIHandler.status = 200
+    _FakeAIHandler.failure_count = 0
+    _FakeAIHandler.response_body = None
 
     server = HTTPServer(("127.0.0.1", 0), _FakeAIHandler)
     thread = threading.Thread(target=server.serve_forever, daemon=True)
@@ -223,3 +242,75 @@ def test_ai_provider_integration() -> None:
     context = GenerationContext(scenario=scenario, task=task, entities={})
     asset = provider.generate(task, context)
     assert asset.text
+
+
+def test_ai_provider_retries_on_transient_error_then_succeeds(
+    fake_server: str, task: SemanticTask, context: GenerationContext
+) -> None:
+    _FakeAIHandler.failure_count = 2
+    os.environ["EVENTWEAVE_AI_API_KEY"] = "test-key"
+    provider = AIChatProvider(
+        ProviderConfig(
+            "ai",
+            base_url=fake_server,
+            model="moonshot-v1-8k",
+            api_key_env="EVENTWEAVE_AI_API_KEY",
+            max_retries=3,
+        )
+    )
+
+    asset = provider.generate(task, context)
+    assert "fake AI" in asset.text
+    assert len(_FakeAIHandler.requests) == 3
+
+
+def test_ai_provider_rejects_malformed_response(
+    fake_server: str, task: SemanticTask, context: GenerationContext
+) -> None:
+    _FakeAIHandler.response_body = json.dumps({"choices": []})
+    os.environ["EVENTWEAVE_AI_API_KEY"] = "test-key"
+    provider = AIChatProvider(
+        ProviderConfig(
+            "ai",
+            base_url=fake_server,
+            model="moonshot-v1-8k",
+            api_key_env="EVENTWEAVE_AI_API_KEY",
+        )
+    )
+    with pytest.raises(AIProviderError, match="no choices"):
+        provider.generate(task, context)
+
+
+def test_ai_provider_rejects_truncated_response(
+    fake_server: str, task: SemanticTask, context: GenerationContext
+) -> None:
+    _FakeAIHandler.response_body = json.dumps(
+        {"choices": [{"message": {"content": "truncated"}, "finish_reason": "length"}]}
+    )
+    os.environ["EVENTWEAVE_AI_API_KEY"] = "test-key"
+    provider = AIChatProvider(
+        ProviderConfig(
+            "ai",
+            base_url=fake_server,
+            model="moonshot-v1-8k",
+            api_key_env="EVENTWEAVE_AI_API_KEY",
+        )
+    )
+    with pytest.raises(AIProviderError, match="truncated"):
+        provider.generate(task, context)
+
+
+def test_ai_provider_omits_authorization_when_key_empty(
+    fake_server: str, task: SemanticTask, context: GenerationContext
+) -> None:
+    os.environ["EVENTWEAVE_AI_API_KEY"] = ""
+    provider = AIChatProvider(
+        ProviderConfig(
+            "ai",
+            base_url=fake_server,
+            model="moonshot-v1-8k",
+            api_key_env="EVENTWEAVE_AI_API_KEY",
+        )
+    )
+    provider.generate(task, context)
+    assert _FakeAIHandler.auth_headers[-1] is None

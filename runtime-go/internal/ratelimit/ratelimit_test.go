@@ -1,6 +1,7 @@
 package ratelimit
 
 import (
+	"context"
 	"testing"
 	"time"
 )
@@ -9,7 +10,7 @@ func TestNoWaitLimiterIsInstant(t *testing.T) {
 	lim := &NoWaitLimiter{}
 	start := time.Now()
 	for i := 0; i < 100; i++ {
-		if err := lim.Wait(); err != nil {
+		if err := lim.Wait(context.Background()); err != nil {
 			t.Fatalf("wait: %v", err)
 		}
 	}
@@ -25,7 +26,7 @@ func TestRateLimiterPacesEvents(t *testing.T) {
 	}
 	start := time.Now()
 	for i := 0; i < 5; i++ {
-		if err := lim.Wait(); err != nil {
+		if err := lim.Wait(context.Background()); err != nil {
 			t.Fatalf("wait: %v", err)
 		}
 	}

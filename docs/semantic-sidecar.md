@@ -78,11 +78,25 @@ eventweave semantic generate dist/ecommerce_refund_flow_semantic \
   --provider ai \
   --base-url https://api.moonshot.cn/v1 \
   --model moonshot-v1-8k \
-  --api-key-env EVENTWEAVE_AI_API_KEY
+  --api-key-env EVENTWEAVE_AI_API_KEY \
+  --timeout 60 \
+  --max-retries 3
 ```
 
 `--api-key-env` lets you use a custom environment variable name. The API key is
 never accepted as a CLI argument, so it cannot leak into shell history.
+
+You can also set `--max-tokens` and `--temperature` to control the model output.
+
+### Robustness
+
+The `ai` provider:
+
+- Retries transient failures (HTTP 429, 5xx, network errors) with exponential backoff.
+- Validates the Chat Completions response shape before use.
+- Raises a clear error if the response is truncated (`finish_reason="length"`).
+- Omits the `Authorization` header when the API key is empty, so local servers
+  like Ollama work without a dummy key.
 
 Local model example with Ollama:
 
