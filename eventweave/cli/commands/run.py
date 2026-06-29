@@ -8,6 +8,7 @@ from typing import Annotated
 import typer
 
 from eventweave.cli.helpers import console
+from eventweave.encoders.registry import get_encoder
 from eventweave.runtime.local import LocalRuntime
 from eventweave.runtime.sink import Sink
 from eventweave.runtime.sinks.file import FileSink
@@ -67,13 +68,25 @@ def register_commands(app: typer.Typer) -> None:
             int | None,
             typer.Option("--limit", help="Maximum number of events to emit.")
         ] = None,
+        encoder: Annotated[
+            str | None,
+            typer.Option("--encoder", "-e", help="Encode events with this encoder before writing."),
+        ] = None,
     ) -> None:
         """Run a compiled event plan through a local runtime."""
+        encoder_obj = None
+        if encoder is not None:
+            try:
+                encoder_obj = get_encoder(encoder)
+            except KeyError as exc:
+                console.print(f"[red]{exc}[/red]")
+                raise typer.Exit(code=1) from exc
+
         effective_sink: Sink
         if dry_run:
             effective_sink = NullSink()
         elif sink == "file":
-            effective_sink = FileSink(output, output_dir=output_dir)
+            effective_sink = FileSink(output, output_dir=output_dir, encoder=encoder_obj)
         elif sink == "http":
             if not url:
                 console.print("[red]--url is required for http sink[/red]")
@@ -86,6 +99,7 @@ def register_commands(app: typer.Typer) -> None:
                     max_retry_duration=max_retry_duration,
                     backoff_factor=backoff_factor,
                     allow_internal=allow_internal_url,
+                    encoder=encoder_obj,
                 )
             except ValueError as exc:
                 console.print(f"[red]Invalid http sink URL: {exc}[/red]")
@@ -93,7 +107,7 @@ def register_commands(app: typer.Typer) -> None:
         elif sink == "null":
             effective_sink = NullSink()
         elif sink == "stdout":
-            effective_sink = StdoutSink()
+            effective_sink = StdoutSink(encoder=encoder_obj)
         else:
             console.print(f"[red]Unsupported sink: {sink}[/red]")
             raise typer.Exit(code=1)

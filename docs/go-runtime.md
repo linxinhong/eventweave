@@ -87,6 +87,7 @@ eventweave-runtime run dist/ecommerce_refund_flow_semantic \
 | `--max-retry-duration` | Total time budget for retries (default 30s, max 5m)    |
 | `--backoff-factor`  | Exponential backoff multiplier (default 1.0, max 60)      |
 | `--stats-json`      | Write runtime stats to a JSON file                        |
+| `--encoder`         | Encode events with this encoder before writing            |
 
 ## Output
 
@@ -182,6 +183,22 @@ Kafka message keys are controlled by `--key-field`:
 - `flow_id`
 - `source_id`
 - empty string for null key
+
+## Vendor encoders
+
+Use `--encoder` to emit events in vendor/log formats instead of canonical JSON:
+
+```bash
+eventweave-runtime run dist/security_lateral_movement \
+  --sink file \
+  --output out/suricata.jsonl \
+  --encoder suricata-eve \
+  --no-wait
+```
+
+Available encoders include `jsonl`, `syslog-rfc3164`, `syslog-rfc5424`,
+`nginx-access`, `suricata-eve`, and `windows-event-json`. See
+[docs/encoders.md](encoders.md) for details.
 
 ## Compatibility with Python runtime
 

@@ -14,6 +14,9 @@ import (
 	"github.com/linxinhong/eventweave/runtime-go/internal/metrics"
 	"github.com/linxinhong/eventweave/runtime-go/internal/runtime"
 	"github.com/linxinhong/eventweave/runtime-go/internal/server"
+
+	// Register vendor encoders.
+	_ "github.com/linxinhong/eventweave/runtime-go/internal/encoder/security"
 )
 
 func main() {
@@ -244,4 +247,5 @@ func addRuntimeFlags(cmd *cobra.Command, cfg *config.RuntimeConfig) {
 	cmd.Flags().IntVar(&cfg.Workers, "workers", 1, "Concurrent workers for kafka/http sinks (1 preserves order)")
 	cmd.Flags().IntVar(&cfg.QueueSize, "queue-size", 1000, "Worker queue size")
 	cmd.Flags().StringVar(&cfg.OnQueueFull, "on-queue-full", "block", "Behavior when worker queue is full: block or fail")
+	cmd.Flags().StringVar(&cfg.Encoder, "encoder", "", "Encode events with this encoder before writing")
 }

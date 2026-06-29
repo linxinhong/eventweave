@@ -9,6 +9,7 @@ import (
 
 	segmentio "github.com/segmentio/kafka-go"
 
+	"github.com/linxinhong/eventweave/runtime-go/internal/encoder"
 	"github.com/linxinhong/eventweave/runtime-go/internal/event"
 )
 
@@ -26,10 +27,11 @@ type Sink struct {
 	retries int
 	count   int
 	failed  int
+	enc     encoder.Encoder
 }
 
 // New creates a Kafka sink with a real writer.
-func New(brokers string, topic string, keyField string, timeout time.Duration, retries int) *Sink {
+func New(brokers string, topic string, keyField string, timeout time.Duration, retries int, enc ...encoder.Encoder) *Sink {
 	return newSink(
 		segmentio.NewWriter(segmentio.WriterConfig{
 			Brokers: strings.Split(brokers, ","),
@@ -39,16 +41,21 @@ func New(brokers string, topic string, keyField string, timeout time.Duration, r
 		KeyFunc(keyField),
 		timeout,
 		retries,
+		enc...,
 	)
 }
 
-func newSink(writer MessageWriter, keyFunc func(event.Event) []byte, timeout time.Duration, retries int) *Sink {
-	return &Sink{
+func newSink(writer MessageWriter, keyFunc func(event.Event) []byte, timeout time.Duration, retries int, enc ...encoder.Encoder) *Sink {
+	s := &Sink{
 		writer:  writer,
 		keyFunc: keyFunc,
 		timeout: timeout,
 		retries: retries,
 	}
+	if len(enc) > 0 {
+		s.enc = enc[0]
+	}
+	return s
 }
 
 // Open initializes the sink.
@@ -56,7 +63,13 @@ func (s *Sink) Open() error { return nil }
 
 // Write sends one event to Kafka.
 func (s *Sink) Write(ev event.Event) error {
-	body, err := json.Marshal(ev)
+	var body []byte
+	var err error
+	if s.enc != nil {
+		body, err = s.enc.Encode(ev)
+	} else {
+		body, err = json.Marshal(ev)
+	}
 	if err != nil {
 		s.failed++
 		return err

@@ -193,6 +193,23 @@ eventweave quality realism dist/security_lateral_movement --output realism.json
 
 # Export events as JSONL
 eventweave export dist/ecommerce_refund_flow --format jsonl --output out/events.jsonl
+
+# Encode events as vendor/log formats
+eventweave encode dist/security_lateral_movement \
+  --encoder syslog-rfc3164 \
+  --output out/syslog.log
+
+eventweave run dist/security_lateral_movement \
+  --sink file \
+  --output out/suricata.jsonl \
+  --encoder suricata-eve \
+  --no-wait
+
+eventweave-runtime run dist/security_lateral_movement \
+  --sink syslog \
+  --syslog-addr 127.0.0.1:5514 \
+  --encoder syslog-rfc3164 \
+  --no-wait
 ```
 
 ---
@@ -346,7 +363,7 @@ The matching event in `event_plan.jsonl` now references the concrete asset id:
 
 ## Project status
 
-Current version: **v0.8.5** — Security, Evaluation, and Runtime Hardening
+Current version: **v0.9.0** — Vendor Log Encoders
 
 What works:
 
@@ -405,11 +422,14 @@ What works:
   with `eventweave eval prepare`, HTTP retry governance, AI cache key
   collision fix, lazy metrics registration, Go config upper bounds, and an
   anomalous Prometheus dependency removed
+- v0.9.0: Vendor log encoders — emit canonical events as `syslog-rfc3164`,
+  `syslog-rfc5424`, `nginx-access`, `suricata-eve`, and `windows-event-json`
+  via `eventweave encode` / `eventweave-runtime --encoder`
 
 What is planned:
 
-- v0.9: Vendor log encoders (Fortinet, Palo Alto, Windows Event, Suricata,
-  Zeek, Nginx, DNS)
+- v0.9.1: Additional vendor encoders (Fortinet, Palo Alto, Zeek, DNS)
+- v0.10: TBD
 
 ## Pack Ecosystem
 

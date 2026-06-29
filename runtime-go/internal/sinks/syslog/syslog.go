@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/linxinhong/eventweave/runtime-go/internal/encoder"
 	"github.com/linxinhong/eventweave/runtime-go/internal/event"
 )
 
@@ -32,15 +33,16 @@ type Sink struct {
 	conn     net.Conn
 	count    int
 	failed   int
+	enc      encoder.Encoder
 }
 
 // New creates a syslog sink.
-func New(address, protocol string, facility, severity int, tag string) *Sink {
-	return newSink(address, protocol, facility, severity, tag, defaultDialer{})
+func New(address, protocol string, facility, severity int, tag string, enc ...encoder.Encoder) *Sink {
+	return newSink(address, protocol, facility, severity, tag, defaultDialer{}, enc...)
 }
 
-func newSink(address, protocol string, facility, severity int, tag string, dialer NetworkDialer) *Sink {
-	return &Sink{
+func newSink(address, protocol string, facility, severity int, tag string, dialer NetworkDialer, enc ...encoder.Encoder) *Sink {
+	s := &Sink{
 		address:  address,
 		protocol: protocol,
 		facility: facility,
@@ -48,6 +50,10 @@ func newSink(address, protocol string, facility, severity int, tag string, diale
 		tag:      tag,
 		dialer:   dialer,
 	}
+	if len(enc) > 0 {
+		s.enc = enc[0]
+	}
+	return s
 }
 
 // Open dials the syslog server.
@@ -66,7 +72,13 @@ func (s *Sink) Write(ev event.Event) error {
 		s.failed++
 		return fmt.Errorf("syslog sink is not open")
 	}
-	body, err := json.Marshal(ev)
+	var body []byte
+	var err error
+	if s.enc != nil {
+		body, err = s.enc.Encode(ev)
+	} else {
+		body, err = json.Marshal(ev)
+	}
 	if err != nil {
 		s.failed++
 		return err

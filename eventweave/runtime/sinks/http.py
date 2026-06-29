@@ -10,6 +10,7 @@ import urllib.request
 from urllib.parse import urlparse
 
 from eventweave.core.event import Event
+from eventweave.encoders.base import Encoder
 from eventweave.runtime.sink import Sink
 
 _FORBIDDEN_HOSTS = frozenset(
@@ -129,6 +130,7 @@ class HTTPSink(Sink):
         max_retry_duration: float = 30.0,
         backoff_factor: float = 1.0,
         allow_internal: bool = False,
+        encoder: Encoder | None = None,
     ) -> None:
         _validate_http_url(url, allow_internal=allow_internal)
         self.url = url
@@ -136,6 +138,7 @@ class HTTPSink(Sink):
         self.retries = retries
         self.max_retry_duration = max_retry_duration
         self.backoff_factor = backoff_factor
+        self.encoder = encoder
         self._success = 0
         self._failed = 0
         self._opener = urllib.request.build_opener(_NoRedirectHandler())
@@ -159,8 +162,19 @@ class HTTPSink(Sink):
         return True
 
     def write(self, event: Event) -> None:
-        payload = json.dumps(event.model_dump(), default=str, ensure_ascii=False).encode("utf-8")
-        headers = {"Content-Type": "application/json"}
+        if self.encoder is not None:
+            result = self.encoder.encode(event)
+            if not result.success:
+                self._failed += 1
+                return
+            payload = result.output.encode("utf-8")
+            content_type = self.encoder.content_type
+        else:
+            payload = (
+                json.dumps(event.model_dump(), default=str, ensure_ascii=False).encode("utf-8")
+            )
+            content_type = "application/json"
+        headers = {"Content-Type": content_type}
         request = urllib.request.Request(
             self.url,
             data=payload,

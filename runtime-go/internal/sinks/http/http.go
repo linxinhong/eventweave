@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/linxinhong/eventweave/runtime-go/internal/encoder"
 	"github.com/linxinhong/eventweave/runtime-go/internal/event"
 )
 
@@ -114,14 +115,15 @@ type Sink struct {
 	count            int
 	failed           int
 	allowInternal    bool
+	enc              encoder.Encoder
 }
 
 // New creates an HTTP sink.
-func New(url string, timeout, maxRetryDuration time.Duration, retries int, backoffFactor float64, allowInternal bool) (*Sink, error) {
+func New(url string, timeout, maxRetryDuration time.Duration, retries int, backoffFactor float64, allowInternal bool, enc ...encoder.Encoder) (*Sink, error) {
 	if err := IsSafeURL(url, allowInternal); err != nil {
 		return nil, err
 	}
-	return &Sink{
+	s := &Sink{
 		url: url,
 		client: &http.Client{
 			Timeout: timeout,
@@ -133,7 +135,11 @@ func New(url string, timeout, maxRetryDuration time.Duration, retries int, backo
 		maxRetryDuration: maxRetryDuration,
 		backoffFactor:    backoffFactor,
 		allowInternal:    allowInternal,
-	}, nil
+	}
+	if len(enc) > 0 {
+		s.enc = enc[0]
+	}
+	return s, nil
 }
 
 // Open initializes the sink.
@@ -141,7 +147,15 @@ func (s *Sink) Open() error { return nil }
 
 // Write posts one event.
 func (s *Sink) Write(ev event.Event) error {
-	body, err := json.Marshal(ev)
+	var body []byte
+	var err error
+	contentType := "application/json"
+	if s.enc != nil {
+		body, err = s.enc.Encode(ev)
+		contentType = s.enc.ContentType()
+	} else {
+		body, err = json.Marshal(ev)
+	}
 	if err != nil {
 		s.failed++
 		return err
@@ -155,7 +169,7 @@ func (s *Sink) Write(ev event.Event) error {
 			s.failed++
 			return err
 		}
-		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Content-Type", contentType)
 
 		resp, err := s.client.Do(req)
 		if err != nil {

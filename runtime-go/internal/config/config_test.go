@@ -147,6 +147,22 @@ func TestValidateMaxFailuresMustBeNonNegative(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 }
+func TestValidateUnknownEncoder(t *testing.T) {
+	cfg := validConfig()
+	cfg.Encoder = "no-such-encoder"
+	if err := cfg.Validate(); err == nil {
+		t.Fatal("expected error for unknown encoder")
+	}
+}
+
+func TestValidateKnownEncoder(t *testing.T) {
+	cfg := validConfig()
+	cfg.Encoder = "jsonl"
+	if err := cfg.Validate(); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
 func TestValidateUpperBounds(t *testing.T) {
 	cases := []struct {
 		name   string

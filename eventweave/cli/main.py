@@ -6,6 +6,7 @@ import typer
 
 from eventweave.cli.commands import (
     benchmark,
+    encode,
     eval,
     export,
     inspect,
@@ -28,6 +29,7 @@ app = typer.Typer(
 # Top-level commands
 validate.register_commands(app)
 compile_cmd.register_commands(app)
+encode.register_commands(app)
 export.register_commands(app)
 inspect.register_commands(app)
 run.register_commands(app)

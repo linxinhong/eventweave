@@ -1,6 +1,6 @@
 [project]
 name = "eventweave"
-version = "0.8.5"
+version = "0.9.0"
 description = "AI-assisted synthetic event streams from scenarios, rules, and timelines."
 readme = "README.md"
 license = { text = "MIT" }

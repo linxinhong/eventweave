@@ -2,6 +2,29 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.9.0] - 2026-06-29
+
+### Added
+
+- Vendor/log encoders for EventWeave output:
+  - `syslog-rfc3164` and `syslog-rfc5424`
+  - `nginx-access`
+  - `suricata-eve` (security pack)
+  - `windows-event-json` (security pack)
+- Python encoder framework under `eventweave/encoders/`:
+  - `Encoder` base class, `EncodeResult`, and `EncodeError`
+  - `EncoderRegistry` with `@encoder` decorator
+  - Pack encoder discovery via `packs/<domain>/encoders/__init__.py`
+- Go encoder framework under `runtime-go/internal/encoder/`
+  - `Encoder` interface and global registry
+  - Security-specific encoders in `runtime-go/internal/encoder/security/`
+- New CLI command: `eventweave encode`
+- `--encoder` option for `eventweave run`, `eventweave export`, and
+  `eventweave-runtime run`/`bench`/`serve`
+- Encoder failure handling: visible errors, skipped events with
+  `--skip-failed`, and per-sink failure counters
+- Documentation: `docs/encoders.md`
+
 ## [0.8.5] - 2026-06-29
 
 Same changes as the originally-planned v0.8.4 release; version bumped to

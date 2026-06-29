@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/linxinhong/eventweave/runtime-go/internal/encoder"
 	"github.com/linxinhong/eventweave/runtime-go/internal/event"
 )
 
@@ -14,13 +15,20 @@ import (
 type Sink struct {
 	path       string
 	outputDir  string
+	enc        encoder.Encoder
 	file       *os.File
 	count      int
 	failed     int
 }
 
 // New creates a file sink constrained to outputDir.
-func New(path, outputDir string) *Sink { return &Sink{path: path, outputDir: outputDir} }
+func New(path, outputDir string, enc ...encoder.Encoder) *Sink {
+	s := &Sink{path: path, outputDir: outputDir}
+	if len(enc) > 0 {
+		s.enc = enc[0]
+	}
+	return s
+}
 
 // ValidatePath checks that path is contained within outputDir without side effects.
 func ValidatePath(path, outputDir string) error {
@@ -80,7 +88,13 @@ func (s *Sink) Write(ev event.Event) error {
 	if s.file == nil {
 		return fmt.Errorf("file sink is not open")
 	}
-	data, err := json.Marshal(ev)
+	var data []byte
+	var err error
+	if s.enc != nil {
+		data, err = s.enc.Encode(ev)
+	} else {
+		data, err = json.Marshal(ev)
+	}
 	if err != nil {
 		s.failed++
 		return err

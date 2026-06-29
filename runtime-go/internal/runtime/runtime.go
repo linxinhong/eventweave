@@ -11,6 +11,7 @@ import (
 
 	"github.com/linxinhong/eventweave/runtime-go/internal/clock"
 	"github.com/linxinhong/eventweave/runtime-go/internal/config"
+	"github.com/linxinhong/eventweave/runtime-go/internal/encoder"
 	"github.com/linxinhong/eventweave/runtime-go/internal/event"
 	"github.com/linxinhong/eventweave/runtime-go/internal/loader"
 	"github.com/linxinhong/eventweave/runtime-go/internal/ratelimit"
@@ -44,16 +45,21 @@ func NewWithMode(cfg config.RuntimeConfig, mode string) (*LocalRuntime, error) {
 		return nil, err
 	}
 
+	var enc encoder.Encoder
+	if cfg.Encoder != "" {
+		enc, _ = encoder.Get(cfg.Encoder)
+	}
+
 	var s sink.Sink
 	target := cfg.Sink
 	switch cfg.Sink {
 	case "stdout":
-		s = stdoutSink.New()
+		s = stdoutSink.New(enc)
 	case "file":
 		if err := fileSink.ValidatePath(cfg.Output, cfg.OutputDir); err != nil {
 			return nil, err
 		}
-		s = fileSink.New(cfg.Output, cfg.OutputDir)
+		s = fileSink.New(cfg.Output, cfg.OutputDir, enc)
 		target = cfg.Output
 	case "null":
 		s = nullSink.New()
@@ -61,7 +67,7 @@ func NewWithMode(cfg config.RuntimeConfig, mode string) (*LocalRuntime, error) {
 		if err := httpSink.IsSafeURL(cfg.URL, cfg.AllowInternalURL); err != nil {
 			return nil, err
 		}
-		hs, err := httpSink.New(cfg.URL, cfg.Timeout, cfg.MaxRetryDuration, cfg.Retries, cfg.BackoffFactor, cfg.AllowInternalURL)
+		hs, err := httpSink.New(cfg.URL, cfg.Timeout, cfg.MaxRetryDuration, cfg.Retries, cfg.BackoffFactor, cfg.AllowInternalURL, enc)
 		if err != nil {
 			return nil, err
 		}
@@ -82,13 +88,14 @@ func NewWithMode(cfg config.RuntimeConfig, mode string) (*LocalRuntime, error) {
 				cfg.Timeout,
 				cfg.Retries,
 				mode,
+				enc,
 			)
 		} else {
-			s = kafkaSink.New(cfg.Brokers, cfg.Topic, cfg.KeyField, cfg.Timeout, cfg.Retries)
+			s = kafkaSink.New(cfg.Brokers, cfg.Topic, cfg.KeyField, cfg.Timeout, cfg.Retries, enc)
 		}
 		target = fmt.Sprintf("%s/%s", cfg.Brokers, cfg.Topic)
 	case "syslog":
-		s = syslogSink.New(cfg.SyslogAddr, cfg.SyslogProto, cfg.Facility, cfg.Severity, cfg.Tag)
+		s = syslogSink.New(cfg.SyslogAddr, cfg.SyslogProto, cfg.Facility, cfg.Severity, cfg.Tag, enc)
 		target = fmt.Sprintf("%s://%s", cfg.SyslogProto, cfg.SyslogAddr)
 	}
 

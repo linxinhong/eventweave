@@ -79,6 +79,7 @@ class Pack(BaseModel):
     semantic_path: Path | None = Field(default=Path("semantic"))
     examples_path: Path | None = Field(default=Path("examples"))
     realism_path: Path | None = Field(default=Path("realism"))
+    encoders_path: Path | None = Field(default=Path("encoders"))
 
 
 class PackRegistry:
@@ -139,6 +140,7 @@ class PackRegistry:
             semantic_path=_optional_path(meta.get("semantic_path", "semantic")),
             examples_path=_optional_path(meta.get("examples_path", "examples")),
             realism_path=_optional_path(meta.get("realism_path", "realism")),
+            encoders_path=_optional_path(meta.get("encoders_path", "encoders")),
         )
 
     def load(self, domain: str) -> Pack:

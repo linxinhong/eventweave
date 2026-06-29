@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/linxinhong/eventweave/runtime-go/internal/encoder"
 )
 
 // RuntimeConfig holds CLI options for the local runtime.
@@ -39,6 +41,7 @@ type RuntimeConfig struct {
 	Workers          int
 	QueueSize        int
 	OnQueueFull      string
+	Encoder          string
 }
 
 // Validate checks that the config is usable.
@@ -72,6 +75,11 @@ func (c *RuntimeConfig) Validate() error {
 	}
 	if c.Sink == "syslog" && c.SyslogAddr == "" {
 		return errors.New("--syslog-addr is required for syslog sink")
+	}
+	if c.Encoder != "" {
+		if _, err := encoder.Get(c.Encoder); err != nil {
+			return err
+		}
 	}
 	if c.Sink == "syslog" {
 		p := strings.ToLower(c.SyslogProto)

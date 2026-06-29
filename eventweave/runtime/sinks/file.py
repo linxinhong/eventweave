@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import TextIO
 
 from eventweave.core.event import Event
+from eventweave.encoders.base import Encoder
 from eventweave.runtime.sink import Sink
 
 
@@ -32,10 +33,13 @@ class FileSink(Sink):
         self,
         path: str | Path,
         output_dir: str | Path,
+        encoder: Encoder | None = None,
     ) -> None:
         self.output_dir = Path(output_dir)
         self.path = _resolve_within_output_dir(Path(path), self.output_dir)
+        self.encoder = encoder
         self._count = 0
+        self._failed = 0
         self._file: TextIO | None = None
 
     def open(self) -> None:
@@ -45,7 +49,16 @@ class FileSink(Sink):
     def write(self, event: Event) -> None:
         if self._file is None:
             raise RuntimeError("FileSink is not open")
-        self._file.write(json.dumps(event.model_dump(), default=str, ensure_ascii=False) + "\n")
+        if self.encoder is not None:
+            result = self.encoder.encode(event)
+            if not result.success:
+                self._failed += 1
+                raise RuntimeError(f"encode failed: {result.error_reason}")
+            self._file.write(result.output + "\n")
+        else:
+            self._file.write(
+                json.dumps(event.model_dump(), default=str, ensure_ascii=False) + "\n"
+            )
         self._count += 1
 
     def flush(self) -> None:
@@ -59,3 +72,6 @@ class FileSink(Sink):
 
     def count(self) -> int:
         return self._count
+
+    def failed(self) -> int:
+        return self._failed

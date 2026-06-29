@@ -9,19 +9,21 @@ import (
 
 	segmentio "github.com/segmentio/kafka-go"
 
+	"github.com/linxinhong/eventweave/runtime-go/internal/encoder"
 	"github.com/linxinhong/eventweave/runtime-go/internal/event"
 	"github.com/linxinhong/eventweave/runtime-go/internal/metrics"
 )
 
 // BatchSink buffers events and writes them to Kafka in batches.
 type BatchSink struct {
-	writer  MessageWriter
-	keyFunc func(event.Event) []byte
+	writer       MessageWriter
+	keyFunc      func(event.Event) []byte
 	batchSize    int
 	batchTimeout time.Duration
 	timeout      time.Duration
 	retries      int
 	mode         string
+	enc          encoder.Encoder
 
 	mu     sync.Mutex
 	buffer []segmentio.Message
@@ -33,14 +35,14 @@ type BatchSink struct {
 }
 
 // NewBatch creates a batching Kafka sink.
-func NewBatch(writer MessageWriter, keyFunc func(event.Event) []byte, batchSize int, batchTimeout, timeout time.Duration, retries int) *BatchSink {
-	return NewBatchWithMode(writer, keyFunc, batchSize, batchTimeout, timeout, retries, "run")
+func NewBatch(writer MessageWriter, keyFunc func(event.Event) []byte, batchSize int, batchTimeout, timeout time.Duration, retries int, enc ...encoder.Encoder) *BatchSink {
+	return NewBatchWithMode(writer, keyFunc, batchSize, batchTimeout, timeout, retries, "run", enc...)
 }
 
 // NewBatchWithMode creates a batching Kafka sink with a mode label for metrics.
-func NewBatchWithMode(writer MessageWriter, keyFunc func(event.Event) []byte, batchSize int, batchTimeout, timeout time.Duration, retries int, mode string) *BatchSink {
+func NewBatchWithMode(writer MessageWriter, keyFunc func(event.Event) []byte, batchSize int, batchTimeout, timeout time.Duration, retries int, mode string, enc ...encoder.Encoder) *BatchSink {
 	metrics.RecordBatch(mode, "kafka", "success", 0)
-	return &BatchSink{
+	s := &BatchSink{
 		writer:       writer,
 		keyFunc:      keyFunc,
 		batchSize:    batchSize,
@@ -50,6 +52,10 @@ func NewBatchWithMode(writer MessageWriter, keyFunc func(event.Event) []byte, ba
 		mode:         mode,
 		done:         make(chan struct{}),
 	}
+	if len(enc) > 0 {
+		s.enc = enc[0]
+	}
+	return s
 }
 
 // Open initializes the batch sink.
@@ -57,7 +63,13 @@ func (s *BatchSink) Open() error { return nil }
 
 // Write buffers an event and flushes when the batch is full.
 func (s *BatchSink) Write(ev event.Event) error {
-	body, err := json.Marshal(ev)
+	var body []byte
+	var err error
+	if s.enc != nil {
+		body, err = s.enc.Encode(ev)
+	} else {
+		body, err = json.Marshal(ev)
+	}
 	if err != nil {
 		s.failed++
 		return err
