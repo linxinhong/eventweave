@@ -15,19 +15,24 @@ type RuntimeConfig struct {
 	Speed   float64
 	NoWait  bool
 	Limit   int
-	Timeout     time.Duration
-	Retries     int
-	Brokers     string
-	Topic       string
-	KeyField    string
-	Facility    int
-	Severity    int
-	Tag         string
-	SyslogProto string
-	SyslogAddr  string
-	Rate        float64
-	MaxFailures int
-	StatsJSON   string
+	Timeout      time.Duration
+	Retries      int
+	Brokers      string
+	Topic        string
+	KeyField     string
+	Facility     int
+	Severity     int
+	Tag          string
+	SyslogProto  string
+	SyslogAddr   string
+	Rate         float64
+	MaxFailures  int
+	StatsJSON    string
+	BatchSize    int
+	BatchTimeout time.Duration
+	Workers      int
+	QueueSize    int
+	OnQueueFull  string
 }
 
 // Validate checks that the config is usable.
@@ -66,6 +71,47 @@ func (c *RuntimeConfig) Validate() error {
 	}
 	if c.MaxFailures < 0 {
 		return errors.New("--max-failures must be non-negative")
+	}
+
+	// Apply defaults for optional batch/worker fields when not set.
+	if c.BatchSize == 0 {
+		c.BatchSize = 1
+	}
+	if c.BatchTimeout == 0 {
+		c.BatchTimeout = 100 * time.Millisecond
+	}
+	if c.Workers == 0 {
+		c.Workers = 1
+	}
+	if c.QueueSize == 0 {
+		c.QueueSize = 1000
+	}
+	if c.OnQueueFull == "" {
+		c.OnQueueFull = "block"
+	}
+
+	if c.BatchSize < 1 {
+		return errors.New("--batch-size must be at least 1")
+	}
+	if c.BatchTimeout <= 0 {
+		return errors.New("--batch-timeout must be positive")
+	}
+	if c.Workers < 1 {
+		return errors.New("--workers must be at least 1")
+	}
+	if c.QueueSize < 1 {
+		return errors.New("--queue-size must be at least 1")
+	}
+	switch c.OnQueueFull {
+	case "block", "fail":
+	default:
+		return errors.New("--on-queue-full must be block or fail")
+	}
+	if c.Sink != "kafka" && c.Sink != "http" && c.Workers > 1 {
+		return errors.New("--workers > 1 is only supported for kafka and http sinks")
+	}
+	if c.Sink != "kafka" && c.BatchSize > 1 {
+		return errors.New("--batch-size > 1 is only supported for kafka sink")
 	}
 	return nil
 }
