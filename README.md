@@ -316,7 +316,7 @@ The matching event in `event_plan.jsonl` now references the concrete asset id:
 
 ## Project status
 
-Current version: **v0.7.1** — Runtime Observability / Prometheus Metrics
+Current version: **v0.7.2** — Kafka Batching / Worker Pool
 
 What works:
 
@@ -357,10 +357,11 @@ What works:
 - v0.7.0: Multi-scenario benchmark suites, scorecards, and local leaderboard
   via `eventweave benchmark list / run / leaderboard`
 - v0.7.1: Go runtime observability with Prometheus metrics and `/healthz`
+- v0.7.2: Kafka batching and worker pool for high-throughput kafka/http sinks
 
 What is planned:
 
-- v0.7.x: Kafka batching and additional sinks
+- v0.8: TBD
 
 ## Pack Ecosystem
 
