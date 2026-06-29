@@ -2,6 +2,21 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.9.1] - 2026-06-29
+
+### Added
+
+- Security vendor encoders (v0.9.1):
+  - International: `fortinet-fortigate`, `paloalto-traffic`, `zeek-conn`,
+    `zeek-dns`, `dns-json`
+  - Domestic (China): `sangfor-af`, `huawei-usg`, `h3c-secpath`,
+    `topsec-ngfw`, `qianxin-ngfw`, `hillstone-ngfw`, `dbappsecurity-waf`,
+    `nsfocus-ips`
+- Go runtime implementations for all v0.9.1 security encoders under
+  `runtime-go/internal/encoder/security/`.
+- Tests for Python and Go v0.9.1 encoders.
+- Updated `docs/encoders.md` with the new encoder catalog and required fields.
+
 ## [0.9.0] - 2026-06-29
 
 ### Added

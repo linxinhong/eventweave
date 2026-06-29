@@ -23,6 +23,19 @@ automatically when the registry is queried:
 |------|--------|--------------|
 | `suricata-eve` | Suricata EVE JSON | `application/x-ndjson` |
 | `windows-event-json` | Windows Event Log JSON | `application/x-ndjson` |
+| `fortinet-fortigate` | Fortinet FortiGate key=value log | `text/plain` |
+| `paloalto-traffic` | Palo Alto Networks traffic CSV | `text/csv` |
+| `zeek-conn` | Zeek `conn.log` TSV | `text/tab-separated-values` |
+| `zeek-dns` | Zeek `dns.log` TSV | `text/tab-separated-values` |
+| `dns-json` | Normalized DNS JSON | `application/json` |
+| `sangfor-af` | Sangfor AF key=value log | `text/plain` |
+| `huawei-usg` | Huawei USG key=value log | `text/plain` |
+| `h3c-secpath` | H3C SecPath key=value log | `text/plain` |
+| `topsec-ngfw` | Topsec NGFW key=value log | `text/plain` |
+| `qianxin-ngfw` | Qianxin NGFW key=value log | `text/plain` |
+| `hillstone-ngfw` | Hillstone NGFW key=value log | `text/plain` |
+| `dbappsecurity-waf` | DBAPPSecurity WAF JSON | `application/json` |
+| `nsfocus-ips` | NSFOCUS IPS JSON | `application/json` |
 
 ## Usage
 
@@ -98,6 +111,16 @@ Encode failed for evt-001: missing required fields: request, status, body_bytes_
 - `nginx-access`: `remote_addr`, `request`, `status`, `body_bytes_sent`
 - `suricata-eve`: `event_type`, `src_ip`, `dest_ip`
 - `windows-event-json`: `EventID`
+- `fortinet-fortigate`: `devname`, `type`, `subtype`, `srcip`, `dstip`, `action`
+- `paloalto-traffic`: `receive_time`, `serial`, `src`, `dst`, `sport`, `dport`,
+  `proto`, `action`
+- `zeek-conn`: `uid`, `id.orig_h`, `id.orig_p`, `id.resp_h`, `id.resp_p`, `proto`
+- `zeek-dns`: `uid`, `id.orig_h`, `id.orig_p`, `id.resp_h`, `id.resp_p`, `query`
+- `dns-json`: `client_ip`, `query`, `qtype`
+- `sangfor-af`, `huawei-usg`, `h3c-secpath`, `topsec-ngfw`, `qianxin-ngfw`,
+  `hillstone-ngfw`: `devname`, `srcip`, `dstip`, `action`
+- `dbappsecurity-waf`: `devname`, `srcip`, `dstip`, `url`, `attack_type`
+- `nsfocus-ips`: `devname`, `srcip`, `dstip`, `attack_name`
 - `syslog-rfc3164` / `syslog-rfc5424`: no required fields; uses defaults for
   facility (`16`), severity (`6`), hostname (`source_id`), and tag (`source_id`).
 
