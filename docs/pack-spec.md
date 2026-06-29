@@ -289,8 +289,9 @@ Validation checks:
 - `realism/profiles.yaml` parses if present.
 - Each entity and event schema has a `type` matching its key.
 - Every example scenario compiles successfully.
+- Encoder mappings in `pack.yaml` reference registered encoders and known event types.
 
-## v0.5 limitations
+## Current limitations
 
 - No dynamic Python rule plugins.
 - No remote pack marketplace.
@@ -301,5 +302,5 @@ Validation checks:
 
 - Remote pack registry and `eventweave pack install`.
 - Semantic dependency resolution.
-- `encoders/` directory for domain-specific output formats.
+- Per-endpoint encoder configuration in `eventweave-runtime serve`.
 - `tests/` directory for pack-level tests.
