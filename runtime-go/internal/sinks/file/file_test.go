@@ -14,7 +14,7 @@ import (
 func TestFileSinkWritesJSONL(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "events.jsonl")
-	sink := New(path)
+	sink := New(path, dir)
 	if err := sink.Open(); err != nil {
 		t.Fatalf("open: %v", err)
 	}
@@ -46,5 +46,21 @@ func TestFileSinkWritesJSONL(t *testing.T) {
 	}
 	if len(ids) != 2 || ids[0] != "e1" || ids[1] != "e2" {
 		t.Fatalf("unexpected ids: %+v", ids)
+	}
+}
+
+func TestFileSinkRejectsTraversal(t *testing.T) {
+	dir := t.TempDir()
+	sink := New("../etc/passwd", dir)
+	if err := sink.Open(); err == nil {
+		t.Fatal("expected error for path traversal")
+	}
+}
+
+func TestFileSinkRejectsAbsoluteOutsideOutputDir(t *testing.T) {
+	dir := t.TempDir()
+	sink := New("/etc/passwd", dir)
+	if err := sink.Open(); err == nil {
+		t.Fatal("expected error for absolute path outside output directory")
 	}
 }

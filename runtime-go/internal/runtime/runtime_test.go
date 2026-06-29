@@ -159,12 +159,13 @@ func TestLocalRuntimeMaxFailuresStop(t *testing.T) {
 	dir := t.TempDir()
 	// Use http sink pointing to an invalid port to force failures.
 	rt, err := New(config.RuntimeConfig{
-		PlanDir:     dir,
-		Sink:        "http",
-		URL:         "http://127.0.0.1:1/events",
-		NoWait:      true,
-		MaxFailures: 1,
-		Timeout:     100 * time.Millisecond,
+		PlanDir:          dir,
+		Sink:             "http",
+		URL:              "http://127.0.0.1:1/events",
+		AllowInternalURL: true,
+		NoWait:           true,
+		MaxFailures:      1,
+		Timeout:          100 * time.Millisecond,
 	})
 	if err != nil {
 		t.Fatalf("new runtime: %v", err)

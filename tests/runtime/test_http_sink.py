@@ -51,7 +51,7 @@ def test_http_sink_posts_events():
     server = _start_server(_OKHandler)
     try:
         url = f"http://127.0.0.1:{server.server_port}/events"
-        sink = HTTPSink(url)
+        sink = HTTPSink(url, allow_internal=True)
         sink.open()
         sink.write(_event("e1"))
         sink.write(_event("e2"))
@@ -70,7 +70,7 @@ def test_http_sink_counts_failures():
     server = _start_server(_FailHandler)
     try:
         url = f"http://127.0.0.1:{server.server_port}/events"
-        sink = HTTPSink(url)
+        sink = HTTPSink(url, allow_internal=True)
         sink.open()
         sink.write(_event())
         sink.close()
@@ -100,7 +100,7 @@ def test_http_sink_retry_on_server_error():
     server = _start_server(_OnceHandler)
     try:
         url = f"http://127.0.0.1:{server.server_port}/events"
-        sink = HTTPSink(url, retries=1)
+        sink = HTTPSink(url, retries=1, allow_internal=True)
         sink.open()
         sink.write(_event())
         sink.close()
@@ -128,7 +128,7 @@ def test_http_sink_no_retry_on_4xx():
     server = _start_server(_NotFoundHandler)
     try:
         url = f"http://127.0.0.1:{server.server_port}/events"
-        sink = HTTPSink(url, retries=2)
+        sink = HTTPSink(url, retries=2, allow_internal=True)
         sink.open()
         sink.write(_event())
         sink.close()

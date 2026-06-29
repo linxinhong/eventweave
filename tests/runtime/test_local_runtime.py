@@ -60,7 +60,7 @@ def test_file_sink_writes_jsonl(tmp_path):
         ],
     )
     output = tmp_path / "out.jsonl"
-    sink = FileSink(output)
+    sink = FileSink(output, output_dir=tmp_path)
     runtime = LocalRuntime(plan_dir, sink=sink, no_wait=True)
     runtime.run()
 

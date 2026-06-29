@@ -24,7 +24,10 @@ func TestHTTPSinkPostsEvents(t *testing.T) {
 	}))
 	defer server.Close()
 
-	sink := New(server.URL, 5*time.Second, 0)
+	sink, err := New(server.URL, 5*time.Second, 0, true)
+	if err != nil {
+		t.Fatalf("new: %v", err)
+	}
 	if err := sink.Open(); err != nil {
 		t.Fatalf("open: %v", err)
 	}
@@ -42,7 +45,10 @@ func TestHTTPSinkCountsFailures(t *testing.T) {
 	}))
 	defer server.Close()
 
-	sink := New(server.URL, 5*time.Second, 0)
+	sink, err := New(server.URL, 5*time.Second, 0, true)
+	if err != nil {
+		t.Fatalf("new: %v", err)
+	}
 	if err := sink.Open(); err != nil {
 		t.Fatalf("open: %v", err)
 	}
@@ -66,7 +72,10 @@ func TestHTTPSinkRetriesOn5xx(t *testing.T) {
 	}))
 	defer server.Close()
 
-	sink := New(server.URL, 5*time.Second, 1)
+	sink, err := New(server.URL, 5*time.Second, 1, true)
+	if err != nil {
+		t.Fatalf("new: %v", err)
+	}
 	if err := sink.Open(); err != nil {
 		t.Fatalf("open: %v", err)
 	}
@@ -86,7 +95,10 @@ func TestHTTPSinkNoRetryOn4xx(t *testing.T) {
 	}))
 	defer server.Close()
 
-	sink := New(server.URL, 5*time.Second, 2)
+	sink, err := New(server.URL, 5*time.Second, 2, true)
+	if err != nil {
+		t.Fatalf("new: %v", err)
+	}
 	if err := sink.Open(); err != nil {
 		t.Fatalf("open: %v", err)
 	}
@@ -95,5 +107,40 @@ func TestHTTPSinkNoRetryOn4xx(t *testing.T) {
 	}
 	if requests != 1 {
 		t.Fatalf("expected 1 request, got %d", requests)
+	}
+}
+
+func TestIsSafeURLRejectsInternal(t *testing.T) {
+	cases := []string{
+		"http://127.0.0.1/events",
+		"http://10.0.0.1/events",
+		"http://192.168.1.1/events",
+		"http://172.16.0.1/events",
+		"http://169.254.169.254/latest/meta-data/",
+		"http://[::1]/events",
+		"http://localhost/events",
+		"http://metadata/events",
+		"http://metadata.google.internal/",
+		"http://my-service.local/events",
+		"http://my-service.internal/events",
+		"file:///etc/passwd",
+		"ftp://example.com/events",
+	}
+	for _, raw := range cases {
+		if err := IsSafeURL(raw, false); err == nil {
+			t.Errorf("expected rejection for %q", raw)
+		}
+	}
+}
+
+func TestIsSafeURLAcceptsWhenAllowed(t *testing.T) {
+	if err := IsSafeURL("http://127.0.0.1/events", true); err != nil {
+		t.Fatalf("expected allowed: %v", err)
+	}
+}
+
+func TestHTTPSinkNewRejectsInternal(t *testing.T) {
+	if _, err := New("http://127.0.0.1/events", 5*time.Second, 0, false); err == nil {
+		t.Fatal("expected error for internal URL")
 	}
 }

@@ -49,12 +49,22 @@ func NewWithMode(cfg config.RuntimeConfig, mode string) (*LocalRuntime, error) {
 	case "stdout":
 		s = stdoutSink.New()
 	case "file":
-		s = fileSink.New(cfg.Output)
+		if err := fileSink.ValidatePath(cfg.Output, cfg.OutputDir); err != nil {
+			return nil, err
+		}
+		s = fileSink.New(cfg.Output, cfg.OutputDir)
 		target = cfg.Output
 	case "null":
 		s = nullSink.New()
 	case "http":
-		s = httpSink.New(cfg.URL, cfg.Timeout, cfg.Retries)
+		if err := httpSink.IsSafeURL(cfg.URL, cfg.AllowInternalURL); err != nil {
+			return nil, err
+		}
+		hs, err := httpSink.New(cfg.URL, cfg.Timeout, cfg.Retries, cfg.AllowInternalURL)
+		if err != nil {
+			return nil, err
+		}
+		s = hs
 		target = cfg.URL
 	case "kafka":
 		if cfg.BatchSize > 1 {

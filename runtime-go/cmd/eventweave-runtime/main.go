@@ -211,7 +211,9 @@ func stopMetrics(ms *metrics.MetricsServer) {
 func addRuntimeFlags(cmd *cobra.Command, cfg *config.RuntimeConfig) {
 	cmd.Flags().StringVar(&cfg.Sink, "sink", "stdout", "Output sink: stdout, file, null, http, kafka, syslog")
 	cmd.Flags().StringVar(&cfg.Output, "output", "out/events.jsonl", "Output path for file sink")
+	cmd.Flags().StringVar(&cfg.OutputDir, "output-dir", ".", "Allowed output directory for file sink")
 	cmd.Flags().StringVar(&cfg.URL, "url", "", "Target URL for http sink")
+	cmd.Flags().BoolVar(&cfg.AllowInternalURL, "allow-internal-url", false, "Allow http sink to send to internal/private URLs")
 	cmd.Flags().Float64Var(&cfg.Speed, "speed", 1.0, "Time acceleration factor")
 	cmd.Flags().BoolVar(&cfg.NoWait, "no-wait", false, "Emit all events immediately")
 	cmd.Flags().Float64Var(&cfg.Rate, "rate", 0, "Target events per second (mutually exclusive with --speed and --no-wait)")

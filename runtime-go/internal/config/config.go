@@ -2,37 +2,41 @@ package config
 
 import (
 	"errors"
+	"fmt"
+	"path/filepath"
 	"strings"
 	"time"
 )
 
 // RuntimeConfig holds CLI options for the local runtime.
 type RuntimeConfig struct {
-	PlanDir string
-	Sink    string
-	Output  string
-	URL     string
-	Speed   float64
-	NoWait  bool
-	Limit   int
-	Timeout      time.Duration
-	Retries      int
-	Brokers      string
-	Topic        string
-	KeyField     string
-	Facility     int
-	Severity     int
-	Tag          string
-	SyslogProto  string
-	SyslogAddr   string
-	Rate         float64
-	MaxFailures  int
-	StatsJSON    string
-	BatchSize    int
-	BatchTimeout time.Duration
-	Workers      int
-	QueueSize    int
-	OnQueueFull  string
+	PlanDir          string
+	Sink             string
+	Output           string
+	OutputDir        string
+	URL              string
+	AllowInternalURL bool
+	Speed            float64
+	NoWait           bool
+	Limit            int
+	Timeout          time.Duration
+	Retries          int
+	Brokers          string
+	Topic            string
+	KeyField         string
+	Facility         int
+	Severity         int
+	Tag              string
+	SyslogProto      string
+	SyslogAddr       string
+	Rate             float64
+	MaxFailures      int
+	StatsJSON        string
+	BatchSize        int
+	BatchTimeout     time.Duration
+	Workers          int
+	QueueSize        int
+	OnQueueFull      string
 }
 
 // Validate checks that the config is usable.
@@ -50,6 +54,13 @@ func (c *RuntimeConfig) Validate() error {
 	}
 	if c.Sink == "file" && c.Output == "" {
 		return errors.New("--output is required for file sink")
+	}
+	if c.OutputDir == "" {
+		var err error
+		c.OutputDir, err = filepath.Abs(".")
+		if err != nil {
+			return fmt.Errorf("resolve output directory: %w", err)
+		}
 	}
 	if c.Sink == "kafka" && c.Brokers == "" {
 		return errors.New("--brokers is required for kafka sink")

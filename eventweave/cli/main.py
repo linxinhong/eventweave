@@ -155,6 +155,9 @@ def export(
     output: Annotated[Path, typer.Option("--output", "-o", help="Output file path.")] = Path(
         "out/events.jsonl"
     ),
+    output_dir: Annotated[
+        Path, typer.Option("--output-dir", help="Allowed output directory for file paths.")
+    ] = Path("."),
 ) -> None:
     """Export events from a compiled runtime plan."""
     event_plan_path = plan_dir / "event_plan.jsonl"
@@ -166,14 +169,19 @@ def export(
         console.print(f"[red]Unsupported export format: {format}[/red]")
         raise typer.Exit(code=1)
 
+    # Resolve output within the allowed directory to prevent path traversal.
+    from eventweave.runtime.sinks.file import _resolve_within_output_dir
+
+    safe_output = _resolve_within_output_dir(output, output_dir)
+
     # Copy canonical events to output path.
-    output.parent.mkdir(parents=True, exist_ok=True)
+    safe_output.parent.mkdir(parents=True, exist_ok=True)
     with event_plan_path.open("r", encoding="utf-8") as src:
         content = src.read()
-    with output.open("w", encoding="utf-8") as dst:
+    with safe_output.open("w", encoding="utf-8") as dst:
         dst.write(content)
 
-    console.print(f"[green]Exported {event_plan_path} -> {output}[/green]")
+    console.print(f"[green]Exported {event_plan_path} -> {safe_output}[/green]")
 
 
 @app.command()
@@ -502,6 +510,9 @@ def run(
     output: Annotated[
         Path, typer.Option("--output", "-o", help="Output path for file sink.")
     ] = Path("out/events.jsonl"),
+    output_dir: Annotated[
+        Path, typer.Option("--output-dir", help="Allowed output directory for file sink.")
+    ] = Path("."),
     speed: Annotated[
         float, typer.Option("--speed", help="Time acceleration factor.")
     ] = 1.0,
@@ -515,6 +526,12 @@ def run(
         str | None,
         typer.Option("--url", help="Target URL for http sink."),
     ] = None,
+    allow_internal_url: Annotated[
+        bool,
+        typer.Option(
+            "--allow-internal-url", help="Allow http sink to send to internal/private URLs."
+        ),
+    ] = False,
     timeout: Annotated[
         float, typer.Option("--timeout", help="HTTP request timeout in seconds.")
     ] = 5.0,
@@ -531,12 +548,18 @@ def run(
     if dry_run:
         effective_sink = NullSink()
     elif sink == "file":
-        effective_sink = FileSink(output)
+        effective_sink = FileSink(output, output_dir=output_dir)
     elif sink == "http":
         if not url:
             console.print("[red]--url is required for http sink[/red]")
             raise typer.Exit(code=1)
-        effective_sink = HTTPSink(url, timeout=timeout, retries=retries)
+        try:
+            effective_sink = HTTPSink(
+                url, timeout=timeout, retries=retries, allow_internal=allow_internal_url
+            )
+        except ValueError as exc:
+            console.print(f"[red]Invalid http sink URL: {exc}[/red]")
+            raise typer.Exit(code=1) from exc
     elif sink == "null":
         effective_sink = NullSink()
     elif sink == "stdout":

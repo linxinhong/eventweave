@@ -30,10 +30,10 @@ eventweave run dist/ecommerce_refund_flow_semantic --dry-run
 # Emit only the first N events
 eventweave run dist/ecommerce_refund_flow_semantic --sink stdout --limit 5
 
-# Stream to a local HTTP endpoint
+# Stream to a local HTTP endpoint (requires opt-in because 127.0.0.1 is internal)
 python examples/receivers/http_receiver.py &
 eventweave run dist/ecommerce_refund_flow_semantic \
-  --sink http --url http://127.0.0.1:8080/events --no-wait
+  --sink http --url http://127.0.0.1:8080/events --allow-internal-url --no-wait
 ```
 
 ## Sinks
@@ -60,6 +60,28 @@ eventweave run dist/ecommerce_refund_flow_semantic \
 - `--timeout` controls the request timeout in seconds (default 5.0).
 - `--retries` controls retry attempts for transient failures (5xx, connection
   errors). 4xx responses are not retried.
+- `--allow-internal-url` permits the `http` sink to send to internal/private
+  hosts. It is disabled by default to protect against SSRF.
+
+### File sink options
+
+```bash
+eventweave run dist/ecommerce_refund_flow_semantic \
+  --sink file --output out/events.jsonl --output-dir . --no-wait
+```
+
+- `--output` is the target file path.
+- `--output-dir` is the allowed directory (default `.`). The resolved output
+  path must be contained within it; path traversal is rejected.
+
+## Security defaults
+
+- The `http` sink only allows `http://` and `https://` URLs and rejects
+  loopback, link-local, private, reserved, and multicast addresses, plus common
+  internal hostnames such as `localhost` and `metadata.google.internal`.
+- HTTP redirects are disabled so a public URL cannot pivot to an internal host.
+- The `file` sink refuses paths that escape `--output-dir`.
+- Use `--allow-internal-url` only in trusted local/test environments.
 
 ## Runtime output
 
@@ -149,7 +171,7 @@ lines. Use it with:
 
 ```bash
 eventweave run dist/ecommerce_refund_flow_semantic \
-  --sink http --url http://127.0.0.1:8080/events --no-wait
+  --sink http --url http://127.0.0.1:8080/events --allow-internal-url --no-wait
 ```
 
 ## Limitations

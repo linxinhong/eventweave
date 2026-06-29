@@ -10,11 +10,31 @@ from eventweave.core.event import Event
 from eventweave.runtime.sink import Sink
 
 
-class FileSink(Sink):
-    """Append events to a JSONL file."""
+def _resolve_within_output_dir(target: Path, output_dir: Path) -> Path:
+    """Resolve *target* against *output_dir* and ensure it stays within it."""
+    base = output_dir.expanduser().resolve()
+    resolved = target.resolve() if target.is_absolute() else (base / target).resolve()
 
-    def __init__(self, path: str | Path) -> None:
-        self.path = Path(path)
+    try:
+        resolved.relative_to(base)
+    except ValueError as exc:
+        raise ValueError(
+            f"file sink path {target} escapes output directory {output_dir}"
+        ) from exc
+
+    return resolved
+
+
+class FileSink(Sink):
+    """Append events to a JSONL file within a constrained output directory."""
+
+    def __init__(
+        self,
+        path: str | Path,
+        output_dir: str | Path,
+    ) -> None:
+        self.output_dir = Path(output_dir)
+        self.path = _resolve_within_output_dir(Path(path), self.output_dir)
         self._count = 0
         self._file: TextIO | None = None
 

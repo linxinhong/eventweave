@@ -34,9 +34,9 @@ eventweave-runtime run dist/ecommerce_refund_flow_semantic \
 # Emit only the first 5 events
 eventweave-runtime run dist/ecommerce_refund_flow_semantic --sink stdout --limit 5
 
-# Stream to HTTP receiver
+# Stream to HTTP receiver (requires opt-in because 127.0.0.1 is internal)
 eventweave-runtime run dist/ecommerce_refund_flow_semantic \
-  --sink http --url http://127.0.0.1:8080/events --no-wait
+  --sink http --url http://127.0.0.1:8080/events --allow-internal-url --no-wait
 
 # Stream to Kafka
 eventweave-runtime run dist/ecommerce_refund_flow_semantic \
@@ -66,7 +66,9 @@ eventweave-runtime run dist/ecommerce_refund_flow_semantic \
 |---------------------|-----------------------------------------------------------|
 | `--sink`            | `stdout`, `file`, `null`, `http`, `kafka`, `syslog`       |
 | `--output`          | Output path for `file` sink                               |
+| `--output-dir`      | Allowed output directory for `file` sink (default `.`)    |
 | `--url`             | Target URL for `http` sink                                |
+| `--allow-internal-url` | Permit `http` sink to send to internal/private URLs    |
 | `--brokers`         | Kafka broker list, comma-separated                        |
 | `--topic`           | Kafka topic                                               |
 | `--key-field`       | Kafka message key: `event_id`, `flow_id`, `source_id`, `''` |
@@ -181,6 +183,15 @@ Kafka message keys are controlled by `--key-field`:
 The Go runtime emits events in the same order as the Python local runtime:
 `sorted by event_time, then event_id`. Given the same compiled plan, both
 runtimes produce identical output.
+
+## Security defaults
+
+- The `http` sink only allows `http://` and `https://` URLs and rejects
+  loopback, link-local, private, reserved, and multicast addresses, plus common
+  internal hostnames such as `localhost` and `metadata.google.internal`.
+- HTTP redirects are disabled so a public URL cannot pivot to an internal host.
+- The `file` sink refuses paths that escape `--output-dir`.
+- Use `--allow-internal-url` only in trusted local/test environments.
 
 ## Limitations
 
