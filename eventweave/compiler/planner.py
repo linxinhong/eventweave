@@ -3,10 +3,13 @@
 from __future__ import annotations
 
 import random
-import re
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
+from eventweave.compiler.duration import DurationParseError as _DurationParseError
+from eventweave.compiler.duration import parse_duration
+from eventweave.compiler.jitter import JitterApplier
+from eventweave.compiler.noise_generator import NoiseGenerator
 from eventweave.compiler.pack_loader import PackRegistry
 from eventweave.core.entity import Entity
 from eventweave.core.event import Event
@@ -124,6 +127,7 @@ class TimelineExpander:
         flow_events: list[Event] = []
         flow_id = primary_entity.id
         current_time = self.start_time
+        prev_event_time: datetime | None = None
 
         # Track previous events by step id (preferred) and event type (fallback).
         last_event_by_id: dict[str, Event] = {}
@@ -146,6 +150,18 @@ class TimelineExpander:
                 base = last_event_by_id.get(item.after) or last_event_by_type.get(item.after)
                 base_time = base.event_time if base is not None else current_time
                 current_time = base_time + self._parse_delay(item.delay)
+
+            # Apply per-step jitter if configured.
+            if item.jitter is not None:
+                max_offset = parse_duration(item.jitter)
+                offset_seconds = self.rng.uniform(
+                    -max_offset.total_seconds(), max_offset.total_seconds()
+                )
+                current_time = current_time + timedelta(seconds=offset_seconds)
+                if prev_event_time is not None:
+                    min_time = prev_event_time + timedelta(microseconds=1)
+                    if current_time < min_time:
+                        current_time = min_time
 
             # Resolve source id.
             source_id = item.source or self._default_source_id()
@@ -177,6 +193,7 @@ class TimelineExpander:
             flow_events.append(event)
             last_event_by_id[step_id] = event
             last_event_by_type[item.event] = event
+            prev_event_time = current_time
 
         return flow_events
 
@@ -261,16 +278,19 @@ class TimelineExpander:
         return f"evt-{scenario_slug}-{flow_index:03d}-{step_index:03d}"
 
     def _parse_duration(self, value: str) -> timedelta:
-        return _parse_duration(value)
+        try:
+            return parse_duration(value)
+        except _DurationParseError as exc:
+            raise CompileError(str(exc)) from exc
 
     def _parse_delay(self, value: str) -> timedelta:
         if ".." in value:
             low, high = value.split("..", 1)
-            low_td = _parse_duration(low)
-            high_td = _parse_duration(high)
+            low_td = self._parse_duration(low)
+            high_td = self._parse_duration(high)
             seconds = self.rng.uniform(low_td.total_seconds(), high_td.total_seconds())
             return timedelta(seconds=seconds)
-        return _parse_duration(value)
+        return self._parse_duration(value)
 
 
 class ScenarioPlanner:
@@ -295,6 +315,18 @@ class ScenarioPlanner:
         expander = TimelineExpander(scenario, entities, seed=seed)
         events, relations, warnings = expander.expand()
 
+        # Generate background noise.
+        noise_gen = NoiseGenerator(scenario, entities, seed=seed)
+        noise_events = noise_gen.generate(events)
+        events.extend(noise_events)
+
+        # Apply timestamp jitter.
+        jitter_applier = JitterApplier(scenario, seed=seed)
+        events = jitter_applier.apply(events)
+
+        # Final deterministic sort: time first, then event id.
+        events.sort(key=lambda e: (e.event_time, e.event_id))
+
         # Collect sources.
         sources = list(scenario.sources)
 
@@ -308,30 +340,3 @@ class ScenarioPlanner:
         return plan, warnings
 
 
-_DURATION_RE = re.compile(
-    r"^\s*(?:(?P<hours>\d+)h)?\s*(?:(?P<minutes>\d+)m)?\s*(?:(?P<seconds>\d+(?:\.\d+)?)s)?\s*$"
-)
-
-_HMS_RE = re.compile(r"^(?P<hours>\d+):(?P<minutes>\d{2}):(?P<seconds>\d{2}(?:\.\d+)?)$")
-
-
-def _parse_duration(value: str) -> timedelta:
-    value = value.strip()
-
-    # HH:MM:SS format, e.g. 00:01:30
-    hms_match = _HMS_RE.match(value)
-    if hms_match:
-        hours = float(hms_match.group("hours"))
-        minutes = float(hms_match.group("minutes"))
-        seconds = float(hms_match.group("seconds"))
-        return timedelta(hours=hours, minutes=minutes, seconds=seconds)
-
-    # Compact format, e.g. 1h30m10s, 5m, 30s
-    match = _DURATION_RE.match(value)
-    if match and any(match.groupdict().values()):
-        hours = float(match.group("hours") or 0)
-        minutes = float(match.group("minutes") or 0)
-        seconds = float(match.group("seconds") or 0)
-        return timedelta(hours=hours, minutes=minutes, seconds=seconds)
-
-    raise CompileError(f"Invalid duration format: {value!r}")

@@ -86,6 +86,12 @@ eventweave benchmark run \
 eventweave benchmark leaderboard scorecards/security.json
 ```
 
+## Realism and noise
+
+Scenarios in benchmark suites can use `noise:` and `jitter:` to generate more
+realistic datasets. After compiling, run `eventweave quality realism <plan-dir>`
+to inspect noise ratio, burstiness, and other realism metrics.
+
 ## Authoring a new suite
 
 1. Ensure each referenced scenario declares `ground_truth`.

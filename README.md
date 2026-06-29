@@ -172,6 +172,10 @@ eventweave benchmark run \
 # Start the local observability demo stack
 make demo-stack
 
+# Generate a synthetic realism report for a compiled plan
+eventweave quality realism dist/security_lateral_movement
+eventweave quality realism dist/security_lateral_movement --output realism.json
+
 # Export events as JSONL
 eventweave export dist/ecommerce_refund_flow --format jsonl --output out/events.jsonl
 ```
@@ -327,7 +331,7 @@ The matching event in `event_plan.jsonl` now references the concrete asset id:
 
 ## Project status
 
-Current version: **v0.7.4** — Demo Stack / Observability Examples
+Current version: **v0.8.0** — Synthetic Realism / Dataset Quality Tools
 
 What works:
 
@@ -373,6 +377,8 @@ What works:
   scenarios, plus `eventweave benchmark validate` dataset quality gate
 - v0.7.4: Local observability demo stack with Redpanda, Prometheus, Grafana,
   multi-source runtime receivers, and a starter dashboard
+- v0.8.0: Synthetic realism tools — background noise, time jitter, and
+  `eventweave quality realism` reports
 
 What is planned:
 

@@ -37,3 +37,7 @@ class TimelineItem(BaseModel):
     entity_refs: dict[str, str] = Field(default_factory=dict)
     labels: list[str] = Field(default_factory=list)
     ground_truth: dict[str, Any] = Field(default_factory=dict)
+    jitter: str | None = Field(
+        default=None,
+        description="Optional per-step max jitter override, e.g. 5s.",
+    )

@@ -213,6 +213,45 @@ Supported rule types in v0.1:
 
 By default rule violations are reported as warnings. Use `--strict` to treat them as errors.
 
+## Background noise
+
+Add normal background events around the ground-truth timeline:
+
+```yaml
+noise:
+  enabled: true
+  ratio: 5.0
+  events:
+    - event: user.login.success
+      weight: 5
+    - event: dns.query
+      weight: 10
+```
+
+- `ratio` — noise events per timeline event.
+- `events` — templates with relative `weight`.
+- Noise events are tagged `ground_truth.noise: true`.
+
+## Time jitter
+
+Perturb timestamps deterministically:
+
+```yaml
+jitter:
+  enabled: true
+  max_offset: 10s
+  preserve_order: true
+```
+
+Override jitter for a single step:
+
+```yaml
+timeline:
+  - id: alert_triggered
+    event: alert.triggered
+    jitter: 2s
+```
+
 ## Time formats
 
 - `1h30m10s`

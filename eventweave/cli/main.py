@@ -21,6 +21,7 @@ from eventweave.compiler.pack_loader import PackLoadError, PackRegistry
 from eventweave.compiler.writer import PlanWriter
 from eventweave.core.event import Event
 from eventweave.core.ground_truth import GroundTruth
+from eventweave.core.runtime_plan import RuntimePlan
 from eventweave.core.scenario import Scenario
 from eventweave.core.semantic import SemanticPool, SemanticTask
 from eventweave.evaluation.agent_output import AgentOutput
@@ -29,6 +30,7 @@ from eventweave.evaluation.evaluator import Evaluator
 from eventweave.evaluation.runner import BenchmarkRunError, load_suite, run_benchmark
 from eventweave.evaluation.validator import SuiteValidator
 from eventweave.pack.scaffold import ScaffoldError, scaffold_pack
+from eventweave.quality.realism import RealismAnalyzer
 from eventweave.runtime.local import LocalRuntime
 from eventweave.runtime.sink import Sink
 from eventweave.runtime.sinks.file import FileSink
@@ -224,6 +226,12 @@ benchmark_app = typer.Typer(
     help="Multi-scenario benchmark suites and scorecards.",
 )
 app.add_typer(benchmark_app)
+
+quality_app = typer.Typer(
+    name="quality",
+    help="Dataset quality and realism tools.",
+)
+app.add_typer(quality_app)
 
 
 def _get_registry(packs_dir: Path | None) -> PackRegistry:
@@ -847,6 +855,37 @@ def benchmark_leaderboard(
             f"{result.aggregate.get('balanced_score', 0.0):.2f}",
         )
     console.print(table)
+
+
+@quality_app.command("realism")
+def quality_realism(
+    plan_dir: Annotated[Path, typer.Argument(help="Path to compiled runtime plan directory.")],
+    output: Annotated[
+        Path | None, typer.Option("--output", "-o", help="Optional JSON path for the report.")
+    ] = None,
+) -> None:
+    """Generate a synthetic realism report for a compiled runtime plan."""
+    runtime_plan_path = plan_dir / "runtime_plan.json"
+    ground_truth_path = plan_dir / "ground_truth.json"
+
+    if not runtime_plan_path.exists():
+        console.print(f"[red]Runtime plan not found: {runtime_plan_path}[/red]")
+        raise typer.Exit(code=1)
+
+    with runtime_plan_path.open("r", encoding="utf-8") as f:
+        plan = RuntimePlan.model_validate(json.load(f))
+    ground_truth = None
+    if ground_truth_path.exists():
+        with ground_truth_path.open("r", encoding="utf-8") as f:
+            ground_truth = GroundTruth.model_validate(json.load(f))
+
+    report = RealismAnalyzer(plan, ground_truth).analyze()
+    console.print(report.to_text())
+
+    if output:
+        output.parent.mkdir(parents=True, exist_ok=True)
+        output.write_text(json.dumps(report.to_dict(), indent=2), encoding="utf-8")
+        console.print(f"[green]Report written to {output}[/green]")
 
 
 if __name__ == "__main__":
