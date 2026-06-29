@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.8.5] - 2026-06-29
+
+Same changes as the originally-planned v0.8.4 release; version bumped to
+0.8.5 because the v0.8.4 tag already pointed to an earlier commit.
+
 ## [0.8.4] - 2026-06-29
 
 ### Security

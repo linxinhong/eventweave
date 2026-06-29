@@ -346,7 +346,7 @@ The matching event in `event_plan.jsonl` now references the concrete asset id:
 
 ## Project status
 
-Current version: **v0.8.4** — Security, Evaluation, and Runtime Hardening
+Current version: **v0.8.5** — Security, Evaluation, and Runtime Hardening
 
 What works:
 
@@ -400,7 +400,7 @@ What works:
 - v0.8.2: Pack realism profiles — reusable `noise:` / `jitter:` templates in
   `packs/<domain>/realism/profiles.yaml`, referenced by scenarios via
   `realism_profile: <pack>.<profile>`
-- v0.8.4: Security, evaluation, and runtime hardening — sink SSRF/path-traversal
+- v0.8.4 / v0.8.5: Security, evaluation, and runtime hardening — sink SSRF/path-traversal
   protection, CLI command split, evaluation decoupled from runtime compilation
   with `eventweave eval prepare`, HTTP retry governance, AI cache key
   collision fix, lazy metrics registration, Go config upper bounds, and an
