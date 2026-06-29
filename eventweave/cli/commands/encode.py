@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections import Counter
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Annotated
 
@@ -12,8 +13,99 @@ from rich.table import Table
 from eventweave.cli.helpers import console
 from eventweave.core.event import Event
 from eventweave.encoders import GO_ENCODER_NAMES
+from eventweave.encoders.base import Encoder
+from eventweave.encoders.enrichment import (
+    EnrichmentProfile,
+    enrich_event,
+    get_enrichment_profile,
+)
 from eventweave.encoders.registry import get_encoder, list_encoders
 from eventweave.runtime.sinks.file import _resolve_within_output_dir
+
+
+@dataclass
+class PreflightResult:
+    """Aggregated preflight statistics."""
+
+    total: int = 0
+    success: int = 0
+    failures_by_type: Counter[str] = field(default_factory=Counter)
+    missing_fields: Counter[str] = field(default_factory=Counter)
+    sample_reasons: dict[str, str] = field(default_factory=dict)
+
+    @property
+    def failed(self) -> int:
+        return self.total - self.success
+
+    @property
+    def percentage(self) -> float:
+        return (self.success / self.total * 100) if self.total else 0.0
+
+
+def _run_preflight(
+    event_plan_path: Path, encoder: Encoder, profile: EnrichmentProfile | None
+) -> PreflightResult:
+    """Run preflight against the event plan."""
+    result = PreflightResult()
+    with event_plan_path.open("r", encoding="utf-8") as src:
+        for line in src:
+            line = line.strip()
+            if not line:
+                continue
+            event = Event.model_validate_json(line)
+            result.total += 1
+            if profile is not None:
+                event = enrich_event(event, profile)
+            encoded = encoder.encode(event)
+            if encoded.success:
+                result.success += 1
+                continue
+
+            result.failures_by_type[event.event_type] += 1
+            if event.event_type not in result.sample_reasons:
+                reason = encoded.error_reason or "unknown"
+                result.sample_reasons[event.event_type] = reason
+            if (
+                encoded.error_reason
+                and encoded.error_reason.startswith("missing required fields:")
+            ):
+                fields_part = encoded.error_reason.split(":", 1)[1]
+                for fld in fields_part.split(","):
+                    result.missing_fields[fld.strip()] += 1
+    return result
+
+
+def _print_preflight(result: PreflightResult, encoder: str, title_suffix: str = "") -> None:
+    title = f"Preflight: {encoder}"
+    if title_suffix:
+        title = f"{title} ({title_suffix})"
+    summary = Table(title=title)
+    summary.add_column("Metric", style="cyan")
+    summary.add_column("Value", style="magenta")
+    summary.add_row("Total events", str(result.total))
+    summary.add_row("Encodable", str(result.success))
+    summary.add_row("Failed", str(result.failed))
+    summary.add_row("Encodable %", f"{result.percentage:.1f}%")
+    console.print(summary)
+
+    if result.failures_by_type:
+        by_type_table = Table(title="Failures by event type")
+        by_type_table.add_column("Event type", style="cyan")
+        by_type_table.add_column("Count", style="magenta")
+        by_type_table.add_column("Sample reason", style="dim")
+        for event_type, count in result.failures_by_type.most_common():
+            by_type_table.add_row(
+                event_type, str(count), result.sample_reasons.get(event_type, "")
+            )
+        console.print(by_type_table)
+
+    if result.missing_fields:
+        missing_table = Table(title="Missing required fields")
+        missing_table.add_column("Field", style="cyan")
+        missing_table.add_column("Count", style="magenta")
+        for fld, count in result.missing_fields.most_common():
+            missing_table.add_row(fld, str(count))
+        console.print(missing_table)
 
 
 def get_app() -> typer.Typer:
@@ -40,6 +132,10 @@ def get_app() -> typer.Typer:
         skip_failed: Annotated[
             bool, typer.Option("--skip-failed", help="Skip events that fail to encode.")
         ] = False,
+        enrich: Annotated[
+            bool,
+            typer.Option("--enrich", help="Apply encoder enrichment profile before encoding."),
+        ] = False,
     ) -> None:
         """Encode events from a compiled runtime plan to a vendor/log format."""
         try:
@@ -47,6 +143,15 @@ def get_app() -> typer.Typer:
         except KeyError as exc:
             console.print(f"[red]{exc}[/red]")
             raise typer.Exit(code=1) from exc
+
+        profile: EnrichmentProfile | None = None
+        if enrich:
+            profile = get_enrichment_profile(encoder)
+            if profile is None:
+                console.print(
+                    f"[yellow]No enrichment profile found for {encoder}; "
+                    "continuing without enrichment.[/yellow]"
+                )
 
         event_plan_path = plan_dir / "event_plan.jsonl"
         if not event_plan_path.exists():
@@ -66,6 +171,8 @@ def get_app() -> typer.Typer:
                 if not line:
                     continue
                 event = Event.model_validate_json(line)
+                if profile is not None:
+                    event = enrich_event(event, profile)
                 result = enc.encode(event)
                 if not result.success:
                     failed += 1
@@ -128,6 +235,17 @@ def get_app() -> typer.Typer:
                 "--encoder", "-e", help="Encoder name (e.g. syslog-rfc3164, nginx-access)."
             ),
         ],
+        enrich: Annotated[
+            bool,
+            typer.Option("--enrich", help="Apply encoder enrichment profile before encoding."),
+        ] = False,
+        compare_enrichment: Annotated[
+            bool,
+            typer.Option(
+                "--compare-enrichment",
+                help="Show before/after comparison when --enrich is used.",
+            ),
+        ] = False,
     ) -> None:
         """Check how many events in a plan can be encoded by the given encoder."""
         try:
@@ -136,70 +254,47 @@ def get_app() -> typer.Typer:
             console.print(f"[red]{exc}[/red]")
             raise typer.Exit(code=1) from exc
 
+        profile: EnrichmentProfile | None = None
+        if enrich:
+            profile = get_enrichment_profile(encoder)
+            if profile is None:
+                console.print(
+                    f"[yellow]No enrichment profile found for {encoder}; "
+                    "continuing without enrichment.[/yellow]"
+                )
+
         event_plan_path = plan_dir / "event_plan.jsonl"
         if not event_plan_path.exists():
             console.print(f"[red]Event plan not found: {event_plan_path}[/red]")
             raise typer.Exit(code=1)
 
-        total = 0
-        success = 0
-        failures_by_type: Counter[str] = Counter()
-        missing_fields: Counter[str] = Counter()
-        sample_reasons: dict[str, str] = {}
+        baseline = _run_preflight(event_plan_path, enc, profile=None)
+        enriched = _run_preflight(event_plan_path, enc, profile)
 
-        with event_plan_path.open("r", encoding="utf-8") as src:
-            for line in src:
-                line = line.strip()
-                if not line:
-                    continue
-                event = Event.model_validate_json(line)
-                total += 1
-                result = enc.encode(event)
-                if result.success:
-                    success += 1
-                    continue
+        show_baseline = compare_enrichment or (enrich and baseline.failed > enriched.failed)
 
-                failures_by_type[event.event_type] += 1
-                if event.event_type not in sample_reasons:
-                    sample_reasons[event.event_type] = result.error_reason or "unknown"
-                if (
-                    result.error_reason
-                    and result.error_reason.startswith("missing required fields:")
-                ):
-                    fields_part = result.error_reason.split(":", 1)[1]
-                    for field in fields_part.split(","):
-                        missing_fields[field.strip()] += 1
+        if show_baseline:
+            _print_preflight(baseline, encoder, "without enrichment")
+        _print_preflight(enriched, encoder, "with enrichment" if show_baseline else "")
 
-        failed = total - success
-        percentage = (success / total * 100) if total else 0.0
+        if compare_enrichment and baseline.failed != enriched.failed:
+            delta_table = Table(title="Enrichment impact")
+            delta_table.add_column("Metric", style="cyan")
+            delta_table.add_column("Value", style="magenta")
+            delta_table.add_row(
+                "Encodable improvement",
+                (
+                    f"{enriched.success - baseline.success} "
+                    f"({baseline.percentage:.1f}% -> {enriched.percentage:.1f}%)"
+                ),
+            )
+            delta_table.add_row(
+                "Failed reduction",
+                str(baseline.failed - enriched.failed),
+            )
+            console.print(delta_table)
 
-        summary = Table(title=f"Preflight: {encoder}")
-        summary.add_column("Metric", style="cyan")
-        summary.add_column("Value", style="magenta")
-        summary.add_row("Total events", str(total))
-        summary.add_row("Encodable", str(success))
-        summary.add_row("Failed", str(failed))
-        summary.add_row("Encodable %", f"{percentage:.1f}%")
-        console.print(summary)
-
-        if failures_by_type:
-            by_type_table = Table(title="Failures by event type")
-            by_type_table.add_column("Event type", style="cyan")
-            by_type_table.add_column("Count", style="magenta")
-            by_type_table.add_column("Sample reason", style="dim")
-            for event_type, count in failures_by_type.most_common():
-                by_type_table.add_row(event_type, str(count), sample_reasons.get(event_type, ""))
-            console.print(by_type_table)
-
-        if missing_fields:
-            missing_table = Table(title="Missing required fields")
-            missing_table.add_column("Field", style="cyan")
-            missing_table.add_column("Count", style="magenta")
-            for field, count in missing_fields.most_common():
-                missing_table.add_row(field, str(count))
-            console.print(missing_table)
-
-        if failed:
+        if enriched.failed:
             raise typer.Exit(code=1)
 
     @app.command("list")

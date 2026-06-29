@@ -16,6 +16,9 @@ packs/<domain>/
 │   ├── order.yaml
 │   └── refund.yaml
 ├── rules.yaml
+├── encoders/          # optional
+│   ├── __init__.py
+│   └── enrichment.yaml
 ├── semantic/          # optional
 ├── realism/           # optional
 │   └── profiles.yaml
@@ -77,6 +80,42 @@ encoders:
 
 `eventweave pack validate` checks that the encoder is registered and that each
 `supported_event_type` exists in the pack.
+
+## Encoder enrichment profiles
+
+Packs may provide `encoders/enrichment.yaml` to auto-fill missing encoder fields:
+
+```yaml
+profiles:
+  fortinet-fortigate:
+    description: FortiGate traffic log enrichment.
+    defaults:
+      devname: firewall-01
+      type: traffic
+      subtype: forward
+      action: accept
+      srcip: 10.0.0.1
+      dstip: 10.0.0.2
+    mappings:
+      srcip: src_ip
+      dstip: dest_ip
+      srcport: src_port
+      dstport: dest_port
+      proto: protocol
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `description` | string | Short description. |
+| `defaults` | map | Default values applied when a field is missing. |
+| `mappings` | map | `target_field: source_field` copies applied when target is missing. |
+
+Enrichment is deterministic and does not modify the canonical event. Values are
+applied with this priority:
+
+1. Existing target attribute.
+2. Mapped source attribute.
+3. Default value.
 
 ## Entity schemas
 
@@ -302,5 +341,5 @@ Validation checks:
 
 - Remote pack registry and `eventweave pack install`.
 - Semantic dependency resolution.
-- Per-endpoint encoder configuration in `eventweave-runtime serve`.
+- Per-event dynamic encoder routing in `eventweave-runtime serve`.
 - `tests/` directory for pack-level tests.

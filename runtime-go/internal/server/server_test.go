@@ -13,6 +13,9 @@ import (
 
 	"github.com/linxinhong/eventweave/runtime-go/internal/event"
 	"github.com/linxinhong/eventweave/runtime-go/internal/loader"
+
+	// Register vendor encoders for enrichment tests.
+	_ "github.com/linxinhong/eventweave/runtime-go/internal/encoder/security"
 )
 
 func TestRuntimeServerRoutesByFilter(t *testing.T) {
@@ -54,7 +57,7 @@ servers:
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	rs := NewRuntimeServer(dir, cfgFile, 0, "")
+	rs := NewRuntimeServer(dir, cfgFile, 0, "", false)
 	serverDone := make(chan *ServerStats, 1)
 	go func() {
 		stats, err := rs.RunWithContext(ctx)
@@ -175,7 +178,7 @@ servers:
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	rs := NewRuntimeServer(dir, cfgFile, 0, "")
+	rs := NewRuntimeServer(dir, cfgFile, 0, "", false)
 	serverDone := make(chan *ServerStats, 1)
 	go func() {
 		stats, err := rs.RunWithContext(ctx)
@@ -285,7 +288,7 @@ servers:
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	rs := NewRuntimeServer(dir, cfgFile, 0, statsFile)
+	rs := NewRuntimeServer(dir, cfgFile, 0, statsFile, false)
 	serverDone := make(chan *ServerStats, 1)
 	go func() {
 		stats, err := rs.RunWithContext(ctx)
@@ -324,5 +327,185 @@ servers:
 
 	if _, err := os.Stat(statsFile); err != nil {
 		t.Fatalf("stats json not written: %v", err)
+	}
+}
+
+func TestRuntimeEndpointEncoderWithEnrich(t *testing.T) {
+	dir := t.TempDir()
+
+	events := []event.Event{
+		{
+			EventID:   "e1",
+			SourceID:  "firewall",
+			EventType: "firewall.traffic",
+			Attributes: map[string]any{
+				"src_ip":  "10.0.0.1",
+				"dest_ip": "10.0.0.2",
+			},
+		},
+	}
+	planFile := filepath.Join(dir, "event_plan.jsonl")
+	f, err := os.Create(planFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, ev := range events {
+		b, _ := json.Marshal(ev)
+		_, _ = f.Write(b)
+		_, _ = f.WriteString("\n")
+	}
+	_ = f.Close()
+
+	cfg := `
+servers:
+  - id: fortinet_http
+    protocol: http
+    bind: 127.0.0.1
+    port: 28200
+    path: /events
+    encoder: fortinet-fortigate
+    enrich: true
+`
+	cfgFile := filepath.Join(dir, "server.yaml")
+	if err := os.WriteFile(cfgFile, []byte(cfg), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	rs := NewRuntimeServer(dir, cfgFile, 0, "", false)
+	serverDone := make(chan *ServerStats, 1)
+	go func() {
+		stats, err := rs.RunWithContext(ctx)
+		if err != nil {
+			t.Errorf("run: %v", err)
+		}
+		serverDone <- stats
+	}()
+
+	var resp *http.Response
+	for i := 0; i < 100; i++ {
+		resp, err = http.Get("http://127.0.0.1:28200/events")
+		if err == nil {
+			break
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	if err != nil {
+		t.Fatalf("connect client: %v", err)
+	}
+
+	scanner := bufio.NewScanner(resp.Body)
+	var line string
+	if scanner.Scan() {
+		line = scanner.Text()
+	}
+	_ = resp.Body.Close()
+	cancel()
+
+	stats := <-serverDone
+	if stats == nil {
+		t.Fatal("server stats is nil")
+	}
+	if stats.Endpoints["fortinet_http"].Emitted != 1 {
+		t.Fatalf("expected 1 emitted for fortinet_http, got %d", stats.Endpoints["fortinet_http"].Emitted)
+	}
+	if stats.Endpoints["fortinet_http"].Failed != 0 {
+		t.Fatalf("expected 0 failed for fortinet_http, got %d", stats.Endpoints["fortinet_http"].Failed)
+	}
+	if !strings.Contains(line, "firewall-01") {
+		t.Fatalf("expected enriched devname in output, got %q", line)
+	}
+	if !strings.Contains(line, "10.0.0.1") {
+		t.Fatalf("expected srcip in output, got %q", line)
+	}
+}
+
+func TestGlobalEnrichFlag(t *testing.T) {
+	dir := t.TempDir()
+
+	events := []event.Event{
+		{
+			EventID:   "e1",
+			SourceID:  "firewall",
+			EventType: "firewall.traffic",
+			Attributes: map[string]any{
+				"src_ip":  "10.0.0.1",
+				"dest_ip": "10.0.0.2",
+			},
+		},
+	}
+	planFile := filepath.Join(dir, "event_plan.jsonl")
+	f, err := os.Create(planFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, ev := range events {
+		b, _ := json.Marshal(ev)
+		_, _ = f.Write(b)
+		_, _ = f.WriteString("\n")
+	}
+	_ = f.Close()
+
+	cfg := `
+servers:
+  - id: fortinet_http
+    protocol: http
+    bind: 127.0.0.1
+    port: 28202
+    path: /events
+    encoder: fortinet-fortigate
+`
+	cfgFile := filepath.Join(dir, "server.yaml")
+	if err := os.WriteFile(cfgFile, []byte(cfg), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	rs := NewRuntimeServer(dir, cfgFile, 0, "", true)
+	serverDone := make(chan *ServerStats, 1)
+	go func() {
+		stats, err := rs.RunWithContext(ctx)
+		if err != nil {
+			t.Errorf("run: %v", err)
+		}
+		serverDone <- stats
+	}()
+
+	var resp *http.Response
+	for i := 0; i < 100; i++ {
+		resp, err = http.Get("http://127.0.0.1:28202/events")
+		if err == nil {
+			break
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	if err != nil {
+		t.Fatalf("connect client: %v", err)
+	}
+
+	scanner := bufio.NewScanner(resp.Body)
+	var line string
+	if scanner.Scan() {
+		line = scanner.Text()
+	}
+	_ = resp.Body.Close()
+	cancel()
+
+	stats := <-serverDone
+	if stats == nil {
+		t.Fatal("server stats is nil")
+	}
+	if stats.Endpoints["fortinet_http"].Emitted != 1 {
+		t.Fatalf("expected 1 emitted for fortinet_http, got %d", stats.Endpoints["fortinet_http"].Emitted)
+	}
+	if stats.Endpoints["fortinet_http"].Failed != 0 {
+		t.Fatalf("expected 0 failed for fortinet_http, got %d", stats.Endpoints["fortinet_http"].Failed)
+	}
+	if !strings.Contains(line, "firewall-01") {
+		t.Fatalf("expected enriched devname in output, got %q", line)
 	}
 }

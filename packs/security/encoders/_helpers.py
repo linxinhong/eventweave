@@ -45,7 +45,8 @@ def format_csv(values: list[Any]) -> str:
         if value is None:
             rendered.append("")
         elif isinstance(value, str) and ("," in value or '"' in value):
-            rendered.append(f'"{value.replace('"', '""')}"')
+            escaped = value.replace('"', '""')
+            rendered.append(f'"{escaped}"')
         else:
             rendered.append(str(value))
     return ",".join(rendered)

@@ -24,6 +24,7 @@ type EndpointConfig struct {
 	Port           int          `yaml:"port"`
 	Path           string       `yaml:"path"`
 	Encoder        string       `yaml:"encoder,omitempty"`
+	Enrich         bool         `yaml:"enrich,omitempty"`
 	SourceFilter   SourceFilter `yaml:"source_filter"`
 	AllowedClients []string     `yaml:"allowed_clients,omitempty"`
 }
@@ -125,6 +126,9 @@ func (e *EndpointConfig) Validate() error {
 		if _, err := encoder.Get(e.Encoder); err != nil {
 			return fmt.Errorf("unknown encoder %q: %w", e.Encoder, err)
 		}
+	}
+	if e.Enrich && e.Encoder == "" {
+		return fmt.Errorf("enrich requires encoder on endpoint %s", e.ID)
 	}
 
 	return nil

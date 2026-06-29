@@ -45,6 +45,7 @@ func serveCmd() *cobra.Command {
 		limit        int
 		statsJSON    string
 		metricsAddr  string
+		enrich       bool
 	)
 
 	cmd := &cobra.Command{
@@ -64,15 +65,17 @@ func serveCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			ms.SetHealth(metrics.HealthStatus{
-				Status:  "ok",
-				Mode:    "serve",
-				Servers: len(cfg.Servers),
-			})
+			if ms != nil {
+				ms.SetHealth(metrics.HealthStatus{
+					Status:  "ok",
+					Mode:    "serve",
+					Servers: len(cfg.Servers),
+				})
+			}
 			metrics.SetServerUp("serve", true)
 			defer metrics.SetServerUp("serve", false)
 
-			rt := server.NewRuntimeServer(args[0], serverConfig, limit, statsJSON)
+			rt := server.NewRuntimeServer(args[0], serverConfig, limit, statsJSON, enrich)
 			stats, err := rt.Run()
 			if err != nil {
 				return err
@@ -86,6 +89,7 @@ func serveCmd() *cobra.Command {
 	cmd.Flags().IntVar(&limit, "limit", 0, "Maximum number of events to serve")
 	cmd.Flags().StringVar(&statsJSON, "stats-json", "", "Write server stats to a JSON file")
 	cmd.Flags().StringVar(&metricsAddr, "metrics-addr", "", "Metrics server bind address (e.g. 127.0.0.1:9090)")
+	cmd.Flags().BoolVar(&enrich, "enrich", false, "Apply encoder enrichment profiles to all endpoints")
 	return cmd
 }
 
@@ -248,4 +252,5 @@ func addRuntimeFlags(cmd *cobra.Command, cfg *config.RuntimeConfig) {
 	cmd.Flags().IntVar(&cfg.QueueSize, "queue-size", 1000, "Worker queue size")
 	cmd.Flags().StringVar(&cfg.OnQueueFull, "on-queue-full", "block", "Behavior when worker queue is full: block or fail")
 	cmd.Flags().StringVar(&cfg.Encoder, "encoder", "", "Encode events with this encoder before writing")
+	cmd.Flags().BoolVar(&cfg.Enrich, "enrich", false, "Apply encoder enrichment profile before encoding")
 }

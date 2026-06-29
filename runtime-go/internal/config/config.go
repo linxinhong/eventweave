@@ -42,6 +42,7 @@ type RuntimeConfig struct {
 	QueueSize        int
 	OnQueueFull      string
 	Encoder          string
+	Enrich           bool
 }
 
 // Validate checks that the config is usable.
@@ -80,6 +81,9 @@ func (c *RuntimeConfig) Validate() error {
 		if _, err := encoder.Get(c.Encoder); err != nil {
 			return err
 		}
+	}
+	if c.Enrich && c.Encoder == "" {
+		return errors.New("--enrich requires --encoder")
 	}
 	if c.Sink == "syslog" {
 		p := strings.ToLower(c.SyslogProto)

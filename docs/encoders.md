@@ -207,6 +207,79 @@ Encoders expose metadata through the `Encoder` base class:
 `eventweave encode inspect <encoder>` prints this metadata, plus whether a Go
 runtime implementation exists.
 
+## Encoder field enrichment
+
+Canonical events are often sparse: they carry the scenario-level facts but miss
+the vendor-specific fields an encoder needs. Enrichment profiles solve this by
+producing an encoder-friendly view **without mutating the canonical event**.
+
+Enrichment is applied immediately before encoding. Priority:
+
+1. Existing target attribute on the event.
+2. Mapped source attribute (when target is missing and source exists).
+3. Default value.
+
+### Pack enrichment profiles
+
+Packs define profiles in `packs/<domain>/encoders/enrichment.yaml`:
+
+```yaml
+profiles:
+  fortinet-fortigate:
+    description: FortiGate traffic log enrichment.
+    defaults:
+      devname: firewall-01
+      type: traffic
+      subtype: forward
+      action: accept
+      srcip: 10.0.0.1
+      dstip: 10.0.0.2
+    mappings:
+      srcip: src_ip
+      dstip: dest_ip
+      srcport: src_port
+      dstport: dest_port
+      proto: protocol
+```
+
+- `defaults` — values applied when a target field is missing.
+- `mappings` — `target_field: source_field` copies. Used when canonical events
+  use different field names than the encoder expects.
+
+### Python CLI
+
+Apply enrichment during encoding:
+
+```bash
+eventweave encode run dist/security_lateral_movement \
+  --encoder fortinet-fortigate \
+  --enrich \
+  --output out/fortigate.log
+```
+
+Preflight with enrichment comparison:
+
+```bash
+eventweave encode preflight dist/security_lateral_movement \
+  --encoder fortinet-fortigate \
+  --enrich \
+  --compare-enrichment
+```
+
+This prints the baseline success rate, the enriched success rate, and a delta
+summary.
+
+### Go runtime
+
+```bash
+eventweave-runtime run dist/security_lateral_movement \
+  --sink file \
+  --output out/fortigate.log \
+  --encoder fortinet-fortigate \
+  --enrich \
+  --no-wait
+```
+
 ## Pack encoder mapping
 
 Packs can declare which encoders are recommended for which event types by adding

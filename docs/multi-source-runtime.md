@@ -44,6 +44,7 @@ servers:
     bind: 127.0.0.1
     port: 5516
     encoder: fortinet-fortigate
+    enrich: true
     source_filter:
       source_id: firewall-001
 ```
@@ -57,6 +58,8 @@ servers:
 - `path` — HTTP path. Defaults to `/events`.
 - `encoder` — optional encoder name (e.g. `nginx-access`, `syslog-rfc3164`, `fortinet-fortigate`).
   When set, the endpoint emits encoded output instead of canonical JSON.
+- `enrich` — optional. When `true`, apply the encoder's enrichment profile
+  before encoding. Can also be enabled globally with `--enrich`.
 - `source_filter` — selects events for this endpoint.
   - `source_id` — match `source_id` field.
   - `event_type` — match `event_type` field.
@@ -74,6 +77,7 @@ Optional flags:
 
 - `--limit` — maximum number of events to serve across all endpoints.
 - `--stats-json` — write per-endpoint stats to a JSON file.
+- `--enrich` — apply encoder enrichment profiles to all endpoints with an encoder.
 
 ## Protocol behavior
 
@@ -138,9 +142,7 @@ It uses `examples/demo-stack/security_multi_source.yaml` to expose firewall,
 edr, waf, and dns sources over Syslog and HTTP, with receiver containers and
 Grafana dashboards. See [docs/demo-stack.md](demo-stack.md).
 
-## Limitations
-
-v0.6.2 does not support:
+## Current limitations
 
 - Kafka, gRPC, MQTT, or WebSocket endpoints.
 - TLS or authentication.

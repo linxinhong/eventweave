@@ -49,6 +49,13 @@ func NewWithMode(cfg config.RuntimeConfig, mode string) (*LocalRuntime, error) {
 	if cfg.Encoder != "" {
 		enc, _ = encoder.Get(cfg.Encoder)
 	}
+	if cfg.Enrich {
+		profile, err := encoder.LoadEnrichmentProfileForPlan(cfg.Encoder, cfg.PlanDir)
+		if err != nil {
+			return nil, fmt.Errorf("load enrichment profile for %s: %w", cfg.Encoder, err)
+		}
+		enc = encoder.NewEnrichedEncoder(enc, profile)
+	}
 
 	var s sink.Sink
 	target := cfg.Sink

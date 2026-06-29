@@ -1,0 +1,210 @@
+profiles:
+  fortinet-fortigate:
+    description: Fortinet FortiGate traffic log enrichment.
+    defaults:
+      devname: firewall-01
+      type: traffic
+      subtype: forward
+      action: accept
+      proto: tcp
+      service: HTTPS
+      srcip: 10.0.0.1
+      dstip: 10.0.0.2
+      srcport: 12345
+      dstport: 443
+    mappings:
+      srcip: src_ip
+      dstip: dest_ip
+      srcport: src_port
+      dstport: dest_port
+      proto: protocol
+
+  paloalto-traffic:
+    description: Palo Alto Networks traffic log enrichment.
+    defaults:
+      receive_time: "2026/06/29 12:00:00"
+      serial: "007051000123456"
+      type: TRAFFIC
+      subtype: forward
+      action: allow
+      proto: tcp
+      src: 10.0.0.1
+      dst: 10.0.0.2
+      sport: 12345
+      dport: 443
+    mappings:
+      src: src_ip
+      dst: dest_ip
+      sport: src_port
+      dport: dest_port
+      proto: protocol
+
+  zeek-conn:
+    description: Zeek conn.log enrichment.
+    defaults:
+      uid: Caaaaaaaaaaaaaa1
+      proto: tcp
+      conn_state: SF
+      service: "-"
+      id.orig_h: 10.0.0.1
+      id.orig_p: 12345
+      id.resp_h: 10.0.0.2
+      id.resp_p: 443
+    mappings:
+      id.orig_h: src_ip
+      id.orig_p: src_port
+      id.resp_h: dest_ip
+      id.resp_p: dest_port
+      proto: protocol
+
+  zeek-dns:
+    description: Zeek dns.log enrichment.
+    defaults:
+      uid: Caaaaaaaaaaaaaa2
+      proto: udp
+      qtype_name: A
+      rcode_name: NOERROR
+      answers: "-"
+      id.orig_h: 10.0.0.1
+      id.orig_p: 12345
+      id.resp_h: 10.0.0.2
+      id.resp_p: 53
+      query: example.com
+    mappings:
+      id.orig_h: src_ip
+      id.orig_p: src_port
+      id.resp_h: dest_ip
+      id.resp_p: dest_port
+      proto: protocol
+
+  nginx-access:
+    description: Nginx access log enrichment.
+    defaults:
+      status: 200
+      body_bytes_sent: 512
+      http_user_agent: EventWeave
+      request_time: 0.001
+      remote_addr: 10.0.0.1
+      request: "GET / HTTP/1.1"
+    mappings:
+      remote_addr: src_ip
+      request: http_request
+      status: http_status
+      body_bytes_sent: bytes_sent
+
+  windows-event-json:
+    description: Windows Event Log JSON enrichment.
+    defaults:
+      EventID: 4624
+      ProviderName: Microsoft-Windows-Security-Auditing
+      Channel: Security
+      Computer: workstation-01
+    mappings:
+      EventID: event_id
+
+  suricata-eve:
+    description: Suricata EVE JSON enrichment.
+    defaults:
+      event_type: alert
+      proto: TCP
+      src_ip: 10.0.0.1
+      dest_ip: 10.0.0.2
+      src_port: 12345
+      dest_port: 443
+    mappings:
+      src_ip: src_ip
+      dest_ip: dest_ip
+      src_port: src_port
+      dest_port: dest_port
+
+  dbappsecurity-waf:
+    description: DBAPPSecurity WAF log enrichment.
+    defaults:
+      devname: waf-01
+      attack_type: SQL Injection
+      action: block
+      srcip: 10.0.0.1
+      dstip: 10.0.0.2
+      url: /api/login
+    mappings:
+      srcip: src_ip
+      dstip: dest_ip
+      url: http_request
+
+  nsfocus-ips:
+    description: NSFOCUS IPS log enrichment.
+    defaults:
+      devname: ips-01
+      attack_name: Suspicious Traffic
+      action: block
+      srcip: 10.0.0.1
+      dstip: 10.0.0.2
+    mappings:
+      srcip: src_ip
+      dstip: dest_ip
+
+  sangfor-af:
+    description: Sangfor AF log enrichment.
+    defaults:
+      devname: af-01
+      action: allow
+      srcip: 10.0.0.1
+      dstip: 10.0.0.2
+    mappings:
+      srcip: src_ip
+      dstip: dest_ip
+
+  huawei-usg:
+    description: Huawei USG log enrichment.
+    defaults:
+      devname: usg-01
+      action: permit
+      srcip: 10.0.0.1
+      dstip: 10.0.0.2
+    mappings:
+      srcip: src_ip
+      dstip: dest_ip
+
+  h3c-secpath:
+    description: H3C SecPath log enrichment.
+    defaults:
+      devname: secpath-01
+      action: permit
+      srcip: 10.0.0.1
+      dstip: 10.0.0.2
+    mappings:
+      srcip: src_ip
+      dstip: dest_ip
+
+  topsec-ngfw:
+    description: Topsec NGFW log enrichment.
+    defaults:
+      devname: topsec-01
+      action: allow
+      srcip: 10.0.0.1
+      dstip: 10.0.0.2
+    mappings:
+      srcip: src_ip
+      dstip: dest_ip
+
+  qianxin-ngfw:
+    description: Qianxin NGFW log enrichment.
+    defaults:
+      devname: qianxin-01
+      action: allow
+      srcip: 10.0.0.1
+      dstip: 10.0.0.2
+    mappings:
+      srcip: src_ip
+      dstip: dest_ip
+
+  hillstone-ngfw:
+    description: Hillstone NGFW log enrichment.
+    defaults:
+      devname: hillstone-01
+      action: allow
+      srcip: 10.0.0.1
+      dstip: 10.0.0.2
+    mappings:
+      srcip: src_ip
+      dstip: dest_ip

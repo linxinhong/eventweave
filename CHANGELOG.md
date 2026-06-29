@@ -2,6 +2,34 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.9.4] - 2026-06-30
+
+### Added
+
+- Encoder field enrichment / auto-fill profiles:
+  - `eventweave/encoders/enrichment.py` provides `EnrichmentProfile`,
+    `EnrichmentRegistry`, and `enrich_event()`.
+  - `runtime-go/internal/encoder/enrichment.go` provides the Go equivalent
+    `ApplyEnrichment()` and `EnrichedEncoder` wrapper.
+- Pack-level enrichment configuration in
+  `packs/security/encoders/enrichment.yaml`, covering all security encoders.
+- `eventweave encode run --enrich` applies enrichment before encoding.
+- `eventweave encode preflight --enrich` and `--compare-enrichment` show
+  baseline vs enriched encodability.
+- `eventweave-runtime run --enrich` and `eventweave-runtime bench --enrich`
+  apply enrichment to the configured encoder.
+- `eventweave-runtime serve --enrich` and per-endpoint `enrich: true` in
+  `server.yaml` apply enrichment to endpoint encoders.
+
+### Changed
+
+- `docs/encoders.md` documents enrichment concepts, profile format, priority
+  rules, and CLI usage.
+- `docs/multi-source-runtime.md` documents the `enrich` endpoint field and
+  `--enrich` flag, and renames Limitations to Current limitations.
+- `docs/pack-spec.md` documents `encoders/enrichment.yaml` and updates future
+  extensions.
+
 ## [0.9.3] - 2026-06-29
 
 ### Added

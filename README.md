@@ -195,9 +195,21 @@ eventweave quality realism dist/security_lateral_movement --output realism.json
 eventweave export dist/ecommerce_refund_flow --format jsonl --output out/events.jsonl
 
 # Encode events as vendor/log formats
-eventweave encode dist/security_lateral_movement \
+eventweave encode run dist/security_lateral_movement \
   --encoder syslog-rfc3164 \
   --output out/syslog.log
+
+# Use enrichment to auto-fill missing encoder fields
+eventweave encode run dist/security_lateral_movement \
+  --encoder fortinet-fortigate \
+  --enrich \
+  --output out/fortigate.log
+
+# Compare encodability with and without enrichment
+eventweave encode preflight dist/security_lateral_movement \
+  --encoder fortinet-fortigate \
+  --enrich \
+  --compare-enrichment
 
 eventweave run dist/security_lateral_movement \
   --sink file \
@@ -425,11 +437,18 @@ What works:
 - v0.9.0: Vendor log encoders — emit canonical events as `syslog-rfc3164`,
   `syslog-rfc5424`, `nginx-access`, `suricata-eve`, and `windows-event-json`
   via `eventweave encode` / `eventweave-runtime --encoder`
+- v0.9.1: Additional vendor encoders (Fortinet, Palo Alto, Zeek, DNS)
+- v0.9.2: Encoder metadata, `encode inspect`, `encode preflight`, and pack
+  encoder mapping
+- v0.9.3: Per-endpoint encoders for `eventweave-runtime serve`
+- v0.9.4: Encoder field enrichment / auto-fill profiles via
+  `--enrich` and pack `encoders/enrichment.yaml`
 
 What is planned:
 
-- v0.9.1: Additional vendor encoders (Fortinet, Palo Alto, Zeek, DNS)
-- v0.10: TBD
+- v0.9.5: CEF / LEEF / ECS encoders
+- v0.9.6: Per-event dynamic encoder routing
+- v1.0: API stabilization and release polish
 
 ## Pack Ecosystem
 

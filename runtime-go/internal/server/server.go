@@ -22,15 +22,17 @@ type RuntimeServer struct {
 	configPath string
 	limit      int
 	statsJSON  string
+	enrich     bool
 }
 
 // NewRuntimeServer creates a server instance.
-func NewRuntimeServer(planDir, configPath string, limit int, statsJSON string) *RuntimeServer {
+func NewRuntimeServer(planDir, configPath string, limit int, statsJSON string, enrich bool) *RuntimeServer {
 	return &RuntimeServer{
 		planDir:    planDir,
 		configPath: configPath,
 		limit:      limit,
 		statsJSON:  statsJSON,
+		enrich:     enrich,
 	}
 }
 
@@ -141,7 +143,7 @@ func (rs *RuntimeServer) buildEndpoints(cfg *ServerConfig) ([]Endpoint, error) {
 	endpoints := make([]Endpoint, 0, len(cfg.Servers))
 	for _, srv := range cfg.Servers {
 		addr := srv.Address()
-		enc, err := rs.resolveEncoder(srv.Encoder)
+		enc, err := rs.resolveEncoder(srv.Encoder, srv.Enrich || rs.enrich)
 		if err != nil {
 			return nil, fmt.Errorf("endpoint %s: %w", srv.ID, err)
 		}
@@ -160,13 +162,23 @@ func (rs *RuntimeServer) buildEndpoints(cfg *ServerConfig) ([]Endpoint, error) {
 	return endpoints, nil
 }
 
-func (rs *RuntimeServer) resolveEncoder(name string) (encoder.Encoder, error) {
+func (rs *RuntimeServer) resolveEncoder(name string, enrich bool) (encoder.Encoder, error) {
 	if name == "" {
+		if enrich {
+			return nil, fmt.Errorf("enrich requires encoder")
+		}
 		return nil, nil
 	}
 	enc, err := encoder.Get(name)
 	if err != nil {
 		return nil, err
+	}
+	if enrich {
+		profile, err := encoder.LoadEnrichmentProfileForPlan(name, rs.planDir)
+		if err != nil {
+			return nil, fmt.Errorf("load enrichment profile for %s: %w", name, err)
+		}
+		enc = encoder.NewEnrichedEncoder(enc, profile)
 	}
 	return enc, nil
 }
