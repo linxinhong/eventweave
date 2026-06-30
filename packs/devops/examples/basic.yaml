@@ -1,0 +1,52 @@
+id: devops_basic_flow
+name: DevOps basic flow
+domain: devops
+for_each: service
+duration: 10m
+seed: 20260630
+
+entities:
+  service:
+    count: 2
+    type: service
+  instance:
+    count: 4
+    type: instance
+
+sources:
+  - id: deploy-service
+    type: service
+    role: deploy_service
+    rate:
+      base_qps: 2
+      burst_qps: 10
+      jitter: 0.1
+
+timeline:
+  - id: deploy_service
+    at: "00:00:00"
+    event: service.deployed
+    source: deploy-service
+    entity_refs:
+      service: "$flow"
+      instance: "$entity.instance"
+    attributes:
+      version: "1.2.3"
+
+  - id: restart_instance
+    after: deploy_service
+    delay: "1m..2m"
+    probability: 0.3
+    event: instance.restarted
+    source: deploy-service
+    entity_refs:
+      service: "$ref.deploy_service.service"
+      instance: "$ref.deploy_service.instance"
+    attributes:
+      reason: memory pressure
+
+rules:
+  - id: restart_requires_service
+    type: required_entity_ref
+    event: instance.restarted
+    ref: service

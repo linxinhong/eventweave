@@ -1,0 +1,7 @@
+instance:
+  description: A service instance.
+  fields:
+    host:
+      type: string
+    region:
+      type: string

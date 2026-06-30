@@ -1,0 +1,19 @@
+device.online:
+  description: Device comes online.
+  entity_refs:
+    device: device
+    gateway: gateway
+  fields:
+    rssi:
+      type: integer
+
+device.telemetry:
+  description: Device telemetry sample.
+  entity_refs:
+    device: device
+    gateway: gateway
+  fields:
+    temperature:
+      type: number
+    humidity:
+      type: number

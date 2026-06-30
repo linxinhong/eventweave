@@ -1,0 +1,11 @@
+patient:
+  description: A patient record.
+  fields:
+    age:
+      type: integer
+    gender:
+      type: string
+      enum:
+        - male
+        - female
+        - other

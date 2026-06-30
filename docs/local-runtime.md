@@ -61,7 +61,8 @@ eventweave run dist/ecommerce_refund_flow_semantic \
 - `--retries` controls retry attempts for transient failures (5xx, connection
   errors). 4xx responses are not retried.
 - `--allow-internal-url` permits the `http` sink to send to internal/private
-  hosts. It is disabled by default to protect against SSRF.
+  hosts. It is disabled by default to protect against SSRF. The CLI prints a
+  warning when this flag is used.
 
 ### File sink options
 

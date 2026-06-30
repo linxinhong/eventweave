@@ -1,0 +1,5 @@
+gateway:
+  description: An IoT gateway.
+  fields:
+    location:
+      type: string

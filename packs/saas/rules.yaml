@@ -1,0 +1,7 @@
+rules:
+  - id: api_call_requires_user
+    type: required_entity_ref
+    description: API call must reference a user.
+    attributes:
+      event: api.called
+      ref: user

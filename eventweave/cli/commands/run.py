@@ -91,6 +91,12 @@ def register_commands(app: typer.Typer) -> None:
             if not url:
                 console.print("[red]--url is required for http sink[/red]")
                 raise typer.Exit(code=1)
+            if allow_internal_url:
+                console.print(
+                    "[yellow]Warning: --allow-internal-url disables SSRF protection "
+                    "for the http sink. Only use this in trusted environments and "
+                    "with explicit approval.[/yellow]"
+                )
             try:
                 effective_sink = HTTPSink(
                     url,

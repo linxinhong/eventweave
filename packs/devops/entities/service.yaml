@@ -1,0 +1,7 @@
+service:
+  description: A deployed service.
+  fields:
+    team:
+      type: string
+    language:
+      type: string

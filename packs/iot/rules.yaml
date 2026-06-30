@@ -1,0 +1,7 @@
+rules:
+  - id: telemetry_requires_device
+    type: required_entity_ref
+    description: Telemetry must reference a device.
+    attributes:
+      event: device.telemetry
+      ref: device

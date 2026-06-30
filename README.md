@@ -443,11 +443,12 @@ What works:
 - v0.9.3: Per-endpoint encoders for `eventweave-runtime serve`
 - v0.9.4: Encoder field enrichment / auto-fill profiles via
   `--enrich` and pack `encoders/enrichment.yaml`
+- v0.9.5: Pre-v1 hardening sweep — core model tests, CLI smoke tests, stub pack
+  fill, `encode inspect` fix, SSRF warning, and `docs/security.md`
 
 What is planned:
 
-- v0.9.5: CEF / LEEF / ECS encoders
-- v0.9.6: Per-event dynamic encoder routing
+- v0.9.6: Runtime security parity across Python and Go HTTP sinks
 - v1.0: API stabilization and release polish
 
 ## Pack Ecosystem

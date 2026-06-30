@@ -1,0 +1,11 @@
+user:
+  description: A tenant user.
+  fields:
+    email:
+      type: string
+      format: email
+    role:
+      type: string
+      enum:
+        - admin
+        - member

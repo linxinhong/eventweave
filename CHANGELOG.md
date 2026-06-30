@@ -2,6 +2,42 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.9.5] - 2026-06-30
+
+### Added
+
+- Core model unit tests in `tests/core/test_models.py` covering entities,
+  events, scenarios, timeline, sources, semantic assets, ground truth, noise,
+  jitter, sinks, and relations.
+- CLI smoke tests in `tests/cli/test_smoke.py` covering `validate`, `compile`,
+  `run`, `encode list/inspect/preflight`, `eval prepare`, `benchmark validate`,
+  and `pack validate` for all domain packs.
+- Regression tests in `tests/encoders/test_registry.py` ensuring every
+  registered encoder can be inspected and that encoders relying on base-class
+  defaults do not crash.
+- Minimal domain packs for `saas`, `iot`, `devops`, and `hospital`, each with
+  entities, events, rules, and a runnable example scenario.
+- New `docs/security.md` documenting SSRF protection, file-sink path traversal
+  prevention, `--allow-internal-url`, `--force`, and runtime server security.
+
+### Fixed
+
+- `eventweave encode inspect <encoder>` no longer crashes when an encoder does
+  not override `required_fields`, `optional_fields`, or
+  `supported_event_types` (`eventweave/encoders/base.py`).
+
+### Changed
+
+- `eventweave run --sink http --allow-internal-url` now prints a security
+  warning at startup.
+- `docs/local-runtime.md` clarifies that `--allow-internal-url` triggers a CLI
+  warning.
+
+### Removed
+
+- Empty `eventweave/semantic/` directory (semantic implementation lives in
+  `eventweave/ai/`).
+
 ## [0.9.4] - 2026-06-30
 
 ### Added

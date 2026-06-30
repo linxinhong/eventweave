@@ -1,0 +1,7 @@
+terminal:
+  description: A hospital self-service terminal.
+  fields:
+    floor:
+      type: string
+    department:
+      type: string

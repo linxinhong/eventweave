@@ -1,0 +1,21 @@
+terminal.heartbeat:
+  description: Terminal heartbeat.
+  entity_refs:
+    terminal: terminal
+  fields:
+    status:
+      type: string
+      enum:
+        - ok
+        - warning
+
+payment.failed:
+  description: Payment failure at terminal.
+  entity_refs:
+    terminal: terminal
+    patient: patient
+  fields:
+    amount:
+      type: number
+    error_code:
+      type: string

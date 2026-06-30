@@ -1,0 +1,17 @@
+service.deployed:
+  description: Service deployment completed.
+  entity_refs:
+    service: service
+    instance: instance
+  fields:
+    version:
+      type: string
+
+instance.restarted:
+  description: Service instance restarted.
+  entity_refs:
+    service: service
+    instance: instance
+  fields:
+    reason:
+      type: string

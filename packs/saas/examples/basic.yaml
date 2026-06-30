@@ -1,0 +1,52 @@
+id: saas_basic_flow
+name: SaaS basic flow
+domain: saas
+for_each: tenant
+duration: 10m
+seed: 20260630
+
+entities:
+  tenant:
+    count: 3
+    type: tenant
+  user:
+    count: 5
+    type: user
+
+sources:
+  - id: api-gateway
+    type: service
+    role: api_gateway
+    rate:
+      base_qps: 10
+      burst_qps: 50
+      jitter: 0.1
+
+timeline:
+  - id: user_login
+    at: "00:00:00"
+    event: user.login
+    source: api-gateway
+    entity_refs:
+      tenant: "$flow"
+      user: "$entity.user"
+    attributes:
+      method: password
+
+  - id: api_call
+    after: user_login
+    delay: "1s..5s"
+    event: api.called
+    source: api-gateway
+    entity_refs:
+      tenant: "$ref.user_login.tenant"
+      user: "$ref.user_login.user"
+    attributes:
+      endpoint: /api/v1/status
+      status: 200
+
+rules:
+  - id: api_call_requires_user
+    type: required_entity_ref
+    event: api.called
+    ref: user

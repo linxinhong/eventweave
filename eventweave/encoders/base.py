@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import Any
+from typing import Any, ClassVar
 
 from pydantic import BaseModel, Field
 
@@ -34,10 +34,10 @@ class Encoder(ABC):
 
     name: str
     content_type: str
-    description: str = ""
-    required_fields: list[str] = Field(default_factory=list)
-    optional_fields: list[str] = Field(default_factory=list)
-    supported_event_types: list[str] = Field(default_factory=list)
+    description: ClassVar[str] = ""
+    required_fields: ClassVar[list[str]] = []
+    optional_fields: ClassVar[list[str]] = []
+    supported_event_types: ClassVar[list[str]] = []
 
     @abstractmethod
     def encode(self, event: Event) -> EncodeResult:

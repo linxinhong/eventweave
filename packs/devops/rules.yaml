@@ -1,0 +1,7 @@
+rules:
+  - id: restart_requires_service
+    type: required_entity_ref
+    description: Restart must reference a service.
+    attributes:
+      event: instance.restarted
+      ref: service

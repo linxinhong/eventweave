@@ -1,0 +1,11 @@
+tenant:
+  description: A SaaS tenant.
+  fields:
+    name:
+      type: string
+    plan:
+      type: string
+      enum:
+        - free
+        - team
+        - enterprise

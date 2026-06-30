@@ -1,0 +1,7 @@
+rules:
+  - id: payment_failure_requires_terminal
+    type: required_entity_ref
+    description: Payment failure must reference a terminal.
+    attributes:
+      event: payment.failed
+      ref: terminal

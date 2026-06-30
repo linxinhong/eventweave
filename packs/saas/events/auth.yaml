@@ -1,0 +1,19 @@
+user.login:
+  description: A user logs in.
+  entity_refs:
+    user: user
+    tenant: tenant
+  fields:
+    method:
+      type: string
+
+api.called:
+  description: An API call is made.
+  entity_refs:
+    user: user
+    tenant: tenant
+  fields:
+    endpoint:
+      type: string
+    status:
+      type: integer

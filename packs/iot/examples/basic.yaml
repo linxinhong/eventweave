@@ -1,0 +1,52 @@
+id: iot_basic_flow
+name: IoT basic flow
+domain: iot
+for_each: device
+duration: 10m
+seed: 20260630
+
+entities:
+  gateway:
+    count: 2
+    type: gateway
+  device:
+    count: 5
+    type: device
+
+sources:
+  - id: iot-gateway
+    type: gateway
+    role: iot_gateway
+    rate:
+      base_qps: 5
+      burst_qps: 20
+      jitter: 0.1
+
+timeline:
+  - id: device_online
+    at: "00:00:00"
+    event: device.online
+    source: iot-gateway
+    entity_refs:
+      device: "$flow"
+      gateway: "$entity.gateway"
+    attributes:
+      rssi: -60
+
+  - id: device_telemetry
+    after: device_online
+    delay: "10s..30s"
+    event: device.telemetry
+    source: iot-gateway
+    entity_refs:
+      device: "$ref.device_online.device"
+      gateway: "$ref.device_online.gateway"
+    attributes:
+      temperature: 22.5
+      humidity: 55.0
+
+rules:
+  - id: telemetry_requires_device
+    type: required_entity_ref
+    event: device.telemetry
+    ref: device

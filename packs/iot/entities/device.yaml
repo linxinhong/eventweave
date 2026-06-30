@@ -1,0 +1,7 @@
+device:
+  description: An IoT device.
+  fields:
+    model:
+      type: string
+    firmware:
+      type: string

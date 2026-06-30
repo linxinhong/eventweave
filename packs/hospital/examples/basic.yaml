@@ -1,0 +1,52 @@
+id: hospital_basic_flow
+name: Hospital basic flow
+domain: hospital
+for_each: terminal
+duration: 10m
+seed: 20260630
+
+entities:
+  terminal:
+    count: 3
+    type: terminal
+  patient:
+    count: 5
+    type: patient
+
+sources:
+  - id: terminal-agent
+    type: service
+    role: terminal_agent
+    rate:
+      base_qps: 3
+      burst_qps: 15
+      jitter: 0.1
+
+timeline:
+  - id: terminal_heartbeat
+    at: "00:00:00"
+    event: terminal.heartbeat
+    source: terminal-agent
+    entity_refs:
+      terminal: "$flow"
+    attributes:
+      status: ok
+
+  - id: payment_failed
+    after: terminal_heartbeat
+    delay: "30s..2m"
+    probability: 0.2
+    event: payment.failed
+    source: terminal-agent
+    entity_refs:
+      terminal: "$ref.terminal_heartbeat.terminal"
+      patient: "$entity.patient"
+    attributes:
+      amount: 50.0
+      error_code: TIMEOUT
+
+rules:
+  - id: payment_failure_requires_terminal
+    type: required_entity_ref
+    event: payment.failed
+    ref: terminal
