@@ -2,6 +2,33 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.9.7] - 2026-06-30
+
+### Added
+
+- Pack schema validation layer in `eventweave/compiler/schema_validator.py`.
+- `eventweave validate` and `eventweave compile` now perform schema validation
+  against pack event/entity schemas by default, emitting warnings for:
+  - Unknown event types.
+  - Missing required event/entity fields.
+  - Event/entity field type mismatches (`string`, `number`, `integer`, `boolean`).
+  - Event enum violations.
+  - Invalid `format: email` / `format: ipv4` values.
+  - Unknown or wrongly typed event `entity_refs`.
+- New `--strict-schema` CLI flag for `validate` and `compile` upgrades schema
+  warnings to errors.
+- `eventweave pack validate` now checks that event `entity_refs` reference known
+  entity types and reports schema warnings from compiled examples.
+- Tests in `tests/compiler/test_schema_validator.py` covering warning/strict
+  behavior, type checks, enum checks, entity-ref checks, and pack self-validation.
+
+### Changed
+
+- Updated `docs/pack-spec.md` and `docs/scenario-dsl.md` to document schema
+  validation, the `--strict-schema` flag, and the distinction between rule
+  validation and schema validation.
+- Updated `README.md` roadmap to reflect v0.9.7 completion.
+
 ## [0.9.6] - 2026-06-30
 
 ### Added

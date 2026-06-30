@@ -8,6 +8,7 @@ from eventweave.compiler.loader import load_scenario
 from eventweave.compiler.pack_loader import PackRegistry
 from eventweave.compiler.planner import ScenarioPlanner
 from eventweave.compiler.rules import RuleRegistry
+from eventweave.compiler.schema_validator import SchemaValidator
 from eventweave.compiler.semantic_task_builder import build_semantic_tasks
 from eventweave.core.runtime_plan import RuntimePlan
 from eventweave.core.scenario import Scenario
@@ -38,8 +39,9 @@ def compile_scenario(
     scenario: Scenario,
     packs_dir: str | Path | None = None,
     seed: int | None = None,
+    strict_schema: bool = False,
 ) -> CompileResult:
-    """Compile a scenario into a runtime plan with rule validation."""
+    """Compile a scenario into a runtime plan with rule and schema validation."""
     effective_seed = seed if seed is not None else scenario.seed
     planner = ScenarioPlanner(packs_dir=packs_dir)
     plan, planner_warnings = planner.compile(scenario, seed=effective_seed)
@@ -47,10 +49,11 @@ def compile_scenario(
     semantic_tasks = build_semantic_tasks(scenario)
     _attach_semantic_refs_placeholder(plan, semantic_tasks)
 
-    registry = RuleRegistry()
-    # Load rules from packs used by the scenario.
+    # Load packs used by the scenario.
     pack_registry = PackRegistry(packs_dir=packs_dir)
     packs = pack_registry.load_with_dependencies(scenario.domain)
+
+    registry = RuleRegistry()
     for pack in packs.values():
         registry.load_from_pack(pack.rules)
 
@@ -58,12 +61,16 @@ def compile_scenario(
     registry.load_from_scenario(scenario)
 
     rule_warnings = registry.validate(scenario, plan)
-    all_warnings = planner_warnings + rule_warnings
+
+    schema_validator = SchemaValidator(packs, strict=strict_schema)
+    schema_warnings, schema_errors = schema_validator.validate(plan)
+
+    all_warnings = planner_warnings + rule_warnings + schema_warnings
     return CompileResult(
         plan=plan,
         semantic_tasks=semantic_tasks,
         warnings=all_warnings,
-        errors=[],
+        errors=schema_errors,
     )
 
 
@@ -71,19 +78,21 @@ def compile_scenario_file(
     path: str | Path,
     packs_dir: str | Path | None = None,
     seed: int | None = None,
+    strict_schema: bool = False,
 ) -> CompileResult:
     """Load and compile a scenario file."""
     scenario = load_scenario(path)
-    return compile_scenario(scenario, packs_dir=packs_dir, seed=seed)
+    return compile_scenario(scenario, packs_dir=packs_dir, seed=seed, strict_schema=strict_schema)
 
 
 def compile_scenario_strict(
     scenario: Scenario,
     packs_dir: str | Path | None = None,
     seed: int | None = None,
+    strict_schema: bool = False,
 ) -> CompileResult:
     """Compile a scenario in strict mode: rule violations become errors."""
-    result = compile_scenario(scenario, packs_dir=packs_dir, seed=seed)
+    result = compile_scenario(scenario, packs_dir=packs_dir, seed=seed, strict_schema=strict_schema)
     if result.warnings:
         result.errors.extend(result.warnings)
         result.warnings = []
@@ -94,10 +103,13 @@ def compile_scenario_file_strict(
     path: str | Path,
     packs_dir: str | Path | None = None,
     seed: int | None = None,
+    strict_schema: bool = False,
 ) -> CompileResult:
     """Load and compile a scenario file in strict mode."""
     scenario = load_scenario(path)
-    return compile_scenario_strict(scenario, packs_dir=packs_dir, seed=seed)
+    return compile_scenario_strict(
+        scenario, packs_dir=packs_dir, seed=seed, strict_schema=strict_schema
+    )
 
 
 def _attach_semantic_refs_placeholder(

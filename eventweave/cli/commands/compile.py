@@ -27,6 +27,9 @@ def register_commands(app: typer.Typer) -> None:
             int | None, typer.Option(help="Random seed for deterministic output.")
         ] = None,
         strict: Annotated[bool, typer.Option(help="Treat rule violations as errors.")] = False,
+        strict_schema: Annotated[
+            bool, typer.Option("--strict-schema", help="Treat schema violations as errors.")
+        ] = False,
         force: Annotated[
             bool, typer.Option(help="Overwrite a non-empty output directory.")
         ] = False,
@@ -35,9 +38,13 @@ def register_commands(app: typer.Typer) -> None:
         packs_dir = packs or find_packs_dir()
         try:
             if strict:
-                result = compile_scenario_file_strict(scenario, packs_dir=packs_dir, seed=seed)
+                result = compile_scenario_file_strict(
+                    scenario, packs_dir=packs_dir, seed=seed, strict_schema=strict_schema
+                )
             else:
-                result = compile_scenario_file(scenario, packs_dir=packs_dir, seed=seed)
+                result = compile_scenario_file(
+                    scenario, packs_dir=packs_dir, seed=seed, strict_schema=strict_schema
+                )
         except ScenarioLoadError as exc:
             console.print(f"[red]Load error:[/red] {exc}")
             raise typer.Exit(code=1) from exc

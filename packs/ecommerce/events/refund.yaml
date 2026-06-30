@@ -7,5 +7,6 @@ refund.requested:
   fields:
     amount:
       type: number
+      required: false
     reason:
       type: string

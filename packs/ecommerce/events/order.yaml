@@ -12,10 +12,12 @@ order.created:
 order.paid:
   description: Payment completed for an order.
   entity_refs:
+    customer: customer
     order: order
     payment: payment
   fields:
     amount:
       type: number
+      required: false
     method:
       type: string

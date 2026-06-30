@@ -446,10 +446,13 @@ What works:
 - v0.9.5: Pre-v1 hardening sweep — core model tests, CLI smoke tests, stub pack
   fill, `encode inspect` fix, SSRF warning, and `docs/security.md`
 - v0.9.6: Python / Go runtime HTTP sink SSRF parity
+- v0.9.7: Pack schema validation — `eventweave validate/compile --strict-schema`,
+  default warning mode, event/entity field and entity-ref checks
 
 What is planned:
 
-- v0.9.7: Pack schema validation and strict-mode compilation
+- v0.9.8: Golden baseline workflow documentation
+- v0.9.9: API compatibility audit
 - v1.0: API stabilization and release polish
 
 ## Security

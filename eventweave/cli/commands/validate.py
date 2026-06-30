@@ -20,14 +20,21 @@ def register_commands(app: typer.Typer) -> None:
         scenario: Annotated[Path, typer.Argument(help="Path to scenario YAML/JSON file.")],
         packs: Annotated[Path | None, typer.Option(help="Path to packs directory.")] = None,
         strict: Annotated[bool, typer.Option(help="Treat rule violations as errors.")] = False,
+        strict_schema: Annotated[
+            bool, typer.Option("--strict-schema", help="Treat schema violations as errors.")
+        ] = False,
     ) -> None:
         """Validate a scenario file."""
         packs_dir = packs or find_packs_dir()
         try:
             if strict:
-                result = compile_scenario_file_strict(scenario, packs_dir=packs_dir)
+                result = compile_scenario_file_strict(
+                    scenario, packs_dir=packs_dir, strict_schema=strict_schema
+                )
             else:
-                result = compile_scenario_file(scenario, packs_dir=packs_dir)
+                result = compile_scenario_file(
+                    scenario, packs_dir=packs_dir, strict_schema=strict_schema
+                )
         except ScenarioLoadError as exc:
             console.print(f"[red]Load error:[/red] {exc}")
             raise typer.Exit(code=1) from exc

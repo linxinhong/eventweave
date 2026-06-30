@@ -308,6 +308,33 @@ packs/ecommerce/examples/refund.yaml
 Examples are validated by `eventweave pack validate <id>` to ensure they still
 compile against the current pack schemas.
 
+## Schema validation
+
+Starting with v0.9.7, EventWeave validates compiled events and entities against
+the schemas declared in their domain packs. Schema mismatches are emitted as
+**warnings** by default so existing scenarios keep compiling.
+
+Use `--strict-schema` to upgrade schema violations to errors:
+
+```bash
+eventweave validate examples/ecommerce/refund.yaml --strict-schema
+eventweave compile examples/ecommerce/refund.yaml -o dist --strict-schema
+```
+
+Validation covers:
+
+- Event `event_type` exists in the scenario's pack or its dependencies.
+- Required event fields are present.
+- Event field types match `string`, `number`, `integer`, or `boolean`.
+- Event `enum` values are respected.
+- `format: email` and `format: ipv4` values are syntactically valid.
+- Event `entity_refs` roles are declared in the event schema and point to
+  entities of the expected type.
+- Entity types exist and required entity fields are present.
+
+Unknown event attributes are allowed by default (warning) so that encoder-
+specific and enrichment fields do not break compilation.
+
 ## Validation
 
 Run pack validation with:
@@ -327,7 +354,8 @@ Validation checks:
 - `rules.yaml` exists and has a top-level `rules` list (warning if missing).
 - `realism/profiles.yaml` parses if present.
 - Each entity and event schema has a `type` matching its key.
-- Every example scenario compiles successfully.
+- Event `entity_refs` point to known entity types in the pack or its dependencies.
+- Every example scenario compiles successfully and passes schema validation.
 - Encoder mappings in `pack.yaml` reference registered encoders and known event types.
 
 ## Current limitations
@@ -335,7 +363,8 @@ Validation checks:
 - No dynamic Python rule plugins.
 - No remote pack marketplace.
 - No pack version resolution or semver constraints.
-- Pack schemas are informational; strict JSON Schema validation is not enforced.
+- Schema validation covers primitive types, required fields, enums, formats, and
+  entity-ref existence; it is not a full JSON Schema engine.
 
 ## Future extensions
 

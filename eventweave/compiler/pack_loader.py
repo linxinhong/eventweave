@@ -16,6 +16,9 @@ class PackLoadError(Exception):
     """Raised when a pack cannot be loaded or parsed."""
 
 
+_SCHEMA_TYPES = {"string", "number", "integer", "boolean"}
+
+
 def _optional_path(value: str | None) -> Path | None:
     """Convert a manifest path value to a Path, treating '' as None."""
     if value is None or value == "":
@@ -269,17 +272,47 @@ class PackRegistry:
                 except Exception as exc:  # noqa: BLE001
                     issues.append(f"ERROR: Invalid realism profiles: {exc}")
 
+        # Build merged entity/event schemas across the pack and its dependencies.
+        merged_entities: dict[str, EntitySchema] = {}
+        merged_events: dict[str, EventSchema] = {}
+        try:
+            for dep_pack in self.load_with_dependencies(domain).values():
+                merged_entities.update(dep_pack.entities)
+                merged_events.update(dep_pack.events)
+        except Exception as exc:  # noqa: BLE001
+            issues.append(f"ERROR: Failed to load dependency schemas: {exc}")
+            merged_entities = dict(full_pack.entities)
+            merged_events = dict(full_pack.events)
+
         for entity_type, entity_schema in full_pack.entities.items():
             if entity_schema.type != entity_type:
                 issues.append(
                     f"ERROR: Entity schema type mismatch: {entity_type} != {entity_schema.type}"
                 )
+            for field_name, field_schema in entity_schema.fields.items():
+                if field_schema.type and field_schema.type not in _SCHEMA_TYPES:
+                    issues.append(
+                        f"WARNING: Entity {entity_type!r} field {field_name!r} "
+                        f"uses unknown type {field_schema.type!r}"
+                    )
 
         for event_type, event_schema in full_pack.events.items():
             if event_schema.type != event_type:
                 issues.append(
                     f"ERROR: Event schema type mismatch: {event_type} != {event_schema.type}"
                 )
+            for field_name, field_schema in event_schema.fields.items():
+                if field_schema.type and field_schema.type not in _SCHEMA_TYPES:
+                    issues.append(
+                        f"WARNING: Event {event_type!r} field {field_name!r} "
+                        f"uses unknown type {field_schema.type!r}"
+                    )
+            for ref_role, ref_entity_type in event_schema.entity_refs.items():
+                if ref_entity_type not in merged_entities:
+                    issues.append(
+                        f"ERROR: Event {event_type!r} entity_refs[{ref_role!r}] "
+                        f"references unknown entity type {ref_entity_type!r}"
+                    )
 
         # Validate encoder metadata against the global encoder registry.
         for encoder_meta in full_pack.encoders:
@@ -296,7 +329,7 @@ class PackRegistry:
                         f"event type '{event_type}'"
                     )
 
-        # Validate examples compile.
+        # Validate examples compile and pass schema validation.
         if meta.examples_path:
             examples_dir = pack_path / meta.examples_path
             if examples_dir.exists() and examples_dir.is_dir():
@@ -309,6 +342,10 @@ class PackRegistry:
                             issues.append(
                                 f"ERROR: Example {example_path.name} failed to compile: "
                                 + "; ".join(result.errors)
+                            )
+                        for warning in result.warnings:
+                            issues.append(
+                                f"WARNING: Example {example_path.name}: {warning}"
                             )
                     except Exception as exc:  # noqa: BLE001
                         issues.append(

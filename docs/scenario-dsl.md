@@ -213,6 +213,10 @@ Supported rule types in v0.1:
 
 By default rule violations are reported as warnings. Use `--strict` to treat them as errors.
 
+Schema mismatches (unknown event types, missing required fields, wrong types,
+unknown entity refs, etc.) are also reported as warnings by default. Use
+`--strict-schema` to upgrade schema violations to errors.
+
 ## Background noise
 
 Add normal background events around the ground-truth timeline:
@@ -298,6 +302,12 @@ eventweave compile examples/ecommerce/refund.yaml -o dist
 
 # Compile in strict mode
 eventweave compile examples/ecommerce/refund.yaml -o dist --strict
+
+# Validate with strict schema checking
+eventweave validate examples/ecommerce/refund.yaml --strict-schema
+
+# Compile with strict schema checking
+eventweave compile examples/ecommerce/refund.yaml -o dist --strict-schema
 
 # Export events as JSONL
 eventweave export dist/ecommerce_refund_flow --format jsonl --output out/events.jsonl
