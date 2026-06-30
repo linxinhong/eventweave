@@ -27,6 +27,10 @@ these checks:
 - Python: `eventweave/runtime/sinks/http.py`
 - Go: `runtime-go/internal/sinks/http/http.go`
 
+The Go runtime additionally resolves hostnames and rejects URLs where any
+resolved IP address is internal, so that names like `internal.example.com`
+cannot be used to bypass the filters.
+
 ### File sink path traversal prevention
 
 The `file` sink resolves `--output` relative to `--output-dir` and rejects any
@@ -47,18 +51,24 @@ traversal.
 ### `--allow-internal-url`
 
 When using the `http` sink, `--allow-internal-url` disables the SSRF filters
-and allows POSTs to private/internal hosts. Only use this option in trusted
-local or test environments. The Python CLI prints a warning when the flag is
-set:
+and allows POSTs to private/internal hosts. This works for both the Python CLI
+(`eventweave run`) and the Go runtime (`eventweave-runtime run`/`bench`).
+
+Only use this option in trusted local or test environments. Both CLIs print a
+warning when the flag is set:
 
 ```text
 WARNING: --allow-internal-url disables SSRF protection and should only be used in trusted local test environments.
 ```
 
-Example:
+Examples:
 
 ```bash
 eventweave run dist/ecommerce_refund_flow_semantic \
+  --sink http --url http://127.0.0.1:8080/events \
+  --allow-internal-url --no-wait
+
+eventweave-runtime run dist/ecommerce_refund_flow_semantic \
   --sink http --url http://127.0.0.1:8080/events \
   --allow-internal-url --no-wait
 ```

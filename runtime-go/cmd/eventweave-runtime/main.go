@@ -108,6 +108,12 @@ func runCmd() *cobra.Command {
 			if err := cfg.Validate(); err != nil {
 				return err
 			}
+			if cfg.Sink == "http" && cfg.AllowInternalURL {
+				fmt.Fprintln(
+					cmd.ErrOrStderr(),
+					"WARNING: --allow-internal-url disables SSRF protection and should only be used in trusted local test environments.",
+				)
+			}
 
 			ctx, stop := signal.NotifyContext(cmd.Context(), os.Interrupt, syscall.SIGTERM)
 			defer stop()
@@ -166,6 +172,12 @@ func benchCmd() *cobra.Command {
 			}
 			if err := cfg.Validate(); err != nil {
 				return err
+			}
+			if cfg.Sink == "http" && cfg.AllowInternalURL {
+				fmt.Fprintln(
+					cmd.ErrOrStderr(),
+					"WARNING: --allow-internal-url disables SSRF protection and should only be used in trusted local test environments.",
+				)
 			}
 
 			ctx, stop := signal.NotifyContext(cmd.Context(), os.Interrupt, syscall.SIGTERM)

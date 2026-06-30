@@ -2,6 +2,33 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.9.6] - 2026-06-30
+
+### Added
+
+
+- Go HTTP sink SSRF parity with the Python runtime:
+  - `runtime-go/internal/sinks/http/http.go` now resolves hostnames and rejects
+    URLs where any resolved IP is loopback, link-local, private, multicast,
+    reserved, or unspecified.
+  - `eventweave-runtime run` and `bench` print a warning when
+    `--allow-internal-url` is used.
+  - HTTP redirects remain disabled for the Go `http` sink.
+- Go HTTP sink tests:
+  - `TestHTTPSinkAllowsPublicURL`
+  - `TestHTTPSinkRejectsRedirect`
+  - `TestRunCmdWarnsOnAllowInternalURL`
+  - `TestBenchCmdWarnsOnAllowInternalURL`
+
+### Changed
+
+- Updated `docs/security.md` to document Python/Go HTTP sink parity, DNS
+  resolution checks, and the `--allow-internal-url` warning.
+- Updated `docs/go-runtime.md` to clarify hostname resolution and the CLI
+  warning behavior.
+- Updated `README.md` with a security summary and adjusted the v0.9.5/v0.9.6
+  roadmap items.
+
 ## [0.9.5] - 2026-06-30
 
 ### Added

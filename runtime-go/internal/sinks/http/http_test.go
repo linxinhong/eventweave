@@ -5,6 +5,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -192,8 +193,37 @@ func TestIsSafeURLAcceptsWhenAllowed(t *testing.T) {
 	}
 }
 
+
 func TestHTTPSinkNewRejectsInternal(t *testing.T) {
 	if _, err := New("http://127.0.0.1/events", 5*time.Second, 30*time.Second, 0, 1.0, false); err == nil {
 		t.Fatal("expected error for internal URL")
+	}
+}
+
+func TestHTTPSinkAllowsPublicURL(t *testing.T) {
+	if err := IsSafeURL("http://example.com/events", false); err != nil {
+		t.Fatalf("expected public URL to be allowed: %v", err)
+	}
+}
+
+func TestHTTPSinkRejectsRedirect(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, "http://127.0.0.1/events", http.StatusFound)
+	}))
+	defer server.Close()
+
+	sink, err := New(server.URL, 5*time.Second, 30*time.Second, 0, 1.0, true)
+	if err != nil {
+		t.Fatalf("new: %v", err)
+	}
+	if err := sink.Open(); err != nil {
+		t.Fatalf("open: %v", err)
+	}
+	writeErr := sink.Write(event.Event{EventID: "e1"})
+	if writeErr == nil {
+		t.Fatal("expected error when server returns redirect")
+	}
+	if !strings.Contains(writeErr.Error(), "redirect") {
+		t.Fatalf("expected redirect error, got: %v", writeErr)
 	}
 }

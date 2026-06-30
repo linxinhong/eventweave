@@ -445,11 +445,26 @@ What works:
   `--enrich` and pack `encoders/enrichment.yaml`
 - v0.9.5: Pre-v1 hardening sweep — core model tests, CLI smoke tests, stub pack
   fill, `encode inspect` fix, SSRF warning, and `docs/security.md`
+- v0.9.6: Python / Go runtime HTTP sink SSRF parity
 
 What is planned:
 
-- v0.9.6: Runtime security parity across Python and Go HTTP sinks
+- v0.9.7: Pack schema validation and strict-mode compilation
 - v1.0: API stabilization and release polish
+
+## Security
+
+EventWeave includes sink-level safeguards against SSRF and path traversal:
+
+- The `http` sink rejects loopback, private, link-local, multicast, and reserved
+  addresses in both the Python and Go runtimes. Go also resolves hostnames and
+  rejects URLs that resolve to internal IPs.
+- HTTP redirects are disabled for the `http` sink.
+- The `file` sink refuses paths that escape `--output-dir`.
+- `--allow-internal-url` disables these protections and prints a warning; use it
+  only in trusted local/test environments.
+
+See [docs/security.md](docs/security.md) for details.
 
 ## Pack Ecosystem
 

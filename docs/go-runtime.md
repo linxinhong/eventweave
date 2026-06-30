@@ -206,14 +206,18 @@ The Go runtime emits events in the same order as the Python local runtime:
 `sorted by event_time, then event_id`. Given the same compiled plan, both
 runtimes produce identical output.
 
+
 ## Security defaults
 
 - The `http` sink only allows `http://` and `https://` URLs and rejects
   loopback, link-local, private, reserved, and multicast addresses, plus common
   internal hostnames such as `localhost` and `metadata.google.internal`.
+- Hostnames are resolved and the resulting IP addresses are also checked; if any
+  resolved address is internal, the URL is rejected.
 - HTTP redirects are disabled so a public URL cannot pivot to an internal host.
 - The `file` sink refuses paths that escape `--output-dir`.
-- Use `--allow-internal-url` only in trusted local/test environments.
+- Use `--allow-internal-url` only in trusted local/test environments. The CLI
+  prints a warning when this flag is used.
 
 ## Graceful shutdown
 

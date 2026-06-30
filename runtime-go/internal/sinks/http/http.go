@@ -72,6 +72,7 @@ func isForbiddenIP(ip net.IP) bool {
 	return false
 }
 
+
 // IsSafeURL validates that rawURL is an http(s) endpoint and not an internal
 // or reserved address. Set allowInternal to skip the host/IP checks for
 // trusted test environments.
@@ -96,9 +97,25 @@ func IsSafeURL(rawURL string, allowInternal bool) error {
 		return fmt.Errorf("http sink URL points to forbidden host: %s", host)
 	}
 
+	// Literal IP check.
 	if ip := net.ParseIP(host); ip != nil {
 		if isForbiddenIP(ip) {
 			return fmt.Errorf("http sink URL points to forbidden IP address: %s", host)
+		}
+		return nil
+	}
+
+	// Hostname check: resolve and reject if any resolved address is internal.
+	ips, err := net.LookupIP(host)
+	if err != nil {
+		return fmt.Errorf("http sink URL host %q could not be resolved: %w", host, err)
+	}
+	if len(ips) == 0 {
+		return fmt.Errorf("http sink URL host %q resolved to no IP addresses", host)
+	}
+	for _, ip := range ips {
+		if isForbiddenIP(ip) {
+			return fmt.Errorf("http sink URL host %q resolves to forbidden IP address: %s", host, ip)
 		}
 	}
 
