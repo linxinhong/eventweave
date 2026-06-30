@@ -99,7 +99,8 @@
           "host": "$entity.host"
         },
         "labels": [],
-        "ground_truth": {}
+        "ground_truth": {},
+        "jitter": null
       },
       {
         "id": "successful_login",
@@ -119,7 +120,8 @@
           "host": "$ref.failed_login.host"
         },
         "labels": [],
-        "ground_truth": {}
+        "ground_truth": {},
+        "jitter": null
       },
       {
         "id": "suspicious_process",
@@ -139,7 +141,8 @@
           "host": "$ref.successful_login.host"
         },
         "labels": [],
-        "ground_truth": {}
+        "ground_truth": {},
+        "jitter": null
       },
       {
         "id": "lateral_connection",
@@ -162,7 +165,8 @@
           "target_ip": "$entity.ip"
         },
         "labels": [],
-        "ground_truth": {}
+        "ground_truth": {},
+        "jitter": null
       },
       {
         "id": "alert_triggered",
@@ -183,9 +187,11 @@
           "alert": "$new.alert"
         },
         "labels": [],
-        "ground_truth": {}
+        "ground_truth": {},
+        "jitter": null
       }
     ],
+    "semantic_tasks": [],
     "rules": [
       {
         "id": "login_success_after_failed_attempts",
@@ -209,7 +215,126 @@
           "target_host"
         ]
       }
-    ]
+    ],
+    "ground_truth": {
+      "scenario_id": "security_lateral_movement",
+      "expected_findings": [
+        {
+          "type": "suspicious_login",
+          "entities": [],
+          "stage": "initial_access",
+          "evidence_event_ids": [],
+          "attributes": {}
+        },
+        {
+          "type": "suspicious_process",
+          "entities": [],
+          "stage": "execution",
+          "evidence_event_ids": [],
+          "attributes": {}
+        },
+        {
+          "type": "lateral_movement",
+          "entities": [],
+          "stage": "lateral_movement",
+          "evidence_event_ids": [],
+          "attributes": {}
+        },
+        {
+          "type": "alert_triggered",
+          "entities": [],
+          "stage": "exfiltration",
+          "evidence_event_ids": [],
+          "attributes": {}
+        }
+      ],
+      "expected_timeline_stages": [
+        {
+          "stage": "execution",
+          "event_ids": []
+        },
+        {
+          "stage": "exfiltration",
+          "event_ids": []
+        },
+        {
+          "stage": "initial_access",
+          "event_ids": []
+        },
+        {
+          "stage": "lateral_movement",
+          "event_ids": []
+        }
+      ],
+      "expected_summary": "Suspicious login followed by encoded PowerShell execution, lateral SMB connection, and a high-severity EDR alert.",
+      "key_event_ids": [],
+      "attributes": {}
+    },
+    "noise": {
+      "enabled": true,
+      "ratio": 1.0,
+      "events": [
+        {
+          "event": "user.login.success",
+          "weight": 3,
+          "source": "edr-001",
+          "attributes": {},
+          "entity_refs": {
+            "user": "$entity.user",
+            "host": "$entity.host"
+          }
+        },
+        {
+          "event": "firewall.allow",
+          "weight": 3,
+          "source": "firewall-001",
+          "attributes": {},
+          "entity_refs": {
+            "host": "$entity.host"
+          }
+        },
+        {
+          "event": "edr.heartbeat",
+          "weight": 5,
+          "source": "edr-001",
+          "attributes": {},
+          "entity_refs": {
+            "host": "$entity.host"
+          }
+        },
+        {
+          "event": "dns.query",
+          "weight": 3,
+          "source": "dns-001",
+          "attributes": {},
+          "entity_refs": {
+            "host": "$entity.host",
+            "domain": "$entity.domain"
+          }
+        },
+        {
+          "event": "dns.response",
+          "weight": 2,
+          "source": "dns-001",
+          "attributes": {},
+          "entity_refs": {
+            "host": "$entity.host",
+            "domain": "$entity.domain"
+          }
+        }
+      ]
+    },
+    "jitter": {
+      "enabled": true,
+      "max_offset": "5s",
+      "preserve_order": true
+    },
+    "realism_profile": null,
+    "realism": {
+      "profile": "security.endpoint_background",
+      "noise": null,
+      "jitter": null
+    }
   },
   "entities": [
     {
@@ -218,7 +343,7 @@
       "domain": "security",
       "attributes": {},
       "tags": [],
-      "created_at": "2026-06-28 05:06:12.022326+00:00"
+      "created_at": "2026-06-30 10:04:05.077770+00:00"
     },
     {
       "id": "user_002",
@@ -226,7 +351,7 @@
       "domain": "security",
       "attributes": {},
       "tags": [],
-      "created_at": "2026-06-28 05:06:12.022544+00:00"
+      "created_at": "2026-06-30 10:04:05.077777+00:00"
     },
     {
       "id": "user_003",
@@ -234,7 +359,7 @@
       "domain": "security",
       "attributes": {},
       "tags": [],
-      "created_at": "2026-06-28 05:06:12.022548+00:00"
+      "created_at": "2026-06-30 10:04:05.077780+00:00"
     },
     {
       "id": "user_004",
@@ -242,7 +367,7 @@
       "domain": "security",
       "attributes": {},
       "tags": [],
-      "created_at": "2026-06-28 05:06:12.022551+00:00"
+      "created_at": "2026-06-30 10:04:05.077783+00:00"
     },
     {
       "id": "user_005",
@@ -250,7 +375,7 @@
       "domain": "security",
       "attributes": {},
       "tags": [],
-      "created_at": "2026-06-28 05:06:12.022554+00:00"
+      "created_at": "2026-06-30 10:04:05.077785+00:00"
     },
     {
       "id": "host_001",
@@ -258,7 +383,7 @@
       "domain": "security",
       "attributes": {},
       "tags": [],
-      "created_at": "2026-06-28 05:06:12.022557+00:00"
+      "created_at": "2026-06-30 10:04:05.077788+00:00"
     },
     {
       "id": "host_002",
@@ -266,7 +391,7 @@
       "domain": "security",
       "attributes": {},
       "tags": [],
-      "created_at": "2026-06-28 05:06:12.022560+00:00"
+      "created_at": "2026-06-30 10:04:05.077790+00:00"
     },
     {
       "id": "host_003",
@@ -274,7 +399,7 @@
       "domain": "security",
       "attributes": {},
       "tags": [],
-      "created_at": "2026-06-28 05:06:12.022562+00:00"
+      "created_at": "2026-06-30 10:04:05.077792+00:00"
     },
     {
       "id": "host_004",
@@ -282,7 +407,7 @@
       "domain": "security",
       "attributes": {},
       "tags": [],
-      "created_at": "2026-06-28 05:06:12.022563+00:00"
+      "created_at": "2026-06-30 10:04:05.077794+00:00"
     },
     {
       "id": "host_005",
@@ -290,7 +415,7 @@
       "domain": "security",
       "attributes": {},
       "tags": [],
-      "created_at": "2026-06-28 05:06:12.022565+00:00"
+      "created_at": "2026-06-30 10:04:05.077796+00:00"
     },
     {
       "id": "host_006",
@@ -298,7 +423,7 @@
       "domain": "security",
       "attributes": {},
       "tags": [],
-      "created_at": "2026-06-28 05:06:12.022567+00:00"
+      "created_at": "2026-06-30 10:04:05.077798+00:00"
     },
     {
       "id": "host_007",
@@ -306,7 +431,7 @@
       "domain": "security",
       "attributes": {},
       "tags": [],
-      "created_at": "2026-06-28 05:06:12.022569+00:00"
+      "created_at": "2026-06-30 10:04:05.077800+00:00"
     },
     {
       "id": "host_008",
@@ -314,7 +439,7 @@
       "domain": "security",
       "attributes": {},
       "tags": [],
-      "created_at": "2026-06-28 05:06:12.022571+00:00"
+      "created_at": "2026-06-30 10:04:05.077802+00:00"
     },
     {
       "id": "host_009",
@@ -322,7 +447,7 @@
       "domain": "security",
       "attributes": {},
       "tags": [],
-      "created_at": "2026-06-28 05:06:12.022573+00:00"
+      "created_at": "2026-06-30 10:04:05.077804+00:00"
     },
     {
       "id": "host_010",
@@ -330,7 +455,7 @@
       "domain": "security",
       "attributes": {},
       "tags": [],
-      "created_at": "2026-06-28 05:06:12.022575+00:00"
+      "created_at": "2026-06-30 10:04:05.077806+00:00"
     },
     {
       "id": "ip_001",
@@ -338,7 +463,7 @@
       "domain": "security",
       "attributes": {},
       "tags": [],
-      "created_at": "2026-06-28 05:06:12.022578+00:00"
+      "created_at": "2026-06-30 10:04:05.077808+00:00"
     },
     {
       "id": "ip_002",
@@ -346,7 +471,7 @@
       "domain": "security",
       "attributes": {},
       "tags": [],
-      "created_at": "2026-06-28 05:06:12.022580+00:00"
+      "created_at": "2026-06-30 10:04:05.077811+00:00"
     },
     {
       "id": "ip_003",
@@ -354,7 +479,7 @@
       "domain": "security",
       "attributes": {},
       "tags": [],
-      "created_at": "2026-06-28 05:06:12.022582+00:00"
+      "created_at": "2026-06-30 10:04:05.077813+00:00"
     },
     {
       "id": "ip_004",
@@ -362,7 +487,7 @@
       "domain": "security",
       "attributes": {},
       "tags": [],
-      "created_at": "2026-06-28 05:06:12.022583+00:00"
+      "created_at": "2026-06-30 10:04:05.077815+00:00"
     },
     {
       "id": "ip_005",
@@ -370,7 +495,7 @@
       "domain": "security",
       "attributes": {},
       "tags": [],
-      "created_at": "2026-06-28 05:06:12.022585+00:00"
+      "created_at": "2026-06-30 10:04:05.077816+00:00"
     },
     {
       "id": "ip_006",
@@ -378,7 +503,7 @@
       "domain": "security",
       "attributes": {},
       "tags": [],
-      "created_at": "2026-06-28 05:06:12.022587+00:00"
+      "created_at": "2026-06-30 10:04:05.077819+00:00"
     },
     {
       "id": "ip_007",
@@ -386,7 +511,7 @@
       "domain": "security",
       "attributes": {},
       "tags": [],
-      "created_at": "2026-06-28 05:06:12.022589+00:00"
+      "created_at": "2026-06-30 10:04:05.077820+00:00"
     },
     {
       "id": "ip_008",
@@ -394,7 +519,7 @@
       "domain": "security",
       "attributes": {},
       "tags": [],
-      "created_at": "2026-06-28 05:06:12.022591+00:00"
+      "created_at": "2026-06-30 10:04:05.077822+00:00"
     },
     {
       "id": "ip_009",
@@ -402,7 +527,7 @@
       "domain": "security",
       "attributes": {},
       "tags": [],
-      "created_at": "2026-06-28 05:06:12.022593+00:00"
+      "created_at": "2026-06-30 10:04:05.077824+00:00"
     },
     {
       "id": "ip_010",
@@ -410,7 +535,7 @@
       "domain": "security",
       "attributes": {},
       "tags": [],
-      "created_at": "2026-06-28 05:06:12.022595+00:00"
+      "created_at": "2026-06-30 10:04:05.077826+00:00"
     },
     {
       "id": "ip_011",
@@ -418,7 +543,7 @@
       "domain": "security",
       "attributes": {},
       "tags": [],
-      "created_at": "2026-06-28 05:06:12.022597+00:00"
+      "created_at": "2026-06-30 10:04:05.077828+00:00"
     },
     {
       "id": "ip_012",
@@ -426,7 +551,7 @@
       "domain": "security",
       "attributes": {},
       "tags": [],
-      "created_at": "2026-06-28 05:06:12.022598+00:00"
+      "created_at": "2026-06-30 10:04:05.077830+00:00"
     },
     {
       "id": "ip_013",
@@ -434,7 +559,7 @@
       "domain": "security",
       "attributes": {},
       "tags": [],
-      "created_at": "2026-06-28 05:06:12.022600+00:00"
+      "created_at": "2026-06-30 10:04:05.077832+00:00"
     },
     {
       "id": "ip_014",
@@ -442,7 +567,7 @@
       "domain": "security",
       "attributes": {},
       "tags": [],
-      "created_at": "2026-06-28 05:06:12.022602+00:00"
+      "created_at": "2026-06-30 10:04:05.077837+00:00"
     },
     {
       "id": "ip_015",
@@ -450,7 +575,7 @@
       "domain": "security",
       "attributes": {},
       "tags": [],
-      "created_at": "2026-06-28 05:06:12.022604+00:00"
+      "created_at": "2026-06-30 10:04:05.077840+00:00"
     },
     {
       "id": "alert_001",
@@ -458,7 +583,7 @@
       "domain": "security",
       "attributes": {},
       "tags": [],
-      "created_at": "2026-06-28 05:06:12.022606+00:00"
+      "created_at": "2026-06-30 10:04:05.077842+00:00"
     },
     {
       "id": "alert_002",
@@ -466,7 +591,7 @@
       "domain": "security",
       "attributes": {},
       "tags": [],
-      "created_at": "2026-06-28 05:06:12.022608+00:00"
+      "created_at": "2026-06-30 10:04:05.077844+00:00"
     },
     {
       "id": "alert_003",
@@ -474,7 +599,7 @@
       "domain": "security",
       "attributes": {},
       "tags": [],
-      "created_at": "2026-06-28 05:06:12.022610+00:00"
+      "created_at": "2026-06-30 10:04:05.077846+00:00"
     },
     {
       "id": "alert_001",
@@ -482,7 +607,7 @@
       "domain": "security",
       "attributes": {},
       "tags": [],
-      "created_at": "2026-06-28 05:06:12.022783+00:00"
+      "created_at": "2026-06-30 10:04:05.077965+00:00"
     },
     {
       "id": "alert_002",
@@ -490,7 +615,7 @@
       "domain": "security",
       "attributes": {},
       "tags": [],
-      "created_at": "2026-06-28 05:06:12.022848+00:00"
+      "created_at": "2026-06-30 10:04:05.078022+00:00"
     },
     {
       "id": "alert_003",
@@ -498,7 +623,7 @@
       "domain": "security",
       "attributes": {},
       "tags": [],
-      "created_at": "2026-06-28 05:06:12.022902+00:00"
+      "created_at": "2026-06-30 10:04:05.078073+00:00"
     },
     {
       "id": "alert_004",
@@ -506,7 +631,7 @@
       "domain": "security",
       "attributes": {},
       "tags": [],
-      "created_at": "2026-06-28 05:06:12.022953+00:00"
+      "created_at": "2026-06-30 10:04:05.078122+00:00"
     },
     {
       "id": "alert_005",
@@ -514,67 +639,19 @@
       "domain": "security",
       "attributes": {},
       "tags": [],
-      "created_at": "2026-06-28 05:06:12.023009+00:00"
+      "created_at": "2026-06-30 10:04:05.078179+00:00"
     }
   ],
   "relations": [],
   "events": [
-    {
-      "event_id": "evt-security-lateral-movement-001-001",
-      "scenario_id": "security_lateral_movement",
-      "flow_id": "user_001",
-      "source_id": "edr-001",
-      "event_type": "user.login.failed",
-      "event_time": "2026-06-28 05:07:12.022626+00:00",
-      "generated_at": "2026-06-28 05:06:12.022688+00:00",
-      "emit_time": null,
-      "ingest_time": null,
-      "entity_refs": {
-        "flow": "user_001",
-        "user": "user_001",
-        "host": "host_006"
-      },
-      "attributes": {
-        "reason": "Invalid password"
-      },
-      "semantic_refs": [],
-      "labels": [],
-      "ground_truth": {
-        "is_key_event": true
-      }
-    },
-    {
-      "event_id": "evt-security-lateral-movement-002-001",
-      "scenario_id": "security_lateral_movement",
-      "flow_id": "user_002",
-      "source_id": "edr-001",
-      "event_type": "user.login.failed",
-      "event_time": "2026-06-28 05:07:12.022626+00:00",
-      "generated_at": "2026-06-28 05:06:12.022802+00:00",
-      "emit_time": null,
-      "ingest_time": null,
-      "entity_refs": {
-        "flow": "user_002",
-        "user": "user_002",
-        "host": "host_009"
-      },
-      "attributes": {
-        "reason": "Invalid password"
-      },
-      "semantic_refs": [],
-      "labels": [],
-      "ground_truth": {
-        "is_key_event": true
-      }
-    },
     {
       "event_id": "evt-security-lateral-movement-003-001",
       "scenario_id": "security_lateral_movement",
       "flow_id": "user_003",
       "source_id": "edr-001",
       "event_type": "user.login.failed",
-      "event_time": "2026-06-28 05:07:12.022626+00:00",
-      "generated_at": "2026-06-28 05:06:12.022861+00:00",
+      "event_time": "2026-06-30 10:05:00.588638+00:00",
+      "generated_at": "2026-06-30 10:04:05.078033+00:00",
       "emit_time": null,
       "ingest_time": null,
       "entity_refs": {
@@ -597,8 +674,8 @@
       "flow_id": "user_004",
       "source_id": "edr-001",
       "event_type": "user.login.failed",
-      "event_time": "2026-06-28 05:07:12.022626+00:00",
-      "generated_at": "2026-06-28 05:06:12.022913+00:00",
+      "event_time": "2026-06-30 10:05:05.965282+00:00",
+      "generated_at": "2026-06-30 10:04:05.078083+00:00",
       "emit_time": null,
       "ingest_time": null,
       "entity_refs": {
@@ -616,13 +693,37 @@
       }
     },
     {
+      "event_id": "evt-security-lateral-movement-002-001",
+      "scenario_id": "security_lateral_movement",
+      "flow_id": "user_002",
+      "source_id": "edr-001",
+      "event_type": "user.login.failed",
+      "event_time": "2026-06-30 10:05:06.432973+00:00",
+      "generated_at": "2026-06-30 10:04:05.077979+00:00",
+      "emit_time": null,
+      "ingest_time": null,
+      "entity_refs": {
+        "flow": "user_002",
+        "user": "user_002",
+        "host": "host_009"
+      },
+      "attributes": {
+        "reason": "Invalid password"
+      },
+      "semantic_refs": [],
+      "labels": [],
+      "ground_truth": {
+        "is_key_event": true
+      }
+    },
+    {
       "event_id": "evt-security-lateral-movement-005-001",
       "scenario_id": "security_lateral_movement",
       "flow_id": "user_005",
       "source_id": "edr-001",
       "event_type": "user.login.failed",
-      "event_time": "2026-06-28 05:07:12.022626+00:00",
-      "generated_at": "2026-06-28 05:06:12.022969+00:00",
+      "event_time": "2026-06-30 10:05:08.193596+00:00",
+      "generated_at": "2026-06-30 10:04:05.078132+00:00",
       "emit_time": null,
       "ingest_time": null,
       "entity_refs": {
@@ -640,13 +741,58 @@
       }
     },
     {
+      "event_id": "evt-security-lateral-movement-001-001",
+      "scenario_id": "security_lateral_movement",
+      "flow_id": "user_001",
+      "source_id": "edr-001",
+      "event_type": "user.login.failed",
+      "event_time": "2026-06-30 10:05:09.978152+00:00",
+      "generated_at": "2026-06-30 10:04:05.077898+00:00",
+      "emit_time": null,
+      "ingest_time": null,
+      "entity_refs": {
+        "flow": "user_001",
+        "user": "user_001",
+        "host": "host_006"
+      },
+      "attributes": {
+        "reason": "Invalid password"
+      },
+      "semantic_refs": [],
+      "labels": [],
+      "ground_truth": {
+        "is_key_event": true
+      }
+    },
+    {
+      "event_id": "evt-security-lateral-movement-noise-00025",
+      "scenario_id": "security_lateral_movement",
+      "flow_id": null,
+      "source_id": "dns-001",
+      "event_type": "dns.response",
+      "event_time": "2026-06-30 10:05:29.658880+00:00",
+      "generated_at": "2026-06-30 10:04:05.078377+00:00",
+      "emit_time": null,
+      "ingest_time": null,
+      "entity_refs": {
+        "host": "host_006",
+        "domain": ""
+      },
+      "attributes": {},
+      "semantic_refs": [],
+      "labels": [],
+      "ground_truth": {
+        "noise": true
+      }
+    },
+    {
       "event_id": "evt-security-lateral-movement-001-002",
       "scenario_id": "security_lateral_movement",
       "flow_id": "user_001",
       "source_id": "edr-001",
       "event_type": "user.login.success",
-      "event_time": "2026-06-28 05:07:48.726289+00:00",
-      "generated_at": "2026-06-28 05:06:12.022729+00:00",
+      "event_time": "2026-06-30 10:05:40.005328+00:00",
+      "generated_at": "2026-06-30 10:04:05.077924+00:00",
       "emit_time": null,
       "ingest_time": null,
       "entity_refs": {
@@ -669,8 +815,8 @@
       "flow_id": "user_005",
       "source_id": "edr-001",
       "event_type": "user.login.success",
-      "event_time": "2026-06-28 05:07:51.795093+00:00",
-      "generated_at": "2026-06-28 05:06:12.022980+00:00",
+      "event_time": "2026-06-30 10:05:43.444580+00:00",
+      "generated_at": "2026-06-30 10:04:05.078142+00:00",
       "emit_time": null,
       "ingest_time": null,
       "entity_refs": {
@@ -688,13 +834,33 @@
       }
     },
     {
+      "event_id": "evt-security-lateral-movement-noise-00011",
+      "scenario_id": "security_lateral_movement",
+      "flow_id": null,
+      "source_id": "firewall-001",
+      "event_type": "firewall.allow",
+      "event_time": "2026-06-30 10:05:58.410567+00:00",
+      "generated_at": "2026-06-30 10:04:05.078305+00:00",
+      "emit_time": null,
+      "ingest_time": null,
+      "entity_refs": {
+        "host": "host_008"
+      },
+      "attributes": {},
+      "semantic_refs": [],
+      "labels": [],
+      "ground_truth": {
+        "noise": true
+      }
+    },
+    {
       "event_id": "evt-security-lateral-movement-002-002",
       "scenario_id": "security_lateral_movement",
       "flow_id": "user_002",
       "source_id": "edr-001",
       "event_type": "user.login.success",
-      "event_time": "2026-06-28 05:08:23.980078+00:00",
-      "generated_at": "2026-06-28 05:06:12.022815+00:00",
+      "event_time": "2026-06-30 10:06:12.744756+00:00",
+      "generated_at": "2026-06-30 10:04:05.077991+00:00",
       "emit_time": null,
       "ingest_time": null,
       "entity_refs": {
@@ -717,8 +883,8 @@
       "flow_id": "user_003",
       "source_id": "edr-001",
       "event_type": "user.login.success",
-      "event_time": "2026-06-28 05:08:40.414393+00:00",
-      "generated_at": "2026-06-28 05:06:12.022872+00:00",
+      "event_time": "2026-06-30 10:06:29.357326+00:00",
+      "generated_at": "2026-06-30 10:04:05.078044+00:00",
       "emit_time": null,
       "ingest_time": null,
       "entity_refs": {
@@ -741,8 +907,8 @@
       "flow_id": "user_004",
       "source_id": "edr-001",
       "event_type": "user.login.success",
-      "event_time": "2026-06-28 05:08:56.704853+00:00",
-      "generated_at": "2026-06-28 05:06:12.022923+00:00",
+      "event_time": "2026-06-30 10:06:53.053525+00:00",
+      "generated_at": "2026-06-30 10:04:05.078094+00:00",
       "emit_time": null,
       "ingest_time": null,
       "entity_refs": {
@@ -760,13 +926,117 @@
       }
     },
     {
+      "event_id": "evt-security-lateral-movement-noise-00012",
+      "scenario_id": "security_lateral_movement",
+      "flow_id": null,
+      "source_id": "edr-001",
+      "event_type": "user.login.success",
+      "event_time": "2026-06-30 10:07:20.103609+00:00",
+      "generated_at": "2026-06-30 10:04:05.078313+00:00",
+      "emit_time": null,
+      "ingest_time": null,
+      "entity_refs": {
+        "user": "user_002",
+        "host": "host_007"
+      },
+      "attributes": {},
+      "semantic_refs": [],
+      "labels": [],
+      "ground_truth": {
+        "noise": true
+      }
+    },
+    {
+      "event_id": "evt-security-lateral-movement-noise-00014",
+      "scenario_id": "security_lateral_movement",
+      "flow_id": null,
+      "source_id": "edr-001",
+      "event_type": "edr.heartbeat",
+      "event_time": "2026-06-30 10:08:06.323370+00:00",
+      "generated_at": "2026-06-30 10:04:05.078324+00:00",
+      "emit_time": null,
+      "ingest_time": null,
+      "entity_refs": {
+        "host": "host_010"
+      },
+      "attributes": {},
+      "semantic_refs": [],
+      "labels": [],
+      "ground_truth": {
+        "noise": true
+      }
+    },
+    {
+      "event_id": "evt-security-lateral-movement-noise-00007",
+      "scenario_id": "security_lateral_movement",
+      "flow_id": null,
+      "source_id": "edr-001",
+      "event_type": "user.login.success",
+      "event_time": "2026-06-30 10:08:19.646207+00:00",
+      "generated_at": "2026-06-30 10:04:05.078284+00:00",
+      "emit_time": null,
+      "ingest_time": null,
+      "entity_refs": {
+        "user": "user_005",
+        "host": "host_003"
+      },
+      "attributes": {},
+      "semantic_refs": [],
+      "labels": [],
+      "ground_truth": {
+        "noise": true
+      }
+    },
+    {
+      "event_id": "evt-security-lateral-movement-noise-00004",
+      "scenario_id": "security_lateral_movement",
+      "flow_id": null,
+      "source_id": "dns-001",
+      "event_type": "dns.response",
+      "event_time": "2026-06-30 10:08:28.799185+00:00",
+      "generated_at": "2026-06-30 10:04:05.078262+00:00",
+      "emit_time": null,
+      "ingest_time": null,
+      "entity_refs": {
+        "host": "host_002",
+        "domain": ""
+      },
+      "attributes": {},
+      "semantic_refs": [],
+      "labels": [],
+      "ground_truth": {
+        "noise": true
+      }
+    },
+    {
+      "event_id": "evt-security-lateral-movement-noise-00015",
+      "scenario_id": "security_lateral_movement",
+      "flow_id": null,
+      "source_id": "dns-001",
+      "event_type": "dns.query",
+      "event_time": "2026-06-30 10:10:28.822224+00:00",
+      "generated_at": "2026-06-30 10:04:05.078329+00:00",
+      "emit_time": null,
+      "ingest_time": null,
+      "entity_refs": {
+        "host": "host_006",
+        "domain": ""
+      },
+      "attributes": {},
+      "semantic_refs": [],
+      "labels": [],
+      "ground_truth": {
+        "noise": true
+      }
+    },
+    {
       "event_id": "evt-security-lateral-movement-002-003",
       "scenario_id": "security_lateral_movement",
       "flow_id": "user_002",
       "source_id": "edr-001",
       "event_type": "process.suspicious_started",
-      "event_time": "2026-06-28 05:13:29.215286+00:00",
-      "generated_at": "2026-06-28 05:06:12.022826+00:00",
+      "event_time": "2026-06-30 10:11:22.888596+00:00",
+      "generated_at": "2026-06-30 10:04:05.078001+00:00",
       "emit_time": null,
       "ingest_time": null,
       "entity_refs": {
@@ -789,8 +1059,8 @@
       "flow_id": "user_003",
       "source_id": "edr-001",
       "event_type": "process.suspicious_started",
-      "event_time": "2026-06-28 05:14:02.047436+00:00",
-      "generated_at": "2026-06-28 05:06:12.022882+00:00",
+      "event_time": "2026-06-30 10:11:52.060788+00:00",
+      "generated_at": "2026-06-30 10:04:05.078053+00:00",
       "emit_time": null,
       "ingest_time": null,
       "entity_refs": {
@@ -808,13 +1078,34 @@
       }
     },
     {
+      "event_id": "evt-security-lateral-movement-noise-00022",
+      "scenario_id": "security_lateral_movement",
+      "flow_id": null,
+      "source_id": "dns-001",
+      "event_type": "dns.query",
+      "event_time": "2026-06-30 10:13:59.090893+00:00",
+      "generated_at": "2026-06-30 10:04:05.078363+00:00",
+      "emit_time": null,
+      "ingest_time": null,
+      "entity_refs": {
+        "host": "host_007",
+        "domain": ""
+      },
+      "attributes": {},
+      "semantic_refs": [],
+      "labels": [],
+      "ground_truth": {
+        "noise": true
+      }
+    },
+    {
       "event_id": "evt-security-lateral-movement-001-003",
       "scenario_id": "security_lateral_movement",
       "flow_id": "user_001",
       "source_id": "edr-001",
       "event_type": "process.suspicious_started",
-      "event_time": "2026-06-28 05:16:10.892628+00:00",
-      "generated_at": "2026-06-28 05:06:12.022750+00:00",
+      "event_time": "2026-06-30 10:14:00.188014+00:00",
+      "generated_at": "2026-06-30 10:04:05.077939+00:00",
       "emit_time": null,
       "ingest_time": null,
       "entity_refs": {
@@ -837,8 +1128,8 @@
       "flow_id": "user_002",
       "source_id": "firewall-001",
       "event_type": "network.lateral_connection",
-      "event_time": "2026-06-28 05:16:23.402177+00:00",
-      "generated_at": "2026-06-28 05:06:12.022837+00:00",
+      "event_time": "2026-06-30 10:14:19.510179+00:00",
+      "generated_at": "2026-06-30 10:04:05.078013+00:00",
       "emit_time": null,
       "ingest_time": null,
       "entity_refs": {
@@ -864,8 +1155,8 @@
       "flow_id": "user_003",
       "source_id": "firewall-001",
       "event_type": "network.lateral_connection",
-      "event_time": "2026-06-28 05:16:58.526201+00:00",
-      "generated_at": "2026-06-28 05:06:12.022893+00:00",
+      "event_time": "2026-06-30 10:14:47.097696+00:00",
+      "generated_at": "2026-06-30 10:04:05.078064+00:00",
       "emit_time": null,
       "ingest_time": null,
       "entity_refs": {
@@ -891,8 +1182,8 @@
       "flow_id": "user_004",
       "source_id": "edr-001",
       "event_type": "process.suspicious_started",
-      "event_time": "2026-06-28 05:17:11.501491+00:00",
-      "generated_at": "2026-06-28 05:06:12.022933+00:00",
+      "event_time": "2026-06-30 10:15:01.907106+00:00",
+      "generated_at": "2026-06-30 10:04:05.078103+00:00",
       "emit_time": null,
       "ingest_time": null,
       "entity_refs": {
@@ -915,8 +1206,8 @@
       "flow_id": "user_005",
       "source_id": "edr-001",
       "event_type": "process.suspicious_started",
-      "event_time": "2026-06-28 05:17:18.811260+00:00",
-      "generated_at": "2026-06-28 05:06:12.022989+00:00",
+      "event_time": "2026-06-30 10:15:14.386960+00:00",
+      "generated_at": "2026-06-30 10:04:05.078158+00:00",
       "emit_time": null,
       "ingest_time": null,
       "entity_refs": {
@@ -939,8 +1230,8 @@
       "flow_id": "user_001",
       "source_id": "firewall-001",
       "event_type": "network.lateral_connection",
-      "event_time": "2026-06-28 05:17:57.616334+00:00",
-      "generated_at": "2026-06-28 05:06:12.022769+00:00",
+      "event_time": "2026-06-30 10:15:49.746791+00:00",
+      "generated_at": "2026-06-30 10:04:05.077954+00:00",
       "emit_time": null,
       "ingest_time": null,
       "entity_refs": {
@@ -966,8 +1257,8 @@
       "flow_id": "user_003",
       "source_id": "edr-001",
       "event_type": "alert.triggered",
-      "event_time": "2026-06-28 05:18:27.285246+00:00",
-      "generated_at": "2026-06-28 05:06:12.022905+00:00",
+      "event_time": "2026-06-30 10:16:18.050941+00:00",
+      "generated_at": "2026-06-30 10:04:05.078076+00:00",
       "emit_time": null,
       "ingest_time": null,
       "entity_refs": {
@@ -986,13 +1277,54 @@
       }
     },
     {
+      "event_id": "evt-security-lateral-movement-noise-00005",
+      "scenario_id": "security_lateral_movement",
+      "flow_id": null,
+      "source_id": "edr-001",
+      "event_type": "user.login.success",
+      "event_time": "2026-06-30 10:16:19.161935+00:00",
+      "generated_at": "2026-06-30 10:04:05.078268+00:00",
+      "emit_time": null,
+      "ingest_time": null,
+      "entity_refs": {
+        "user": "user_001",
+        "host": "host_010"
+      },
+      "attributes": {},
+      "semantic_refs": [],
+      "labels": [],
+      "ground_truth": {
+        "noise": true
+      }
+    },
+    {
+      "event_id": "evt-security-lateral-movement-noise-00001",
+      "scenario_id": "security_lateral_movement",
+      "flow_id": null,
+      "source_id": "edr-001",
+      "event_type": "edr.heartbeat",
+      "event_time": "2026-06-30 10:17:19.058952+00:00",
+      "generated_at": "2026-06-30 10:04:05.078237+00:00",
+      "emit_time": null,
+      "ingest_time": null,
+      "entity_refs": {
+        "host": "host_009"
+      },
+      "attributes": {},
+      "semantic_refs": [],
+      "labels": [],
+      "ground_truth": {
+        "noise": true
+      }
+    },
+    {
       "event_id": "evt-security-lateral-movement-005-004",
       "scenario_id": "security_lateral_movement",
       "flow_id": "user_005",
       "source_id": "firewall-001",
       "event_type": "network.lateral_connection",
-      "event_time": "2026-06-28 05:19:38.414087+00:00",
-      "generated_at": "2026-06-28 05:06:12.023000+00:00",
+      "event_time": "2026-06-30 10:17:29.671680+00:00",
+      "generated_at": "2026-06-30 10:04:05.078170+00:00",
       "emit_time": null,
       "ingest_time": null,
       "entity_refs": {
@@ -1018,8 +1350,8 @@
       "flow_id": "user_004",
       "source_id": "firewall-001",
       "event_type": "network.lateral_connection",
-      "event_time": "2026-06-28 05:19:46.061624+00:00",
-      "generated_at": "2026-06-28 05:06:12.022944+00:00",
+      "event_time": "2026-06-30 10:17:40.105022+00:00",
+      "generated_at": "2026-06-30 10:04:05.078114+00:00",
       "emit_time": null,
       "ingest_time": null,
       "entity_refs": {
@@ -1045,8 +1377,8 @@
       "flow_id": "user_002",
       "source_id": "edr-001",
       "event_type": "alert.triggered",
-      "event_time": "2026-06-28 05:20:18.861038+00:00",
-      "generated_at": "2026-06-28 05:06:12.022852+00:00",
+      "event_time": "2026-06-30 10:18:09.415279+00:00",
+      "generated_at": "2026-06-30 10:04:05.078026+00:00",
       "emit_time": null,
       "ingest_time": null,
       "entity_refs": {
@@ -1065,13 +1397,33 @@
       }
     },
     {
+      "event_id": "evt-security-lateral-movement-noise-00023",
+      "scenario_id": "security_lateral_movement",
+      "flow_id": null,
+      "source_id": "edr-001",
+      "event_type": "edr.heartbeat",
+      "event_time": "2026-06-30 10:19:01.396386+00:00",
+      "generated_at": "2026-06-30 10:04:05.078367+00:00",
+      "emit_time": null,
+      "ingest_time": null,
+      "entity_refs": {
+        "host": "host_002"
+      },
+      "attributes": {},
+      "semantic_refs": [],
+      "labels": [],
+      "ground_truth": {
+        "noise": true
+      }
+    },
+    {
       "event_id": "evt-security-lateral-movement-001-005",
       "scenario_id": "security_lateral_movement",
       "flow_id": "user_001",
       "source_id": "edr-001",
       "event_type": "alert.triggered",
-      "event_time": "2026-06-28 05:21:21.146834+00:00",
-      "generated_at": "2026-06-28 05:06:12.022788+00:00",
+      "event_time": "2026-06-30 10:19:18.921281+00:00",
+      "generated_at": "2026-06-30 10:04:05.077969+00:00",
       "emit_time": null,
       "ingest_time": null,
       "entity_refs": {
@@ -1095,8 +1447,8 @@
       "flow_id": "user_005",
       "source_id": "edr-001",
       "event_type": "alert.triggered",
-      "event_time": "2026-06-28 05:21:28.115889+00:00",
-      "generated_at": "2026-06-28 05:06:12.023012+00:00",
+      "event_time": "2026-06-30 10:19:23.753084+00:00",
+      "generated_at": "2026-06-30 10:04:05.078181+00:00",
       "emit_time": null,
       "ingest_time": null,
       "entity_refs": {
@@ -1120,8 +1472,8 @@
       "flow_id": "user_004",
       "source_id": "edr-001",
       "event_type": "alert.triggered",
-      "event_time": "2026-06-28 05:21:49.929028+00:00",
-      "generated_at": "2026-06-28 05:06:12.022960+00:00",
+      "event_time": "2026-06-30 10:19:38.238962+00:00",
+      "generated_at": "2026-06-30 10:04:05.078125+00:00",
       "emit_time": null,
       "ingest_time": null,
       "entity_refs": {
@@ -1137,6 +1489,294 @@
       "labels": [],
       "ground_truth": {
         "is_key_event": true
+      }
+    },
+    {
+      "event_id": "evt-security-lateral-movement-noise-00018",
+      "scenario_id": "security_lateral_movement",
+      "flow_id": null,
+      "source_id": "edr-001",
+      "event_type": "edr.heartbeat",
+      "event_time": "2026-06-30 10:20:02.994411+00:00",
+      "generated_at": "2026-06-30 10:04:05.078344+00:00",
+      "emit_time": null,
+      "ingest_time": null,
+      "entity_refs": {
+        "host": "host_004"
+      },
+      "attributes": {},
+      "semantic_refs": [],
+      "labels": [],
+      "ground_truth": {
+        "noise": true
+      }
+    },
+    {
+      "event_id": "evt-security-lateral-movement-noise-00017",
+      "scenario_id": "security_lateral_movement",
+      "flow_id": null,
+      "source_id": "dns-001",
+      "event_type": "dns.query",
+      "event_time": "2026-06-30 10:21:56.395324+00:00",
+      "generated_at": "2026-06-30 10:04:05.078340+00:00",
+      "emit_time": null,
+      "ingest_time": null,
+      "entity_refs": {
+        "host": "host_005",
+        "domain": ""
+      },
+      "attributes": {},
+      "semantic_refs": [],
+      "labels": [],
+      "ground_truth": {
+        "noise": true
+      }
+    },
+    {
+      "event_id": "evt-security-lateral-movement-noise-00009",
+      "scenario_id": "security_lateral_movement",
+      "flow_id": null,
+      "source_id": "dns-001",
+      "event_type": "dns.query",
+      "event_time": "2026-06-30 10:24:13.502329+00:00",
+      "generated_at": "2026-06-30 10:04:05.078295+00:00",
+      "emit_time": null,
+      "ingest_time": null,
+      "entity_refs": {
+        "host": "host_008",
+        "domain": ""
+      },
+      "attributes": {},
+      "semantic_refs": [],
+      "labels": [],
+      "ground_truth": {
+        "noise": true
+      }
+    },
+    {
+      "event_id": "evt-security-lateral-movement-noise-00021",
+      "scenario_id": "security_lateral_movement",
+      "flow_id": null,
+      "source_id": "edr-001",
+      "event_type": "edr.heartbeat",
+      "event_time": "2026-06-30 10:31:04.615903+00:00",
+      "generated_at": "2026-06-30 10:04:05.078358+00:00",
+      "emit_time": null,
+      "ingest_time": null,
+      "entity_refs": {
+        "host": "host_001"
+      },
+      "attributes": {},
+      "semantic_refs": [],
+      "labels": [],
+      "ground_truth": {
+        "noise": true
+      }
+    },
+    {
+      "event_id": "evt-security-lateral-movement-noise-00016",
+      "scenario_id": "security_lateral_movement",
+      "flow_id": null,
+      "source_id": "edr-001",
+      "event_type": "user.login.success",
+      "event_time": "2026-06-30 10:31:39.158552+00:00",
+      "generated_at": "2026-06-30 10:04:05.078335+00:00",
+      "emit_time": null,
+      "ingest_time": null,
+      "entity_refs": {
+        "user": "user_005",
+        "host": "host_001"
+      },
+      "attributes": {},
+      "semantic_refs": [],
+      "labels": [],
+      "ground_truth": {
+        "noise": true
+      }
+    },
+    {
+      "event_id": "evt-security-lateral-movement-noise-00024",
+      "scenario_id": "security_lateral_movement",
+      "flow_id": null,
+      "source_id": "edr-001",
+      "event_type": "user.login.success",
+      "event_time": "2026-06-30 10:34:52.353863+00:00",
+      "generated_at": "2026-06-30 10:04:05.078373+00:00",
+      "emit_time": null,
+      "ingest_time": null,
+      "entity_refs": {
+        "user": "user_005",
+        "host": "host_008"
+      },
+      "attributes": {},
+      "semantic_refs": [],
+      "labels": [],
+      "ground_truth": {
+        "noise": true
+      }
+    },
+    {
+      "event_id": "evt-security-lateral-movement-noise-00019",
+      "scenario_id": "security_lateral_movement",
+      "flow_id": null,
+      "source_id": "edr-001",
+      "event_type": "user.login.success",
+      "event_time": "2026-06-30 10:38:21.498029+00:00",
+      "generated_at": "2026-06-30 10:04:05.078349+00:00",
+      "emit_time": null,
+      "ingest_time": null,
+      "entity_refs": {
+        "user": "user_005",
+        "host": "host_009"
+      },
+      "attributes": {},
+      "semantic_refs": [],
+      "labels": [],
+      "ground_truth": {
+        "noise": true
+      }
+    },
+    {
+      "event_id": "evt-security-lateral-movement-noise-00010",
+      "scenario_id": "security_lateral_movement",
+      "flow_id": null,
+      "source_id": "firewall-001",
+      "event_type": "firewall.allow",
+      "event_time": "2026-06-30 10:38:54.816408+00:00",
+      "generated_at": "2026-06-30 10:04:05.078300+00:00",
+      "emit_time": null,
+      "ingest_time": null,
+      "entity_refs": {
+        "host": "host_010"
+      },
+      "attributes": {},
+      "semantic_refs": [],
+      "labels": [],
+      "ground_truth": {
+        "noise": true
+      }
+    },
+    {
+      "event_id": "evt-security-lateral-movement-noise-00008",
+      "scenario_id": "security_lateral_movement",
+      "flow_id": null,
+      "source_id": "edr-001",
+      "event_type": "edr.heartbeat",
+      "event_time": "2026-06-30 10:40:57.785212+00:00",
+      "generated_at": "2026-06-30 10:04:05.078290+00:00",
+      "emit_time": null,
+      "ingest_time": null,
+      "entity_refs": {
+        "host": "host_004"
+      },
+      "attributes": {},
+      "semantic_refs": [],
+      "labels": [],
+      "ground_truth": {
+        "noise": true
+      }
+    },
+    {
+      "event_id": "evt-security-lateral-movement-noise-00006",
+      "scenario_id": "security_lateral_movement",
+      "flow_id": null,
+      "source_id": "firewall-001",
+      "event_type": "firewall.allow",
+      "event_time": "2026-06-30 10:43:57.912056+00:00",
+      "generated_at": "2026-06-30 10:04:05.078273+00:00",
+      "emit_time": null,
+      "ingest_time": null,
+      "entity_refs": {
+        "host": "host_005"
+      },
+      "attributes": {},
+      "semantic_refs": [],
+      "labels": [],
+      "ground_truth": {
+        "noise": true
+      }
+    },
+    {
+      "event_id": "evt-security-lateral-movement-noise-00002",
+      "scenario_id": "security_lateral_movement",
+      "flow_id": null,
+      "source_id": "edr-001",
+      "event_type": "user.login.success",
+      "event_time": "2026-06-30 10:45:19.171076+00:00",
+      "generated_at": "2026-06-30 10:04:05.078249+00:00",
+      "emit_time": null,
+      "ingest_time": null,
+      "entity_refs": {
+        "user": "user_003",
+        "host": "host_008"
+      },
+      "attributes": {},
+      "semantic_refs": [],
+      "labels": [],
+      "ground_truth": {
+        "noise": true
+      }
+    },
+    {
+      "event_id": "evt-security-lateral-movement-noise-00013",
+      "scenario_id": "security_lateral_movement",
+      "flow_id": null,
+      "source_id": "dns-001",
+      "event_type": "dns.query",
+      "event_time": "2026-06-30 10:45:36.580761+00:00",
+      "generated_at": "2026-06-30 10:04:05.078319+00:00",
+      "emit_time": null,
+      "ingest_time": null,
+      "entity_refs": {
+        "host": "host_006",
+        "domain": ""
+      },
+      "attributes": {},
+      "semantic_refs": [],
+      "labels": [],
+      "ground_truth": {
+        "noise": true
+      }
+    },
+    {
+      "event_id": "evt-security-lateral-movement-noise-00020",
+      "scenario_id": "security_lateral_movement",
+      "flow_id": null,
+      "source_id": "firewall-001",
+      "event_type": "firewall.allow",
+      "event_time": "2026-06-30 10:46:56.811490+00:00",
+      "generated_at": "2026-06-30 10:04:05.078354+00:00",
+      "emit_time": null,
+      "ingest_time": null,
+      "entity_refs": {
+        "host": "host_008"
+      },
+      "attributes": {},
+      "semantic_refs": [],
+      "labels": [],
+      "ground_truth": {
+        "noise": true
+      }
+    },
+    {
+      "event_id": "evt-security-lateral-movement-noise-00003",
+      "scenario_id": "security_lateral_movement",
+      "flow_id": null,
+      "source_id": "dns-001",
+      "event_type": "dns.query",
+      "event_time": "2026-06-30 10:49:40.764233+00:00",
+      "generated_at": "2026-06-30 10:04:05.078256+00:00",
+      "emit_time": null,
+      "ingest_time": null,
+      "entity_refs": {
+        "host": "host_005",
+        "domain": ""
+      },
+      "attributes": {},
+      "semantic_refs": [],
+      "labels": [],
+      "ground_truth": {
+        "noise": true
       }
     }
   ],
@@ -1187,5 +1827,5 @@
       ]
     }
   ],
-  "generated_at": "2026-06-28 05:06:12.023032+00:00"
+  "generated_at": "2026-06-30 10:04:05.078502+00:00"
 }

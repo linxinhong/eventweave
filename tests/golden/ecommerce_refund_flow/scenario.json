@@ -110,7 +110,8 @@
         "customer": "$entity.customer"
       },
       "labels": [],
-      "ground_truth": {}
+      "ground_truth": {},
+      "jitter": null
     },
     {
       "id": "pay_order",
@@ -131,7 +132,8 @@
         "payment": "$new.payment"
       },
       "labels": [],
-      "ground_truth": {}
+      "ground_truth": {},
+      "jitter": null
     },
     {
       "id": "request_refund",
@@ -152,7 +154,8 @@
         "refund": "$new.refund"
       },
       "labels": [],
-      "ground_truth": {}
+      "ground_truth": {},
+      "jitter": null
     },
     {
       "id": "create_ticket",
@@ -174,9 +177,11 @@
         "ticket": "$new.ticket"
       },
       "labels": [],
-      "ground_truth": {}
+      "ground_truth": {},
+      "jitter": null
     }
   ],
+  "semantic_tasks": [],
   "rules": [
     {
       "id": "order_must_be_paid_before_refund",
@@ -191,5 +196,41 @@
       "event": "ticket.created",
       "ref": "order"
     }
-  ]
+  ],
+  "ground_truth": {
+    "scenario_id": "ecommerce_refund_flow",
+    "expected_findings": [
+      {
+        "type": "refund_requested",
+        "entities": [],
+        "stage": "dispute",
+        "evidence_event_ids": [],
+        "attributes": {}
+      },
+      {
+        "type": "ticket_created",
+        "entities": [],
+        "stage": "support",
+        "evidence_event_ids": [],
+        "attributes": {}
+      }
+    ],
+    "expected_timeline_stages": [
+      {
+        "stage": "dispute",
+        "event_ids": []
+      },
+      {
+        "stage": "support",
+        "event_ids": []
+      }
+    ],
+    "expected_summary": "A subset of paid orders trigger refund requests, some of which escalate to support tickets.",
+    "key_event_ids": [],
+    "attributes": {}
+  },
+  "noise": null,
+  "jitter": null,
+  "realism_profile": null,
+  "realism": null
 }

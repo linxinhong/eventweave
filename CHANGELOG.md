@@ -2,6 +2,24 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.9.8] - 2026-06-30
+
+### Added
+
+- Golden baseline workflow documentation in `docs/golden-baseline.md`.
+- `make golden-check` target to run golden snapshot tests
+  (`uv run pytest tests/test_golden.py -q`).
+- `make golden-update` target to regenerate golden baseline files using
+  `scripts/update_golden.py` with fixed seed `20260628`.
+- `scripts/update_golden.py` helper that compiles each tracked scenario and
+  writes the full compiler output into `tests/golden/<scenario_id>/`.
+
+### Changed
+
+- Refreshed golden baseline snapshots for `ecommerce_refund_flow` and
+  `security_lateral_movement` to match the current compiler output.
+- Updated `README.md` roadmap to reflect v0.9.8 completion.
+
 ## [0.9.7] - 2026-06-30
 
 ### Added

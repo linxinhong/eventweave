@@ -1,0 +1,54 @@
+{
+  "scenario_id": "security_lateral_movement",
+  "expected_findings": [
+    {
+      "type": "suspicious_login",
+      "entities": [],
+      "stage": "initial_access",
+      "evidence_event_ids": [],
+      "attributes": {}
+    },
+    {
+      "type": "suspicious_process",
+      "entities": [],
+      "stage": "execution",
+      "evidence_event_ids": [],
+      "attributes": {}
+    },
+    {
+      "type": "lateral_movement",
+      "entities": [],
+      "stage": "lateral_movement",
+      "evidence_event_ids": [],
+      "attributes": {}
+    },
+    {
+      "type": "alert_triggered",
+      "entities": [],
+      "stage": "exfiltration",
+      "evidence_event_ids": [],
+      "attributes": {}
+    }
+  ],
+  "expected_timeline_stages": [
+    {
+      "stage": "execution",
+      "event_ids": []
+    },
+    {
+      "stage": "exfiltration",
+      "event_ids": []
+    },
+    {
+      "stage": "initial_access",
+      "event_ids": []
+    },
+    {
+      "stage": "lateral_movement",
+      "event_ids": []
+    }
+  ],
+  "expected_summary": "Suspicious login followed by encoded PowerShell execution, lateral SMB connection, and a high-severity EDR alert.",
+  "key_event_ids": [],
+  "attributes": {}
+}

@@ -448,10 +448,11 @@ What works:
 - v0.9.6: Python / Go runtime HTTP sink SSRF parity
 - v0.9.7: Pack schema validation — `eventweave validate/compile --strict-schema`,
   default warning mode, event/entity field and entity-ref checks
+- v0.9.8: Golden baseline workflow — `make golden-check` / `make golden-update`,
+  `docs/golden-baseline.md`, and refreshed golden snapshots
 
 What is planned:
 
-- v0.9.8: Golden baseline workflow documentation
 - v0.9.9: API compatibility audit
 - v1.0: API stabilization and release polish
 
